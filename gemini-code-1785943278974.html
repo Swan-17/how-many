@@ -104,15 +104,15 @@
     <div class="card">
       <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">MEMBER LEADERBOARD</h3>
       <div class="member-row">
-        <span> Alex (You)</span>
+        <span>Alex (You)</span>
         <strong id="user-total-display">0 🍺</strong>
       </div>
       <div class="member-row">
-        <span> Sarah</span>
+        <span>Sarah</span>
         <strong>18 🍺</strong>
       </div>
       <div class="member-row">
-        <span> Mike</span>
+        <span>Mike</span>
         <strong>16 🍺</strong>
       </div>
     </div>
@@ -133,12 +133,38 @@
   <script>
     let currentBeers = 0;
     const mockBaseGroupTotal = 34;
+    const todayDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    // Run automatically when the page loads
+    window.onload = function() {
+      const savedDate = localStorage.getItem('beer_date');
+      const savedCount = localStorage.getItem('beer_count');
+
+      // Check if saved data belongs to today
+      if (savedDate === todayDate && savedCount !== null) {
+        currentBeers = parseInt(savedCount, 10);
+      } else {
+        // If it's a new day, reset count to 0 and update saved date
+        currentBeers = 0;
+        localStorage.setItem('beer_date', todayDate);
+        localStorage.setItem('beer_count', '0');
+      }
+
+      updateDisplay();
+    };
 
     function changeCount(delta) {
       currentBeers = Math.max(0, currentBeers + delta);
-      document.getElementById('beer-count').innerText = currentBeers;
       
-      // Update analytics on page 2
+      // Save directly to phone/browser storage
+      localStorage.setItem('beer_count', currentBeers.toString());
+      localStorage.setItem('beer_date', todayDate);
+
+      updateDisplay();
+    }
+
+    function updateDisplay() {
+      document.getElementById('beer-count').innerText = currentBeers;
       document.getElementById('user-total-display').innerText = currentBeers + " 🍺";
       document.getElementById('total-beers').innerText = mockBaseGroupTotal + currentBeers;
     }
@@ -151,6 +177,7 @@
         document.getElementById('nav-p2').classList.remove('active');
       } else {
         document.getElementById('page1').classList.add('hidden');
+        document.getElementById('page2').classList.content = "";
         document.getElementById('page2').classList.remove('hidden');
         document.getElementById('nav-p1').classList.remove('active');
         document.getElementById('nav-p2').classList.add('active');
