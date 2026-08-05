@@ -90,11 +90,14 @@
       align-items: center;
       gap: 12px;
     }
-    .drink-icon-img {
-      width: 32px;
-      height: 32px;
-      object-fit: contain;
-      filter: brightness(0) invert(1);
+    .drink-icon-svg {
+      width: 28px;
+      height: 28px;
+      fill: none;
+      stroke: #f59e0b;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     .drink-title {
       font-size: 15px;
@@ -283,7 +286,7 @@
 
     <!-- PAGE 2: GROUPS -->
     <div id="page-groups" class="hidden">
-      <!-- ACTIVE GROUPS LIST (SHOWS ONLY GROUP NAME) -->
+      <!-- ACTIVE GROUPS LIST -->
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">YOUR ACTIVE GROUPS</h3>
         <div id="my-groups-list"></div>
@@ -297,7 +300,7 @@
         </div>
         <div id="join-accordion-body" class="accordion-content hidden">
           <label style="color: #94a3b8; font-size: 12px;">ENTER UNIQUE GROUP CODE</label>
-          <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. CRAZY8">
+          <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. 1234">
           <button class="btn-submit" onclick="joinGroup()">Join Group</button>
         </div>
       </div>
@@ -332,7 +335,7 @@
       </div>
     </div>
 
-    <!-- PAGE 3: TRACKER (STACKED ROWS WITH ICONS & CLEAN TITLES) -->
+    <!-- PAGE 3: TRACKER -->
     <div id="page-tracker">
       <div class="card">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
@@ -341,7 +344,11 @@
           <!-- PINTS -->
           <div class="drink-row">
             <div class="drink-info">
-              <img src="https://encrypted-tbn0.gstatic.com/licensed-image?q=tbn:ANd9GcSTuQRVlXENpzPakzHQn98FLWMebWK0U-5Xj3QB4Nn3RHX3gP5Uj2hQunEe-jytpi6s6MZx2Lb5I_DrjDA" class="drink-icon-img" alt="Pint glass">
+              <svg class="drink-icon-svg" viewBox="0 0 24 24">
+                <path d="M7 3h10l-1 18H8L7 3z"/>
+                <path d="M6 7h12"/>
+                <path d="M12 7v14" stroke-dasharray="2 2"/>
+              </svg>
               <span class="drink-title">Pints</span>
             </div>
             <div class="counter-controls">
@@ -354,7 +361,11 @@
           <!-- BOTTLE / CAN -->
           <div class="drink-row">
             <div class="drink-info">
-              <img src="https://encrypted-tbn1.gstatic.com/licensed-image?q=tbn:ANd9GcTMv6TwSew0q-TBJCBsnq66BTgD0iuDFSNipj-XAJ6Cj7W5VAEt8TP57nvhspuPf9lAa0uo2mr_MOeE4zE" class="drink-icon-img" alt="Beer can">
+              <svg class="drink-icon-svg" viewBox="0 0 24 24">
+                <rect x="7" y="2" width="10" height="20" rx="3"/>
+                <ellipse cx="12" cy="5" rx="5" ry="1"/>
+                <line x1="7" y1="18" x2="17" y2="18"/>
+              </svg>
               <span class="drink-title">Bottles/Cans</span>
             </div>
             <div class="counter-controls">
@@ -367,7 +378,11 @@
           <!-- WINE -->
           <div class="drink-row">
             <div class="drink-info">
-              <img src="https://encrypted-tbn1.gstatic.com/licensed-image?q=tbn:ANd9GcSmBrjMXXRMDEKiau6fxTwkDnc-a2l285EfFI7fA1wRgF03E-VF-f3fDZ88SkbQJRXVn7-sdBNJ6Y0_XbQ" class="drink-icon-img" alt="Wine glass">
+              <svg class="drink-icon-svg" viewBox="0 0 24 24">
+                <path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/>
+                <line x1="12" y1="14" x2="12" y2="21"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+              </svg>
               <span class="drink-title">Wines</span>
             </div>
             <div class="counter-controls">
@@ -380,7 +395,12 @@
           <!-- COCKTAILS -->
           <div class="drink-row">
             <div class="drink-info">
-              <img src="https://encrypted-tbn2.gstatic.com/licensed-image?q=tbn:ANd9GcRdxkd1TnBlWnYsM7lxwNgVdJwVp8gRnL-tIwI2P4LSNJFbH9TzL7Qyx162tmoaVx5NupuKh3nU0AZumAQ" class="drink-icon-img" alt="Cocktail glass">
+              <svg class="drink-icon-svg" viewBox="0 0 24 24">
+                <path d="M4 3h16l-8 9-8-9z"/>
+                <line x1="12" y1="12" x2="12" y2="21"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <path d="M15 6l3-3"/>
+              </svg>
               <span class="drink-title">Cocktails</span>
             </div>
             <div class="counter-controls">
@@ -393,7 +413,10 @@
           <!-- SHOTS -->
           <div class="drink-row">
             <div class="drink-info">
-              <img src="https://encrypted-tbn1.gstatic.com/licensed-image?q=tbn:ANd9GcSTK-z9ryTFna9uWXFH0RvVQADo_GNmha9lSI0Up20FHgUgRyNZUSOq6-UJ-AQSuPddyMDhz4VpRjpali8" class="drink-icon-img" alt="Shot glass">
+              <svg class="drink-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 4h12l-1.5 16h-9L6 4z"/>
+                <line x1="6.5" y1="9" x2="17.5" y2="9"/>
+              </svg>
               <span class="drink-title">Shots</span>
             </div>
             <div class="counter-controls">
@@ -412,7 +435,7 @@
       </div>
     </div>
 
-    <!-- PAGE 4: STATS (ANALYTICS) -->
+    <!-- PAGE 4: STATS -->
     <div id="page-stats" class="hidden">
       <div class="card">
         <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP TO VIEW</label>
@@ -469,7 +492,6 @@
         saveLocalLogs();
       }
 
-      // DEVICE RECOGNITION CHECK
       if (userName && userEmail) {
         showApp();
       }
@@ -487,7 +509,6 @@
       userName = nameInput || emailInput.split('@')[0];
       firstCreatedDate = new Date().toISOString().split('T')[0];
 
-      // Store permanently at device level
       localStorage.setItem('dt_username', userName);
       localStorage.setItem('dt_useremail', userEmail);
       localStorage.setItem('dt_created_date', firstCreatedDate);
@@ -502,7 +523,7 @@
       updateTrackerUI();
       syncWithCloud();
       setInterval(syncWithCloud, 6000);
-      switchPage('tracker'); // Opens directly on Tracker page
+      switchPage('tracker');
     }
 
     function editProfileName() {
@@ -515,7 +536,6 @@
       }
     }
 
-    /* ACCORDION TOGGLER FOR GROUPS PAGE */
     function toggleAccordion(bodyId, iconId) {
       const body = document.getElementById(bodyId);
       const icon = document.getElementById(iconId);
@@ -529,7 +549,6 @@
       }
     }
 
-    /* DRINK CALCULATIONS */
     function adjustDrink(type, delta) {
       if (!dailyDrinkLogs[todayDate]) {
         dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -573,7 +592,6 @@
       document.getElementById('total-beers-val').innerText = calc.beers;
     }
 
-    /* ACCOUNT PAGE UPDATER */
     function updateAccountPage() {
       document.getElementById('acc-name-display').innerText = userName;
       document.getElementById('acc-email-display').innerText = userEmail;
@@ -599,7 +617,6 @@
       document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
     }
 
-    /* CLOUD SYNC & AUTO MULTI-GROUP PUSH */
     async function syncWithCloud() {
       if (isSyncing) return;
       isSyncing = true;
@@ -657,7 +674,6 @@
       }
     }
 
-    /* GROUPS PAGE CONTROLS (SHOWS ONLY GROUP NAME) */
     function renderMyGroups() {
       const container = document.getElementById('my-groups-list');
       container.innerHTML = '';
@@ -800,7 +816,6 @@
       });
     }
 
-    /* STATS / ANALYTICS PAGE CONTROLS (DROPDOWN SHOWS ONLY GROUP NAME) */
     function populateAnalyticsDropdown() {
       const select = document.getElementById('analytics-group-select');
       const currentVal = select.value;
@@ -813,7 +828,7 @@
           joinedCount++;
           const opt = document.createElement('option');
           opt.value = code;
-          opt.innerText = grp.name; // Displays only group name
+          opt.innerText = grp.name;
           select.appendChild(opt);
         }
       });
@@ -945,7 +960,6 @@
       });
     }
 
-    /* 4-PAGE NAVIGATION SWITCHER */
     function switchPage(page) {
       document.getElementById('page-account').classList.add('hidden');
       document.getElementById('page-groups').classList.add('hidden');
