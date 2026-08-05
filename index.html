@@ -69,7 +69,7 @@
       border-bottom: 1px solid #334155;
     }
     .member-row:last-child { border-bottom: none; }
-    input[type="text"] {
+    input[type="text"], input[type="email"] {
       background: #0f172a;
       border: 1px solid #334155;
       color: white;
@@ -88,6 +88,16 @@
       font-weight: bold;
       width: 100%;
       margin-top: 8px;
+      cursor: pointer;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
       cursor: pointer;
     }
     .btn-remove {
@@ -124,16 +134,20 @@
   <!-- JOIN GROUP SCREEN -->
   <div id="join-screen">
     <div class="card" style="text-align: center;">
-      <h2 style="margin-top: 0;">Join Group</h2>
+      <h2 style="margin-top: 0;">Join CRAZY8 Group</h2>
       <div style="margin-bottom: 12px; text-align: left;">
-        <label style="color: #94a3b8; font-size: 12px;">YOUR NAME</label>
+        <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
         <input type="text" id="join-name" placeholder="e.g. Alex">
       </div>
       <div style="margin-bottom: 12px; text-align: left;">
-        <label style="color: #94a3b8; font-size: 12px;">GROUP CODE</label>
-        <input type="text" id="join-code" placeholder="BEER2026" style="text-transform: uppercase;">
+        <label style="color: #94a3b8; font-size: 12px;">YOUR EMAIL</label>
+        <input type="email" id="join-email" placeholder="name@example.com">
       </div>
-      <button class="btn-submit" onclick="joinGroup()">Join Group</button>
+      <div style="margin-bottom: 12px; text-align: left;">
+        <label style="color: #94a3b8; font-size: 12px;">GROUP CODE</label>
+        <input type="text" id="join-code" placeholder="CRAZY8" style="text-transform: uppercase;">
+      </div>
+      <button class="btn-submit" onclick="joinGroup()">Sign Up & Join</button>
     </div>
   </div>
 
@@ -157,8 +171,9 @@
 
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
-        <p style="margin: 4px 0; color: #94a3b8;">You: <strong id="user-display-name">---</strong> <span id="host-tag" style="color:#f59e0b; font-size:12px; display:none;">(Host)</span></p>
-        <p style="margin: 4px 0 12px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">BEER2026</strong></p>
+        <p style="margin: 4px 0; color: #94a3b8;">You: <strong id="user-display-name">---</strong> <span id="host-tag" style="color:#f59e0b; font-size:12px; display:none;">(Host 👑)</span></p>
+        <p style="margin: 4px 0; color: #94a3b8;">Email: <strong id="user-display-email" style="font-size:12px; color:#cbd5e1;">---</strong></p>
+        <p style="margin: 4px 0 12px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">CRAZY8</strong></p>
         
         <h4 style="margin: 12px 0 6px 0; font-size: 13px; color: #94a3b8;">GROUP MEMBERS</h4>
         <div id="group-members-badges">
@@ -169,7 +184,8 @@
       <!-- HOST MANAGEMENT PANEL -->
       <div id="host-panel" class="card hidden">
         <h3 style="margin-top: 0; font-size: 16px; color: #f59e0b;">MANAGE MEMBERS (HOST)</h3>
-        <div id="host-member-controls"></div>
+        <div id="host-member-controls" style="margin-bottom: 12px;"></div>
+        <button class="btn-danger" style="width:100%;" onclick="resetEntireGroup()">⚠️ Reset Entire Group Fresh</button>
       </div>
     </div>
 
@@ -204,8 +220,10 @@
   <script>
     const BIN_ID = '6a735b28da38895dfebd94ac'; 
     const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; 
+    const HOST_EMAIL = 'matthewswan17@gmail.com';
 
     let userName = localStorage.getItem('beer_username');
+    let userEmail = localStorage.getItem('beer_useremail');
     let groupCode = localStorage.getItem('beer_group_code');
     let historyLogs = JSON.parse(localStorage.getItem('beer_history') || '{}');
     const todayDate = new Date().toISOString().split('T')[0];
@@ -213,26 +231,29 @@
     let freqChartInstance = null;
     let weeklyChartInstance = null;
     let isSyncing = false;
-    let currentHost = null;
 
     window.onload = function() {
       document.getElementById('current-date-label').innerText = todayDate;
-      if (userName && groupCode) {
+      if (userName && userEmail && groupCode) {
         showApp();
       }
     };
 
     function joinGroup() {
       const nameInput = document.getElementById('join-name').value.trim();
+      const emailInput = document.getElementById('join-email').value.trim().toLowerCase();
       const codeInput = document.getElementById('join-code').value.trim().toUpperCase();
 
-      if (!nameInput || !codeInput) return alert('Please enter both your name and group code.');
-      if (codeInput !== 'BEER2026') return alert('Invalid group code! Try: BEER2026');
+      if (!nameInput || !emailInput || !codeInput) return alert('Please enter your name, email, and group code.');
+      if (!emailInput.includes('@') || !emailInput.includes('.')) return alert('Please enter a valid email address.');
+      if (codeInput !== 'CRAZY8') return alert('Invalid group code! Try: CRAZY8');
 
       userName = nameInput;
+      userEmail = emailInput;
       groupCode = codeInput;
 
       localStorage.setItem('beer_username', userName);
+      localStorage.setItem('beer_useremail', userEmail);
       localStorage.setItem('beer_group_code', groupCode);
 
       showApp();
@@ -242,6 +263,7 @@
       document.getElementById('join-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
       document.getElementById('user-display-name').innerText = userName;
+      document.getElementById('user-display-email').innerText = userEmail;
 
       if (historyLogs[todayDate] === undefined) {
         historyLogs[todayDate] = 0;
@@ -286,29 +308,27 @@
         
         let members = rawRecord.members && typeof rawRecord.members === 'object' ? rawRecord.members : {};
         let daily_logs = rawRecord.daily_logs && typeof rawRecord.daily_logs === 'object' ? rawRecord.daily_logs : {};
-        
-        // Host logic: First user registered becomes Host
-        currentHost = rawRecord.host || userName;
 
-        // Check if current user was kicked/removed by host
-        if (members[userName] === undefined && Object.keys(members).length > 0 && localStorage.getItem('beer_username_joined')) {
-          alert('You have been removed from the group.');
-          localStorage.clear();
-          location.reload();
-          return;
+        // Unique Email Check: If another user registered this email with a different name, prompt user
+        if (members[userEmail] && members[userEmail].name !== userName && localStorage.getItem('beer_username_joined')) {
+          // Keep synced
         }
-
-        localStorage.setItem('beer_username_joined', 'true');
 
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        members[userName] = myTotalBeers;
-        daily_logs[userName] = historyLogs;
+        // Store user profile keyed uniquely by Email
+        members[userEmail] = {
+          name: userName,
+          email: userEmail,
+          total: myTotalBeers
+        };
+        
+        daily_logs[userEmail] = historyLogs;
 
         const payloadToSave = {
-          code: "BEER2026",
-          host: currentHost,
+          code: "CRAZY8",
+          host_email: HOST_EMAIL,
           members: members,
           daily_logs: daily_logs
         };
@@ -324,8 +344,8 @@
 
         renderMemberListBadges(members);
         renderLeaderboard(members);
-        renderCharts(daily_logs);
-        checkHostControls(members, daily_logs);
+        renderCharts(daily_logs, members);
+        checkHostControls(members);
       } catch (err) {
         console.error('Cloud sync error:', err);
       } finally {
@@ -333,8 +353,8 @@
       }
     }
 
-    function checkHostControls(membersObj, logsObj) {
-      const isHost = (userName === currentHost);
+    function checkHostControls(membersObj) {
+      const isHost = (userEmail.toLowerCase() === HOST_EMAIL.toLowerCase());
       const hostPanel = document.getElementById('host-panel');
       const hostTag = document.getElementById('host-tag');
 
@@ -345,13 +365,17 @@
         const controlsContainer = document.getElementById('host-member-controls');
         controlsContainer.innerHTML = '';
 
-        Object.keys(membersObj).forEach(member => {
-          if (member !== userName) {
+        Object.keys(membersObj).forEach(emailKey => {
+          const member = membersObj[emailKey];
+          if (emailKey.toLowerCase() !== HOST_EMAIL.toLowerCase()) {
             const row = document.createElement('div');
             row.className = 'member-row';
             row.innerHTML = `
-              <span>${member}</span>
-              <button class="btn-remove" onclick="removeMember('${member}')">Remove Member</button>
+              <div>
+                <strong>${member.name}</strong><br>
+                <span style="font-size:11px; color:#94a3b8;">${member.email}</span>
+              </div>
+              <button class="btn-remove" onclick="removeMember('${emailKey}')">Remove</button>
             `;
             controlsContainer.appendChild(row);
           }
@@ -366,8 +390,8 @@
       }
     }
 
-    async function removeMember(targetMember) {
-      if (!confirm(`Are you sure you want to remove ${targetMember} from the group?`)) return;
+    async function removeMember(targetEmail) {
+      if (!confirm(`Remove member associated with ${targetEmail}?`)) return;
 
       try {
         const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
@@ -376,8 +400,8 @@
         });
 
         let rawRecord = await getRes.json();
-        delete rawRecord.members[targetMember];
-        delete rawRecord.daily_logs[targetMember];
+        delete rawRecord.members[targetEmail];
+        delete rawRecord.daily_logs[targetEmail];
 
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
@@ -391,21 +415,41 @@
       }
     }
 
+    async function resetEntireGroup() {
+      if (!confirm("Are you sure you want to completely clear all members and start fresh?")) return;
+
+      const freshPayload = {
+        code: "CRAZY8",
+        host_email: HOST_EMAIL,
+        members: {},
+        daily_logs: {}
+      };
+
+      try {
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+          body: JSON.stringify(freshPayload)
+        });
+
+        localStorage.clear();
+        alert('Group reset complete!');
+        location.reload();
+      } catch (err) {
+        console.error('Reset error:', err);
+      }
+    }
+
     function renderMemberListBadges(membersObj) {
       const container = document.getElementById('group-members-badges');
       if (!container) return;
       container.innerHTML = '';
 
-      const memberNames = Object.keys(membersObj);
-      if (memberNames.length === 0) {
-        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No members joined yet</span>';
-        return;
-      }
-
-      memberNames.forEach(name => {
+      Object.keys(membersObj).forEach(emailKey => {
+        const member = membersObj[emailKey];
         const badge = document.createElement('span');
         badge.className = 'member-badge';
-        badge.innerText = `${name}${name === userName ? ' (You)' : ''}${name === currentHost ? ' 👑' : ''}`;
+        badge.innerText = `${member.name}${emailKey.toLowerCase() === userEmail.toLowerCase() ? ' (You)' : ''}${emailKey.toLowerCase() === HOST_EMAIL.toLowerCase() ? ' 👑' : ''}`;
         container.appendChild(badge);
       });
     }
@@ -416,22 +460,22 @@
       leaderboardEl.innerHTML = '';
 
       let totalGroupBeers = 0;
-      const sortedMembers = Object.keys(membersObj).sort((a,b) => membersObj[b] - membersObj[a]);
+      const sortedEmails = Object.keys(membersObj).sort((a,b) => membersObj[b].total - membersObj[a].total);
 
-      sortedMembers.forEach(name => {
-        const count = membersObj[name];
-        totalGroupBeers += count;
+      sortedEmails.forEach(emailKey => {
+        const member = membersObj[emailKey];
+        totalGroupBeers += member.total;
 
         const row = document.createElement('div');
         row.className = 'member-row';
-        row.innerHTML = `<span>${name} ${name === userName ? '(You)' : ''}${name === currentHost ? ' 👑' : ''}</span><strong>${count} 🍺</strong>`;
+        row.innerHTML = `<span>${member.name} ${emailKey.toLowerCase() === userEmail.toLowerCase() ? '(You)' : ''}${emailKey.toLowerCase() === HOST_EMAIL.toLowerCase() ? ' 👑' : ''}</span><strong>${member.total} 🍺</strong>`;
         leaderboardEl.appendChild(row);
       });
 
       document.getElementById('group-total-beers').innerText = totalGroupBeers + ' 🍺';
     }
 
-    function renderCharts(allDailyLogs) {
+    function renderCharts(allDailyLogs, membersObj) {
       const canvas1 = document.getElementById('freqChart');
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
