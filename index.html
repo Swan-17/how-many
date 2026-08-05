@@ -450,7 +450,7 @@
             </div>
             <div style="display:flex; gap:6px;">
               ${isHost ? `<button class="btn-share" onclick="shareGroup('${code}')">Share</button>` : ''}
-              ${isHost ? `<button id="manage-btn-${code}" class="btn-secondary" onclick="toggleHostPanel('${code}')">Manage</button>` : ''}
+              <button id="manage-btn-${code}" class="btn-secondary" onclick="toggleHostPanel('${code}')">Manage</button>
               <button class="btn-danger" onclick="leaveGroup('${code}')">Leave</button>
             </div>
           `;
@@ -515,6 +515,19 @@
       updateAccountPage();
     }
 
+    function deleteGroup(code) {
+      const grp = allGroups[code];
+      if (!grp) return;
+      if (!confirm(`Are you sure you want to delete "${grp.name}" for everyone? This action cannot be undone.`)) return;
+
+      delete allGroups[code];
+      saveGroupsData();
+      closeHostPanel();
+      renderMyGroups();
+      populateAnalyticsDropdown();
+      updateAccountPage();
+    }
+
     function toggleHostPanel(code) {
       if (activeHostCode === code) closeHostPanel();
       else {
@@ -529,26 +542,45 @@
       if (!wrapper) return;
 
       const grp = allGroups[code];
+      const isHost = (grp.host_email === userEmail);
       const panel = document.createElement('div');
       panel.id = `host-panel-${code}`;
       panel.className = 'inline-host-panel';
 
-      let memberRows = '';
-      Object.keys(grp.members).forEach(mEmail => {
-        if (mEmail !== userEmail) {
-          memberRows += `
-            <div class="member-row" style="padding: 6px 0;">
-              <span style="font-size: 13px;">${grp.members[mEmail]} <span style="font-size: 11px; color: #94a3b8;">(${mEmail})</span></span>
-              <button class="btn-danger" onclick="removeMember('${code}', '${mEmail}')">Remove</button>
-            </div>`;
-        }
-      });
+      if (isHost) {
+        let memberRows = '';
+        Object.keys(grp.members).forEach(mEmail => {
+          if (mEmail !== userEmail) {
+            memberRows += `
+              <div class="member-row" style="padding: 6px 0;">
+                <span style="font-size: 13px;">${grp.members[mEmail]} <span style="font-size: 11px; color: #94a3b8;">(${mEmail})</span></span>
+                <button class="btn-danger" onclick="removeMember('${code}', '${mEmail}')">Remove</button>
+              </div>`;
+          }
+        });
 
-      panel.innerHTML = `
-        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
-        <label style="color: #94a3b8; font-size: 11px;">MEMBERS</label>
-        <div>${memberRows || '<span style="color:#94a3b8; font-size:12px;">No other members.</span>'}</div>
-      `;
+        panel.innerHTML = `
+          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
+          <div style="margin-bottom: 8px;">
+            <span style="color: #94a3b8; font-size: 11px;">GROUP CODE: </span>
+            <strong style="color: #f59e0b; font-size: 13px;">${code}</strong>
+          </div>
+          <label style="color: #94a3b8; font-size: 11px;">MEMBERS</label>
+          <div>${memberRows || '<span style="color:#94a3b8; font-size:12px; display:block; margin-top:4px;">No other members.</span>'}</div>
+          <div style="margin-top: 12px; border-top: 1px solid #334155; padding-top: 8px;">
+            <button class="btn-danger" style="width: 100%; padding: 6px; font-size: 12px;" onclick="deleteGroup('${code}')">Delete Group for Everyone</button>
+          </div>
+        `;
+      } else {
+        panel.innerHTML = `
+          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">GROUP INFO</h4>
+          <div>
+            <span style="color: #94a3b8; font-size: 12px;">GROUP CODE: </span>
+            <strong style="color: #f59e0b; font-size: 14px;">${code}</strong>
+          </div>
+        `;
+      }
+
       wrapper.appendChild(panel);
     }
 
