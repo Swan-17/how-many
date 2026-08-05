@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🍺 Multi-Group Drink & Unit Tracker</title>
+  <title>🍺 Multi-Group Drink Tracker</title>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -45,6 +45,63 @@
       margin-bottom: 16px;
       border: 1px solid #334155;
     }
+
+    /* EXPANDABLE ACCORDION STYLES */
+    .accordion-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .accordion-header h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+    .accordion-icon {
+      font-size: 14px;
+      color: #f59e0b;
+      transition: transform 0.2s ease;
+    }
+    .accordion-content {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #334155;
+    }
+
+    /* TRACKER ROW-BASED DRINK CARDS */
+    .drink-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .drink-row {
+      background: #0f172a;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .drink-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .drink-icon-img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+    }
+    .drink-title {
+      font-size: 15px;
+      color: #f8fafc;
+      font-weight: 700;
+    }
+
     .stat-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -70,31 +127,12 @@
       font-weight: bold;
       text-transform: uppercase;
     }
-    .drink-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 12px;
-    }
-    .drink-card {
-      background: #0f172a;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      text-align: center;
-    }
-    .drink-title {
-      font-size: 13px;
-      color: #94a3b8;
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
+
     .counter-controls {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
-      margin-top: 6px;
     }
     .btn-circle {
       width: 36px;
@@ -110,7 +148,7 @@
     }
     .btn-minus { background: #334155; color: white; }
     .btn-plus { background: #f59e0b; color: black; }
-    .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; }
+    .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; text-align: center; }
     
     .summary-box {
       background: #0f172a;
@@ -118,7 +156,7 @@
       border-radius: 8px;
       padding: 14px;
       text-align: center;
-      margin-top: 14px;
+      margin-top: 16px;
     }
     .unit-text { font-size: 12px; color: #94a3b8; }
     .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
@@ -245,28 +283,38 @@
 
     <!-- PAGE 2: GROUPS -->
     <div id="page-groups" class="hidden">
-      <!-- ACTIVE GROUPS LIST -->
+      <!-- ACTIVE GROUPS LIST (SHOWS ONLY GROUP NAME) -->
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">YOUR ACTIVE GROUPS</h3>
         <div id="my-groups-list"></div>
       </div>
 
-      <!-- JOIN EXISTING GROUP -->
+      <!-- JOIN EXISTING GROUP (EXPANDABLE ACCORDION) -->
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px;">Join a Group</h3>
-        <label style="color: #94a3b8; font-size: 12px;">ENTER UNIQUE GROUP CODE</label>
-        <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. CRAZY8">
-        <button class="btn-submit" onclick="joinGroup()">Join Group</button>
+        <div class="accordion-header" onclick="toggleAccordion('join-accordion-body', 'join-accordion-icon')">
+          <h3>Join a Group</h3>
+          <span id="join-accordion-icon" class="accordion-icon">▼</span>
+        </div>
+        <div id="join-accordion-body" class="accordion-content hidden">
+          <label style="color: #94a3b8; font-size: 12px;">ENTER UNIQUE GROUP CODE</label>
+          <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. CRAZY8">
+          <button class="btn-submit" onclick="joinGroup()">Join Group</button>
+        </div>
       </div>
 
-      <!-- CREATE NEW GROUP -->
+      <!-- CREATE NEW GROUP (EXPANDABLE ACCORDION) -->
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px;">Create a New Group</h3>
-        <label style="color: #94a3b8; font-size: 12px;">GROUP NAME</label>
-        <input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
-        <label style="color: #94a3b8; font-size: 12px; margin-top: 8px; display: block;">UNIQUE CODE</label>
-        <input type="text" id="create-group-code" style="text-transform: uppercase;" placeholder="e.g. FRIDAY26">
-        <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
+        <div class="accordion-header" onclick="toggleAccordion('create-accordion-body', 'create-accordion-icon')">
+          <h3>Create a New Group</h3>
+          <span id="create-accordion-icon" class="accordion-icon">▼</span>
+        </div>
+        <div id="create-accordion-body" class="accordion-content hidden">
+          <label style="color: #94a3b8; font-size: 12px;">GROUP NAME</label>
+          <input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
+          <label style="color: #94a3b8; font-size: 12px; margin-top: 8px; display: block;">UNIQUE CODE</label>
+          <input type="text" id="create-group-code" style="text-transform: uppercase;" placeholder="e.g. FRIDAY26">
+          <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
+        </div>
       </div>
 
       <!-- HOST CONTROLS PANEL -->
@@ -284,23 +332,31 @@
       </div>
     </div>
 
-    <!-- PAGE 3: TRACKER (PRIMARY LANDING PAGE) -->
+    <!-- PAGE 3: TRACKER (STACKED ROWS WITH ICONS & CLEAN TITLES) -->
     <div id="page-tracker">
       <div class="card">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
         
-        <div class="drink-grid">
-          <div class="drink-card">
-            <div class="drink-title">Pints (2u)</div>
+        <div class="drink-list">
+          <!-- PINTS -->
+          <div class="drink-row">
+            <div class="drink-info">
+              <img src="https://encrypted-tbn0.gstatic.com/licensed-image?q=tbn:ANd9GcSTuQRVlXENpzPakzHQn98FLWMebWK0U-5Xj3QB4Nn3RHX3gP5Uj2hQunEe-jytpi6s6MZx2Lb5I_DrjDA" class="drink-icon-img" alt="Pint glass">
+              <span class="drink-title">Pints</span>
+            </div>
             <div class="counter-controls">
               <button class="btn-circle btn-minus" onclick="adjustDrink('pints', -1)">-</button>
               <span id="cnt-pints" class="count-val">0</span>
               <button class="btn-circle btn-plus" onclick="adjustDrink('pints', 1)">+</button>
             </div>
           </div>
-          
-          <div class="drink-card">
-            <div class="drink-title">Bottles/Cans (1.33u)</div>
+
+          <!-- BOTTLE / CAN -->
+          <div class="drink-row">
+            <div class="drink-info">
+              <img src="https://encrypted-tbn1.gstatic.com/licensed-image?q=tbn:ANd9GcTMv6TwSew0q-TBJCBsnq66BTgD0iuDFSNipj-XAJ6Cj7W5VAEt8TP57nvhspuPf9lAa0uo2mr_MOeE4zE" class="drink-icon-img" alt="Beer can">
+              <span class="drink-title">Bottles/Cans</span>
+            </div>
             <div class="counter-controls">
               <button class="btn-circle btn-minus" onclick="adjustDrink('bottles', -1)">-</button>
               <span id="cnt-bottles" class="count-val">0</span>
@@ -308,8 +364,12 @@
             </div>
           </div>
 
-          <div class="drink-card">
-            <div class="drink-title">Wines (2u)</div>
+          <!-- WINE -->
+          <div class="drink-row">
+            <div class="drink-info">
+              <img src="https://encrypted-tbn1.gstatic.com/licensed-image?q=tbn:ANd9GcSmBrjMXXRMDEKiau6fxTwkDnc-a2l285EfFI7fA1wRgF03E-VF-f3fDZ88SkbQJRXVn7-sdBNJ6Y0_XbQ" class="drink-icon-img" alt="Wine glass">
+              <span class="drink-title">Wines</span>
+            </div>
             <div class="counter-controls">
               <button class="btn-circle btn-minus" onclick="adjustDrink('wines', -1)">-</button>
               <span id="cnt-wines" class="count-val">0</span>
@@ -317,8 +377,12 @@
             </div>
           </div>
 
-          <div class="drink-card">
-            <div class="drink-title">Cocktails (2u)</div>
+          <!-- COCKTAILS -->
+          <div class="drink-row">
+            <div class="drink-info">
+              <img src="https://encrypted-tbn2.gstatic.com/licensed-image?q=tbn:ANd9GcRdxkd1TnBlWnYsM7lxwNgVdJwVp8gRnL-tIwI2P4LSNJFbH9TzL7Qyx162tmoaVx5NupuKh3nU0AZumAQ" class="drink-icon-img" alt="Cocktail glass">
+              <span class="drink-title">Cocktails</span>
+            </div>
             <div class="counter-controls">
               <button class="btn-circle btn-minus" onclick="adjustDrink('cocktails', -1)">-</button>
               <span id="cnt-cocktails" class="count-val">0</span>
@@ -326,8 +390,12 @@
             </div>
           </div>
 
-          <div class="drink-card" style="grid-column: span 2;">
-            <div class="drink-title">Shots (1u)</div>
+          <!-- SHOTS -->
+          <div class="drink-row">
+            <div class="drink-info">
+              <img src="https://encrypted-tbn1.gstatic.com/licensed-image?q=tbn:ANd9GcSTK-z9ryTFna9uWXFH0RvVQADo_GNmha9lSI0Up20FHgUgRyNZUSOq6-UJ-AQSuPddyMDhz4VpRjpali8" class="drink-icon-img" alt="Shot glass">
+              <span class="drink-title">Shots</span>
+            </div>
             <div class="counter-controls">
               <button class="btn-circle btn-minus" onclick="adjustDrink('shots', -1)">-</button>
               <span id="cnt-shots" class="count-val">0</span>
@@ -338,7 +406,7 @@
 
         <div class="summary-box">
           <div class="unit-text">TOTAL DAILY UNITS: <strong id="total-units-val">0</strong></div>
-          <div class="beer-text"><span id="total-beers-val">0</span> Pints / Beers 🍺</div>
+          <div class="beer-text"><span id="total-beers-val">0</span> Beer 🍺</div>
           <div class="unit-text" style="font-size: 10px; margin-top: 4px; color:#f59e0b;">Inputs automatically push to all active groups</div>
         </div>
       </div>
@@ -352,7 +420,7 @@
       </div>
 
       <div class="card" style="text-align: center;">
-        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL EQUIVALENT BEERS CONSUMED</h3>
+        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
         <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
       </div>
 
@@ -447,6 +515,20 @@
       }
     }
 
+    /* ACCORDION TOGGLER FOR GROUPS PAGE */
+    function toggleAccordion(bodyId, iconId) {
+      const body = document.getElementById(bodyId);
+      const icon = document.getElementById(iconId);
+      
+      if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        icon.innerText = '▲';
+      } else {
+        body.classList.add('hidden');
+        icon.innerText = '▼';
+      }
+    }
+
     /* DRINK CALCULATIONS */
     function adjustDrink(type, delta) {
       if (!dailyDrinkLogs[todayDate]) {
@@ -496,14 +578,12 @@
       document.getElementById('acc-name-display').innerText = userName;
       document.getElementById('acc-email-display').innerText = userEmail;
 
-      // Days active calculation
       const startDate = new Date(firstCreatedDate);
       const currentDate = new Date();
       const diffTime = Math.abs(currentDate - startDate);
       const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
       document.getElementById('acc-days-active').innerText = diffDays;
 
-      // Count groups joined
       let joinedCount = 0;
       Object.keys(remoteGroups).forEach(code => {
         if (remoteGroups[code].members && remoteGroups[code].members[userEmail] !== undefined) {
@@ -512,7 +592,6 @@
       });
       document.getElementById('acc-groups-count').innerText = joinedCount;
 
-      // Lifetime pints calculation across all local logs
       let lifetimeBeers = 0;
       Object.values(dailyDrinkLogs).forEach(entry => {
         lifetimeBeers += calculateUnitsAndBeers(entry).beers;
@@ -534,7 +613,6 @@
         if (!rootData || typeof rootData !== 'object') rootData = {};
         if (!rootData.groups) rootData.groups = {};
 
-        // Seed default CRAZY8 group if missing
         if (!rootData.groups["CRAZY8"]) {
           rootData.groups["CRAZY8"] = {
             name: "Crazy 8",
@@ -546,7 +624,6 @@
 
         remoteGroups = rootData.groups;
 
-        // Push updates across all groups where user belongs
         let stateChanged = false;
         Object.keys(remoteGroups).forEach(code => {
           const group = remoteGroups[code];
@@ -580,7 +657,7 @@
       }
     }
 
-    /* GROUPS PAGE CONTROLS */
+    /* GROUPS PAGE CONTROLS (SHOWS ONLY GROUP NAME) */
     function renderMyGroups() {
       const container = document.getElementById('my-groups-list');
       container.innerHTML = '';
@@ -595,8 +672,8 @@
           row.className = 'member-row';
           row.innerHTML = `
             <div>
-              <strong>${grp.name}</strong> <span style="font-size:11px; color:#f59e0b;">(${code})</span>
-              ${isHost ? '<span style="font-size:11px;"> 👑 Host</span>' : ''}
+              <strong>${grp.name}</strong>
+              ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
             </div>
             <div style="display:flex; gap:6px;">
               ${isHost ? `<button class="btn-secondary" onclick="manageHostGroup('${code}')">Manage</button>` : ''}
@@ -723,7 +800,7 @@
       });
     }
 
-    /* STATS / ANALYTICS PAGE CONTROLS */
+    /* STATS / ANALYTICS PAGE CONTROLS (DROPDOWN SHOWS ONLY GROUP NAME) */
     function populateAnalyticsDropdown() {
       const select = document.getElementById('analytics-group-select');
       const currentVal = select.value;
@@ -736,7 +813,7 @@
           joinedCount++;
           const opt = document.createElement('option');
           opt.value = code;
-          opt.innerText = `${grp.name} (${code})`;
+          opt.innerText = grp.name; // Displays only group name
           select.appendChild(opt);
         }
       });
