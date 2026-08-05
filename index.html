@@ -4,9 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🍺 Multi-Group Drink Tracker</title>
-  <!-- Chart.js & Supabase JS CDN -->
+  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -46,6 +45,8 @@
       margin-bottom: 16px;
       border: 1px solid #334155;
     }
+
+    /* EXPANDABLE ACCORDION STYLES */
     .accordion-header {
       display: flex;
       justify-content: space-between;
@@ -56,7 +57,8 @@
     .accordion-header h3 { margin: 0; font-size: 15px; }
     .accordion-icon { font-size: 14px; color: #f59e0b; }
     .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; }
-    
+
+    /* TRACKER ROW-BASED DRINK CARDS */
     .drink-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
     .drink-row {
       background: #0f172a;
@@ -78,6 +80,7 @@
       stroke-linejoin: round;
     }
     .drink-title { font-size: 15px; color: #f8fafc; font-weight: 700; }
+
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
     .stat-box { background: #0f172a; padding: 14px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
     .stat-number { font-size: 26px; font-weight: 900; color: #f59e0b; margin-top: 4px; }
@@ -96,6 +99,7 @@
     .summary-box { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px; text-align: center; margin-top: 16px; }
     .unit-text { font-size: 12px; color: #94a3b8; }
     .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
+
     .hidden { display: none !important; }
     
     input[type="text"], input[type="email"], select {
@@ -139,7 +143,7 @@
       <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
     </nav>
 
-    <!-- PAGE 1: ACCOUNT -->
+    <!-- PAGE 1: ACCOUNT (DEFAULT AUTO-LOAD PAGE) -->
     <div id="page-account">
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
@@ -278,7 +282,6 @@
         <div class="summary-box">
           <div class="unit-text">TOTAL DAILY UNITS: <strong id="total-units-val">0</strong></div>
           <div class="beer-text"><span id="total-beers-val">0</span> Beer 🍺</div>
-          <div class="unit-text" style="font-size: 10px; margin-top: 4px; color:#f59e0b;">Inputs sync real-time across all groups</div>
         </div>
       </div>
     </div>
@@ -313,29 +316,32 @@
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
-    const SUPABASE_ANON_KEY = 'PASTE_YOUR_COPIED_ANON_KEY_HERE';
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
     let userName = localStorage.getItem('dt_username') || '';
     let userEmail = localStorage.getItem('dt_useremail') || '';
     let firstCreatedDate = localStorage.getItem('dt_created_date') || new Date().toISOString().split('T')[0];
     const todayDate = new Date().toISOString().split('T')[0];
 
-    let userJoinedGroups = [];
-    let todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+    // Local Storage Data Structures
+    let allGroups = JSON.parse(localStorage.getItem('dt_app_groups') || '{"CRAZY8":{"name":"Crazy 8","host_email":"matthewswan17@gmail.com","members":{"matthewswan17@gmail.com":"Matthew"}}}');
+    let dailyDrinkLogs = JSON.parse(localStorage.getItem('dt_drink_logs') || '{}');
+    
     let activeHostCode = null;
     let freqChartInstance = null;
     let weeklyChartInstance = null;
 
     window.onload = function() {
       document.getElementById('today-date-label').innerText = todayDate;
+      if (!dailyDrinkLogs[todayDate]) {
+        dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+        saveLocalLogs();
+      }
+
       if (userName && userEmail) {
         showApp();
       }
     };
 
-    async function loginUser() {
+    function loginUser() {
       const nameInput = document.getElementById('init-name').value.trim();
       const emailInput = document.getElementById('init-email').value.trim().toLowerCase();
 
@@ -344,21 +350,8 @@
       }
 
       userEmail = emailInput;
-
-      // Anti-duplication check: Recover established username and creation date from Supabase
-      const { data: existingMember } = await sb.from('group_members')
-        .select('user_name, created_at')
-        .eq('user_email', userEmail)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingMember) {
-        userName = nameInput || existingMember.user_name || emailInput.split('@')[0];
-        firstCreatedDate = existingMember.created_at ? existingMember.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
-      } else {
-        userName = nameInput || emailInput.split('@')[0];
-        firstCreatedDate = new Date().toISOString().split('T')[0];
-      }
+      userName = nameInput || emailInput.split('@')[0];
+      firstCreatedDate = new Date().toISOString().split('T')[0];
 
       localStorage.setItem('dt_username', userName);
       localStorage.setItem('dt_useremail', userEmail);
@@ -367,175 +360,159 @@
       showApp();
     }
 
-    async function logoutUser() {
+    function logoutUser() {
       if (!confirm('Are you sure you want to log out?')) return;
 
-      // Clear local device storage
       localStorage.removeItem('dt_username');
       localStorage.removeItem('dt_useremail');
       localStorage.removeItem('dt_created_date');
 
-      // Reset state variables
       userName = '';
       userEmail = '';
-      userJoinedGroups = [];
-      todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       activeHostCode = null;
 
-      // Clear input fields on login form
       document.getElementById('init-name').value = '';
       document.getElementById('init-email').value = '';
 
-      // Clean up Supabase real-time channels
-      sb.removeAllChannels();
-
-      // UI Switch back to Login Screen
       document.getElementById('app-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
     }
 
-    async function showApp() {
+    function showApp() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
 
-      await fetchTodayDrinkLogs();
-      await fetchUserGroups();
-      setupRealtimeSubscriptions();
-
+      renderMyGroups();
+      populateAnalyticsDropdown();
+      updateTrackerUI();
       switchPage('account');
     }
 
     function calculateUnitsAndBeers(entry) {
       if (!entry) return { units: 0, beers: 0 };
-      const totalUnits = (entry.pints * 2) + (entry.bottles * 1.33) + (entry.wines * 2) + (entry.cocktails * 2) + (entry.shots * 1);
+      const totalUnits = ((entry.pints || 0) * 2) + ((entry.bottles || 0) * 1.33) + ((entry.wines || 0) * 2) + ((entry.cocktails || 0) * 2) + ((entry.shots || 0) * 1);
       return { units: Number(totalUnits.toFixed(2)), beers: Math.round(totalUnits / 2) };
     }
 
-    async function fetchTodayDrinkLogs() {
-      const { data } = await sb.from('drink_logs')
-        .select('*')
-        .eq('user_email', userEmail)
-        .eq('log_date', todayDate)
-        .maybeSingle();
-
-      if (data) {
-        todayDrinkEntry = { pints: data.pints, bottles: data.bottles, wines: data.wines, cocktails: data.cocktails, shots: data.shots };
-      } else {
-        await sb.from('drink_logs').insert([{ user_email: userEmail, log_date: todayDate }]);
+    function adjustDrink(type, delta) {
+      if (!dailyDrinkLogs[todayDate]) {
+        dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       }
+      const currentVal = dailyDrinkLogs[todayDate][type] || 0;
+      dailyDrinkLogs[todayDate][type] = Math.max(0, currentVal + delta);
+      
+      saveLocalLogs();
       updateTrackerUI();
+      updateAccountPage();
     }
 
-    async function adjustDrink(type, delta) {
-      const currentVal = todayDrinkEntry[type] || 0;
-      const newVal = Math.max(0, currentVal + delta);
-      todayDrinkEntry[type] = newVal;
+    function saveLocalLogs() {
+      localStorage.setItem('dt_drink_logs', JSON.stringify(dailyDrinkLogs));
+    }
 
-      updateTrackerUI();
-
-      await sb.from('drink_logs').upsert({
-        user_email: userEmail,
-        log_date: todayDate,
-        [type]: newVal
-      }, { onConflict: 'user_email,log_date' });
-
-      updateAccountPage();
+    function saveGroupsData() {
+      localStorage.setItem('dt_app_groups', JSON.stringify(allGroups));
     }
 
     function updateTrackerUI() {
-      document.getElementById('cnt-pints').innerText = todayDrinkEntry.pints || 0;
-      document.getElementById('cnt-bottles').innerText = todayDrinkEntry.bottles || 0;
-      document.getElementById('cnt-wines').innerText = todayDrinkEntry.wines || 0;
-      document.getElementById('cnt-cocktails').innerText = todayDrinkEntry.cocktails || 0;
-      document.getElementById('cnt-shots').innerText = todayDrinkEntry.shots || 0;
+      const todayEntry = dailyDrinkLogs[todayDate] || { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      document.getElementById('cnt-pints').innerText = todayEntry.pints || 0;
+      document.getElementById('cnt-bottles').innerText = todayEntry.bottles || 0;
+      document.getElementById('cnt-wines').innerText = todayEntry.wines || 0;
+      document.getElementById('cnt-cocktails').innerText = todayEntry.cocktails || 0;
+      document.getElementById('cnt-shots').innerText = todayEntry.shots || 0;
 
-      const calc = calculateUnitsAndBeers(todayDrinkEntry);
+      const calc = calculateUnitsAndBeers(todayEntry);
       document.getElementById('total-units-val').innerText = calc.units;
       document.getElementById('total-beers-val').innerText = calc.beers;
-    }
-
-    async function fetchUserGroups() {
-      const { data } = await sb.from('group_members')
-        .select('group_code, groups(name, host_email)')
-        .eq('user_email', userEmail);
-
-      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups.name, host_email: d.groups.host_email })) : [];
-
-      renderMyGroups();
-      populateAnalyticsDropdown();
-      updateAccountPage();
     }
 
     function renderMyGroups() {
       const container = document.getElementById('my-groups-list');
       container.innerHTML = '';
 
-      if (userJoinedGroups.length === 0) {
-        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
-        return;
-      }
+      let joinedCount = 0;
+      Object.keys(allGroups).forEach(code => {
+        const grp = allGroups[code];
+        if (grp.members && grp.members[userEmail] !== undefined) {
+          joinedCount++;
+          const isHost = (grp.host_email === userEmail);
+          
+          const wrapper = document.createElement('div');
+          wrapper.id = `group-item-${code}`;
 
-      userJoinedGroups.forEach(grp => {
-        const isHost = (grp.host_email === userEmail);
-        const wrapper = document.createElement('div');
-        wrapper.id = `group-item-${grp.code}`;
+          const row = document.createElement('div');
+          row.className = 'member-row';
+          row.innerHTML = `
+            <div>
+              <strong>${grp.name}</strong>
+              ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
+            </div>
+            <div style="display:flex; gap:6px;">
+              ${isHost ? `<button class="btn-share" onclick="shareGroup('${code}')">Share</button>` : ''}
+              ${isHost ? `<button id="manage-btn-${code}" class="btn-secondary" onclick="toggleHostPanel('${code}')">Manage</button>` : ''}
+              <button class="btn-danger" onclick="leaveGroup('${code}')">Leave</button>
+            </div>
+          `;
+          wrapper.appendChild(row);
+          container.appendChild(wrapper);
 
-        const row = document.createElement('div');
-        row.className = 'member-row';
-        row.innerHTML = `
-          <div>
-            <strong>${grp.name}</strong>
-            ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
-          </div>
-          <div style="display:flex; gap:6px;">
-            ${isHost ? `<button class="btn-share" onclick="shareGroup('${grp.code}')">Share</button>` : ''}
-            ${isHost ? `<button id="manage-btn-${grp.code}" class="btn-secondary" onclick="toggleHostPanel('${grp.code}')">Manage</button>` : ''}
-            <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
-          </div>
-        `;
-        wrapper.appendChild(row);
-        container.appendChild(wrapper);
-
-        if (activeHostCode === grp.code) renderInlineHostPanel(grp.code);
+          if (activeHostCode === code) renderInlineHostPanel(code);
+        }
       });
+
+      if (joinedCount === 0) {
+        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
+      }
     }
 
-    async function createGroup() {
+    function createGroup() {
       const name = document.getElementById('create-group-name').value.trim();
       const code = document.getElementById('create-group-code').value.trim().toUpperCase();
 
       if (!name || !code) return alert('Provide a group name and unique code.');
+      if (allGroups[code]) return alert('That group code is already taken. Try a different code.');
 
-      const { error } = await sb.from('groups').insert([{ code, name, host_email: userEmail }]);
-      if (error) return alert('Group code is already taken.');
+      allGroups[code] = {
+        name: name,
+        host_email: userEmail,
+        members: { [userEmail]: userName }
+      };
 
-      await sb.from('group_members').insert([{ group_code: code, user_email: userEmail, user_name: userName }]);
-
+      saveGroupsData();
       document.getElementById('create-group-name').value = '';
       document.getElementById('create-group-code').value = '';
       closeAllExpandables();
-      await fetchUserGroups();
+      renderMyGroups();
+      populateAnalyticsDropdown();
+      updateAccountPage();
     }
 
-    async function joinGroup() {
+    function joinGroup() {
       const code = document.getElementById('join-group-code').value.trim().toUpperCase();
       if (!code) return alert('Enter a valid code.');
+      if (!allGroups[code]) return alert('Group code not found.');
 
-      const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
-      if (!grp) return alert('Group code not found.');
-
-      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }]);
+      allGroups[code].members[userEmail] = userName;
+      saveGroupsData();
 
       document.getElementById('join-group-code').value = '';
       closeAllExpandables();
-      await fetchUserGroups();
+      renderMyGroups();
+      populateAnalyticsDropdown();
+      updateAccountPage();
     }
 
-    async function leaveGroup(code) {
+    function leaveGroup(code) {
       if (!confirm('Leave this group?')) return;
-      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
+      if (allGroups[code] && allGroups[code].members) {
+        delete allGroups[code].members[userEmail];
+        saveGroupsData();
+      }
       if (activeHostCode === code) closeHostPanel();
-      await fetchUserGroups();
+      renderMyGroups();
+      populateAnalyticsDropdown();
+      updateAccountPage();
     }
 
     function toggleHostPanel(code) {
@@ -547,22 +524,22 @@
       }
     }
 
-    async function renderInlineHostPanel(code) {
+    function renderInlineHostPanel(code) {
       const wrapper = document.getElementById(`group-item-${code}`);
       if (!wrapper) return;
 
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      const grp = allGroups[code];
       const panel = document.createElement('div');
       panel.id = `host-panel-${code}`;
       panel.className = 'inline-host-panel';
 
       let memberRows = '';
-      members.forEach(m => {
-        if (m.user_email !== userEmail) {
+      Object.keys(grp.members).forEach(mEmail => {
+        if (mEmail !== userEmail) {
           memberRows += `
             <div class="member-row" style="padding: 6px 0;">
-              <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: #94a3b8;">(${m.user_email})</span></span>
-              <button class="btn-danger" onclick="removeMember('${code}', '${m.user_email}')">Remove</button>
+              <span style="font-size: 13px;">${grp.members[mEmail]} <span style="font-size: 11px; color: #94a3b8;">(${mEmail})</span></span>
+              <button class="btn-danger" onclick="removeMember('${code}', '${mEmail}')">Remove</button>
             </div>`;
         }
       });
@@ -575,20 +552,12 @@
       wrapper.appendChild(panel);
     }
 
-    async function removeMember(code, email) {
-      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
-      renderInlineHostPanel(code);
-    }
-
-    function setupRealtimeSubscriptions() {
-      sb.channel('db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs' }, () => {
-          renderAnalytics();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, () => {
-          fetchUserGroups();
-        })
-        .subscribe();
+    function removeMember(code, email) {
+      if (allGroups[code] && allGroups[code].members) {
+        delete allGroups[code].members[email];
+        saveGroupsData();
+        renderInlineHostPanel(code);
+      }
     }
 
     function populateAnalyticsDropdown() {
@@ -596,44 +565,46 @@
       const cur = select.value;
       select.innerHTML = '';
 
-      if (userJoinedGroups.length === 0) {
-        select.innerHTML = '<option value="">No active groups joined</option>';
-        return;
-      }
-
-      userJoinedGroups.forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g.code;
-        opt.innerText = g.name;
-        select.appendChild(opt);
+      let count = 0;
+      Object.keys(allGroups).forEach(code => {
+        const g = allGroups[code];
+        if (g.members && g.members[userEmail] !== undefined) {
+          count++;
+          const opt = document.createElement('option');
+          opt.value = code;
+          opt.innerText = g.name;
+          select.appendChild(opt);
+        }
       });
 
-      if (cur) select.value = cur;
+      if (count === 0) {
+        select.innerHTML = '<option value="">No active groups joined</option>';
+      } else if (cur) {
+        select.value = cur;
+      }
     }
 
-    async function renderAnalytics() {
+    function renderAnalytics() {
       const code = document.getElementById('analytics-group-select').value;
       const leaderboardEl = document.getElementById('leaderboard-list');
       leaderboardEl.innerHTML = '';
 
-      if (!code) {
+      if (!code || !allGroups[code]) {
         document.getElementById('group-total-beers').innerText = '0 🍺';
         return;
       }
 
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!members) return;
-
-      const emails = members.map(m => m.user_email);
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
+      const grp = allGroups[code];
+      let myTotalBeers = 0;
+      Object.values(dailyDrinkLogs).forEach(entry => {
+        myTotalBeers += calculateUnitsAndBeers(entry).beers;
+      });
 
       let totalGroupBeers = 0;
-      const userTotals = members.map(m => {
-        const userLogs = logs ? logs.filter(l => l.user_email === m.user_email) : [];
-        let beers = 0;
-        userLogs.forEach(l => beers += calculateUnitsAndBeers(l).beers);
+      const userTotals = Object.keys(grp.members).map(mEmail => {
+        const beers = (mEmail === userEmail) ? myTotalBeers : 0;
         totalGroupBeers += beers;
-        return { name: m.user_name, email: m.user_email, beers };
+        return { name: grp.members[mEmail], email: mEmail, beers };
       });
 
       userTotals.sort((a, b) => b.beers - a.beers);
@@ -646,10 +617,10 @@
       });
 
       document.getElementById('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || []);
+      renderCharts();
     }
 
-    function renderCharts(logs) {
+    function renderCharts() {
       const canvas1 = document.getElementById('freqChart');
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
@@ -657,11 +628,11 @@
       const freqMap = {};
       const weeklyMap = {};
 
-      logs.forEach(l => {
-        const beers = calculateUnitsAndBeers(l).beers;
+      Object.entries(dailyDrinkLogs).forEach(([logDate, entry]) => {
+        const beers = calculateUnitsAndBeers(entry).beers;
         if (beers > 0) {
           freqMap[beers] = (freqMap[beers] || 0) + 1;
-          const date = new Date(l.log_date);
+          const date = new Date(logDate);
           const weekNum = Math.ceil(date.getDate() / 7);
           const monthName = date.toLocaleString('default', { month: 'short' });
           const weekKey = `W${weekNum} ${monthName}`;
@@ -692,13 +663,18 @@
       const startDate = new Date(firstCreatedDate);
       const diffDays = Math.max(1, Math.ceil(Math.abs(new Date() - startDate) / (1000 * 60 * 60 * 24)));
       document.getElementById('acc-days-active').innerText = diffDays;
-      document.getElementById('acc-groups-count').innerText = userJoinedGroups.length;
 
-      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data }) => {
-        let lifetimeBeers = 0;
-        if (data) data.forEach(entry => lifetimeBeers += calculateUnitsAndBeers(entry).beers);
-        document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
+      let joinedCount = 0;
+      Object.values(allGroups).forEach(g => {
+        if (g.members && g.members[userEmail] !== undefined) joinedCount++;
       });
+      document.getElementById('acc-groups-count').innerText = joinedCount;
+
+      let lifetimeBeers = 0;
+      Object.values(dailyDrinkLogs).forEach(entry => {
+        lifetimeBeers += calculateUnitsAndBeers(entry).beers;
+      });
+      document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
     }
 
     function editProfileName() {
@@ -706,7 +682,15 @@
       if (newName && newName.trim()) {
         userName = newName.trim();
         localStorage.setItem('dt_username', userName);
-        sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail).then(() => fetchUserGroups());
+
+        Object.keys(allGroups).forEach(code => {
+          if (allGroups[code].members && allGroups[code].members[userEmail]) {
+            allGroups[code].members[userEmail] = userName;
+          }
+        });
+        saveGroupsData();
+        updateAccountPage();
+        renderMyGroups();
       }
     }
 
