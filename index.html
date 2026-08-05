@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🍺 Group Drink & Beer Tracker</title>
+  <title>🍺 Multi-Group Drink Tracker</title>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -19,11 +19,11 @@
     nav {
       display: flex;
       gap: 8px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     nav button {
       flex: 1;
-      padding: 12px 8px;
+      padding: 12px 6px;
       background: #1e293b;
       color: #94a3b8;
       border: 1px solid #334155;
@@ -127,7 +127,17 @@
       border: none;
       padding: 6px 10px;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
       font-weight: bold;
       cursor: pointer;
     }
@@ -135,59 +145,51 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
+      padding: 10px 0;
       border-bottom: 1px solid #334155;
     }
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
-    .group-pill {
-      display: inline-block;
-      background: #334155;
-      color: #f59e0b;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      margin: 2px;
-    }
   </style>
 </head>
 <body>
 
-  <!-- LOGIN / SETUP OVERLAY -->
+  <!-- INITIAL AUTH SCREEN -->
   <div id="login-screen" class="card">
-    <h2 style="margin-top: 0; text-align: center;">Welcome to Drink Tracker</h2>
+    <h2 style="margin-top: 0; text-align: center;">Alcohol Unit Tracker</h2>
     <div style="margin-bottom: 10px;">
       <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
       <input type="text" id="init-name" placeholder="e.g. Alex">
     </div>
     <div style="margin-bottom: 10px;">
-      <label style="color: #94a3b8; font-size: 12px;">YOUR EMAIL</label>
+      <label style="color: #94a3b8; font-size: 12px;">YOUR EMAIL LOGIN</label>
       <input type="email" id="init-email" placeholder="alex@example.com">
     </div>
-    <button class="btn-submit" onclick="loginUser()">Start Tracking</button>
+    <button class="btn-submit" onclick="loginUser()">Login & Open Tracker</button>
   </div>
 
-  <!-- MAIN APP -->
+  <!-- APP INTERFACE -->
   <div id="app-screen" class="hidden">
+    <!-- TOP NAVIGATION -->
     <nav>
-      <button id="nav-p1" class="active" onclick="switchTab('tracker')">Tracker</button>
-      <button id="nav-p2" onclick="switchTab('groups')">Groups</button>
-      <button id="nav-p3" onclick="switchTab('analytics')">Analytics</button>
+      <button id="nav-tracker" class="active" onclick="switchPage('tracker')">Tracker</button>
+      <button id="nav-groups" onclick="switchPage('groups')">Groups</button>
+      <button id="nav-analytics" onclick="switchPage('analytics')">Analytics</button>
     </nav>
 
-    <!-- HEADER / PROFILE EDIT BAR -->
-    <div class="card" style="padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+    <!-- ACCOUNT PROFILE HEADER -->
+    <div class="card" style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
       <div>
-        <span style="font-size: 11px; color: #94a3b8; display: block;">LOGGED IN AS</span>
-        <strong id="user-name-display" style="color: #f59e0b;">---</strong>
+        <span style="font-size: 10px; color: #94a3b8; display: block;">USER PROFILE</span>
+        <strong id="user-name-display" style="color: #f59e0b; font-size: 14px;">---</strong>
       </div>
-      <button style="background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" onclick="editProfileName()">Edit Name</button>
+      <button class="btn-secondary" onclick="editProfileName()">Change Name</button>
     </div>
 
-    <!-- TAB 1: TRACKER -->
-    <div id="tab-tracker">
+    <!-- PAGE 1: TRACKER (MAIN DEFAULT LANDING PAGE) -->
+    <div id="page-tracker">
       <div class="card">
-        <h3 style="margin: 0; font-size: 15px; color: #94a3b8; text-align: center;">TODAY'S DRINK COUNTER (<span id="today-date-label"></span>)</h3>
+        <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
         
         <div class="drink-grid">
           <div class="drink-card">
@@ -237,68 +239,68 @@
         </div>
 
         <div class="summary-box">
-          <div class="unit-text">TOTAL UNITS: <strong id="total-units-val">0</strong></div>
-          <div class="beer-text"><span id="total-beers-val">0</span> 🍺</div>
-          <div class="unit-text" style="font-size: 10px; margin-top: 2px;">(Equated Pints = Total Units ÷ 2, rounded)</div>
+          <div class="unit-text">TOTAL DAILY UNITS: <strong id="total-units-val">0</strong></div>
+          <div class="beer-text"><span id="total-beers-val">0</span> Pints / Beers 🍺</div>
+          <div class="unit-text" style="font-size: 10px; margin-top: 4px; color:#f59e0b;">Inputs automatically push to all active groups</div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 2: GROUPS -->
-    <div id="tab-groups" class="hidden">
-      <!-- MY GROUPS -->
+    <!-- PAGE 2: GROUPS PAGE -->
+    <div id="page-groups" class="hidden">
+      <!-- ACTIVE GROUPS LIST WITH LEAVE BUTTON -->
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">MY ACTIVE GROUPS</h3>
+        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">YOUR ACTIVE GROUPS</h3>
         <div id="my-groups-list"></div>
       </div>
 
-      <!-- JOIN GROUP -->
+      <!-- JOIN EXISTING GROUP -->
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px;">Join an Existing Group</h3>
+        <h3 style="margin-top: 0; font-size: 15px;">Join a Group</h3>
         <label style="color: #94a3b8; font-size: 12px;">ENTER UNIQUE GROUP CODE</label>
         <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. CRAZY8">
         <button class="btn-submit" onclick="joinGroup()">Join Group</button>
       </div>
 
-      <!-- CREATE GROUP -->
+      <!-- CREATE NEW GROUP -->
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px;">Create a New Group</h3>
         <label style="color: #94a3b8; font-size: 12px;">GROUP NAME</label>
-        <input type="text" id="create-group-name" placeholder="e.g. Weekend Crew">
-        <label style="color: #94a3b8; font-size: 12px; margin-top: 8px; display: block;">UNIQUE GROUP CODE</label>
-        <input type="text" id="create-group-code" style="text-transform: uppercase;" placeholder="e.g. CREW2026">
-        <button class="btn-submit" onclick="createGroup()">Create Group & Become Host</button>
+        <input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
+        <label style="color: #94a3b8; font-size: 12px; margin-top: 8px; display: block;">UNIQUE CODE</label>
+        <input type="text" id="create-group-code" style="text-transform: uppercase;" placeholder="e.g. FRIDAY26">
+        <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
       </div>
 
       <!-- HOST MANAGEMENT PANEL -->
       <div id="host-panel" class="card hidden">
-        <h3 style="margin-top: 0; font-size: 15px; color: #f59e0b;">HOST CONTROLS (<span id="host-group-name"></span>)</h3>
-        <div style="margin-bottom: 10px;">
-          <label style="color: #94a3b8; font-size: 12px;">UPDATE GROUP CODE</label>
+        <h3 style="margin-top: 0; font-size: 15px; color: #f59e0b;">HOST CONTROLS: <span id="host-group-name"></span></h3>
+        <div style="margin-bottom: 12px;">
+          <label style="color: #94a3b8; font-size: 12px;">CHANGE LOGIN CODE</label>
           <div style="display: flex; gap: 6px;">
             <input type="text" id="edit-group-code" style="text-transform: uppercase;">
-            <button style="background: #334155; color: white; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer;" onclick="updateGroupCodeByHost()">Save</button>
+            <button class="btn-secondary" onclick="updateGroupCodeByHost()">Update</button>
           </div>
         </div>
-        <h4 style="margin: 10px 0 6px 0; font-size: 12px; color: #94a3b8;">REMOVE MEMBERS</h4>
+        <h4 style="margin: 10px 0 6px 0; font-size: 12px; color: #94a3b8;">REMOVE GROUP MEMBERS</h4>
         <div id="host-member-list"></div>
       </div>
     </div>
 
-    <!-- TAB 3: ANALYTICS -->
-    <div id="tab-analytics" class="hidden">
+    <!-- PAGE 3: ANALYTICS PAGE -->
+    <div id="page-analytics" class="hidden">
       <div class="card">
-        <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP ANALYTICS</label>
+        <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
 
       <div class="card" style="text-align: center;">
-        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP EQUIVALENT BEERS</h3>
+        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL EQUIVALENT BEERS CONSUMED</h3>
         <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
       </div>
 
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LEADERBOARD</h3>
+        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">GROUP LEADERBOARD</h3>
         <div id="leaderboard-list"></div>
       </div>
 
@@ -326,10 +328,7 @@
     let userEmail = localStorage.getItem('dt_useremail') || '';
     const todayDate = new Date().toISOString().split('T')[0];
 
-    // Drinks log structure: { "YYYY-MM-DD": { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 } }
     let dailyDrinkLogs = JSON.parse(localStorage.getItem('dt_drink_logs') || '{}');
-    
-    // Remote groups cache: { GROUP_CODE: { name: "", host_email: "", members: { email: name }, logs: { email: { date: { ... } } } } }
     let remoteGroups = {};
     let activeHostCode = null;
     let freqChartInstance = null;
@@ -350,7 +349,7 @@
     function loginUser() {
       const name = document.getElementById('init-name').value.trim();
       const email = document.getElementById('init-email').value.trim().toLowerCase();
-      if (!name || !email || !email.includes('@')) return alert('Please enter a valid name and email.');
+      if (!name || !email || !email.includes('@')) return alert('Please enter a valid display name and email address.');
       
       userName = name;
       userEmail = email;
@@ -367,10 +366,11 @@
       updateTrackerUI();
       syncWithCloud();
       setInterval(syncWithCloud, 6000);
+      switchPage('tracker'); // Ensures landing directly on Tracker
     }
 
     function editProfileName() {
-      const newName = prompt("Enter your new display name:", userName);
+      const newName = prompt("Enter your new display name (updates across all groups):", userName);
       if (newName && newName.trim()) {
         userName = newName.trim();
         localStorage.setItem('dt_username', userName);
@@ -379,7 +379,7 @@
       }
     }
 
-    /* TRACKER LOGIC */
+    /* DRINK TRACKER CALCULATIONS */
     function adjustDrink(type, delta) {
       if (!dailyDrinkLogs[todayDate]) {
         dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -422,7 +422,7 @@
       document.getElementById('total-beers-val').innerText = calc.beers;
     }
 
-    /* CLOUD SYNC & RACE CONDITION MITIGATION */
+    /* CONCURRENT CLOUD SYNC */
     async function syncWithCloud() {
       if (isSyncing) return;
       isSyncing = true;
@@ -436,7 +436,7 @@
         if (!rootData || typeof rootData !== 'object') rootData = {};
         if (!rootData.groups) rootData.groups = {};
 
-        // Seed default CRAZY8 group if missing
+        // Seed CRAZY8 group if missing
         if (!rootData.groups["CRAZY8"]) {
           rootData.groups["CRAZY8"] = {
             name: "Crazy 8",
@@ -448,17 +448,15 @@
 
         remoteGroups = rootData.groups;
 
-        // Auto-push user data to all groups where user is a member
+        // Push updates across all groups where user belongs
         let stateChanged = false;
         Object.keys(remoteGroups).forEach(code => {
           const group = remoteGroups[code];
           if (group.members && group.members[userEmail] !== undefined) {
-            // Update name
             if (group.members[userEmail] !== userName) {
               group.members[userEmail] = userName;
               stateChanged = true;
             }
-            // Update logs non-destructively
             if (!group.logs) group.logs = {};
             group.logs[userEmail] = dailyDrinkLogs;
             stateChanged = true;
@@ -483,7 +481,7 @@
       }
     }
 
-    /* GROUPS MANAGEMENT */
+    /* GROUPS PAGE CONTROLS */
     function renderMyGroups() {
       const container = document.getElementById('my-groups-list');
       container.innerHTML = '';
@@ -501,8 +499,9 @@
               <strong>${grp.name}</strong> <span style="font-size:11px; color:#f59e0b;">(${code})</span>
               ${isHost ? '<span style="font-size:11px;"> 👑 Host</span>' : ''}
             </div>
-            <div>
-              ${isHost ? `<button style="background:#334155; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;" onclick="manageHostGroup('${code}')">Manage</button>` : ''}
+            <div style="display:flex; gap:6px;">
+              ${isHost ? `<button class="btn-secondary" onclick="manageHostGroup('${code}')">Manage</button>` : ''}
+              <button class="btn-danger" onclick="leaveGroup('${code}')">Leave</button>
             </div>
           `;
           container.appendChild(row);
@@ -510,25 +509,37 @@
       });
 
       if (count === 0) {
-        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You have not joined any groups yet.</span>';
+        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
       }
     }
 
     async function joinGroup() {
       const code = document.getElementById('join-group-code').value.trim().toUpperCase();
-      if (!code) return alert('Enter a group code.');
-      
-      if (!remoteGroups[code]) {
-        return alert('Group code not found. Please double check the code.');
-      }
+      if (!code) return alert('Please enter a valid group code.');
+      if (!remoteGroups[code]) return alert('Group code not found.');
 
       remoteGroups[code].members[userEmail] = userName;
       if (!remoteGroups[code].logs) remoteGroups[code].logs = {};
       remoteGroups[code].logs[userEmail] = dailyDrinkLogs;
 
       await saveRemoteState();
-      alert(`Joined group ${remoteGroups[code].name}!`);
+      alert(`Successfully joined ${remoteGroups[code].name}!`);
       document.getElementById('join-group-code').value = '';
+      syncWithCloud();
+    }
+
+    async function leaveGroup(code) {
+      if (!confirm(`Are you sure you want to leave ${remoteGroups[code]?.name || code}?`)) return;
+
+      delete remoteGroups[code].members[userEmail];
+      if (remoteGroups[code].logs) delete remoteGroups[code].logs[userEmail];
+
+      if (activeHostCode === code) {
+        document.getElementById('host-panel').classList.add('hidden');
+        activeHostCode = null;
+      }
+
+      await saveRemoteState();
       syncWithCloud();
     }
 
@@ -536,8 +547,8 @@
       const name = document.getElementById('create-group-name').value.trim();
       const code = document.getElementById('create-group-code').value.trim().toUpperCase();
 
-      if (!name || !code) return alert('Provide both group name and group code.');
-      if (remoteGroups[code]) return alert('This group code is already taken. Try another.');
+      if (!name || !code) return alert('Please provide a group name and a unique code.');
+      if (remoteGroups[code]) return alert('This group code is already taken. Try another code.');
 
       remoteGroups[code] = {
         name: name,
@@ -547,7 +558,7 @@
       };
 
       await saveRemoteState();
-      alert(`Group "${name}" created with code: ${code}`);
+      alert(`Group "${name}" created successfully with code: ${code}`);
       document.getElementById('create-group-name').value = '';
       document.getElementById('create-group-code').value = '';
       syncWithCloud();
@@ -569,7 +580,7 @@
           row.className = 'member-row';
           row.innerHTML = `
             <span>${grp.members[mEmail]} (${mEmail})</span>
-            <button class="btn-danger" onclick="removeMemberByHost('${code}', '${mEmail}')">Remove</button>
+            <button class="btn-danger" onclick="removeMemberByHost('${code}', '${mEmail}')">Remove Member</button>
           `;
           list.appendChild(row);
         }
@@ -581,7 +592,7 @@
     }
 
     async function removeMemberByHost(groupCode, memberEmail) {
-      if (!confirm(`Remove member ${memberEmail} from this group?`)) return;
+      if (!confirm(`Remove ${memberEmail} from group?`)) return;
       delete remoteGroups[groupCode].members[memberEmail];
       if (remoteGroups[groupCode].logs) delete remoteGroups[groupCode].logs[memberEmail];
       await saveRemoteState();
@@ -592,15 +603,15 @@
     async function updateGroupCodeByHost() {
       const newCode = document.getElementById('edit-group-code').value.trim().toUpperCase();
       if (!newCode || !activeHostCode) return;
-      if (newCode === activeHostCode) return alert('Code is unchanged.');
-      if (remoteGroups[newCode]) return alert('That group code is already in use.');
+      if (newCode === activeHostCode) return alert('Code remains unchanged.');
+      if (remoteGroups[newCode]) return alert('That code is already in use by another group.');
 
       remoteGroups[newCode] = remoteGroups[activeHostCode];
       delete remoteGroups[activeHostCode];
       activeHostCode = newCode;
 
       await saveRemoteState();
-      alert(`Group code updated to ${newCode}`);
+      alert(`Group code successfully updated to ${newCode}`);
       manageHostGroup(newCode);
       syncWithCloud();
     }
@@ -613,7 +624,7 @@
       });
     }
 
-    /* ANALYTICS */
+    /* ANALYTICS PAGE CONTROLS */
     function populateAnalyticsDropdown() {
       const select = document.getElementById('analytics-group-select');
       const currentVal = select.value;
@@ -634,7 +645,7 @@
       if (joinedCount === 0) {
         const opt = document.createElement('option');
         opt.value = "";
-        opt.innerText = "No joined groups";
+        opt.innerText = "No active groups joined";
         select.appendChild(opt);
       } else if (currentVal && remoteGroups[currentVal]) {
         select.value = currentVal;
@@ -674,7 +685,7 @@
         const row = document.createElement('div');
         row.className = 'member-row';
         row.innerHTML = `
-          <span>${item.name} ${item.email === userEmail ? '(You)' : ''} ${item.email === grp.host_email ? '👑' : ''}</span>
+          <span>${item.name} ${item.email === userEmail ? '(You)' : ''} ${item.email === grp.host_email ? '👑 Host' : ''}</span>
           <strong>${item.beers} 🍺</strong>
         `;
         leaderboardEl.appendChild(row);
@@ -758,24 +769,25 @@
       });
     }
 
-    function switchTab(tab) {
-      document.getElementById('tab-tracker').classList.add('hidden');
-      document.getElementById('tab-groups').classList.add('hidden');
-      document.getElementById('tab-analytics').classList.add('hidden');
+    /* 3-PAGE NAVIGATION SWITCHER */
+    function switchPage(page) {
+      document.getElementById('page-tracker').classList.add('hidden');
+      document.getElementById('page-groups').classList.add('hidden');
+      document.getElementById('page-analytics').classList.add('hidden');
 
-      document.getElementById('nav-p1').classList.remove('active');
-      document.getElementById('nav-p2').classList.remove('active');
-      document.getElementById('nav-p3').classList.remove('active');
+      document.getElementById('nav-tracker').classList.remove('active');
+      document.getElementById('nav-groups').classList.remove('active');
+      document.getElementById('nav-analytics').classList.remove('active');
 
-      if (tab === 'tracker') {
-        document.getElementById('tab-tracker').classList.remove('hidden');
-        document.getElementById('nav-p1').classList.add('active');
-      } else if (tab === 'groups') {
-        document.getElementById('tab-groups').classList.remove('hidden');
-        document.getElementById('nav-p2').classList.add('active');
-      } else if (tab === 'analytics') {
-        document.getElementById('tab-analytics').classList.remove('hidden');
-        document.getElementById('nav-p3').classList.add('active');
+      if (page === 'tracker') {
+        document.getElementById('page-tracker').classList.remove('hidden');
+        document.getElementById('nav-tracker').classList.add('active');
+      } else if (page === 'groups') {
+        document.getElementById('page-groups').classList.remove('hidden');
+        document.getElementById('nav-groups').classList.add('active');
+      } else if (page === 'analytics') {
+        document.getElementById('page-analytics').classList.remove('hidden');
+        document.getElementById('nav-analytics').classList.add('active');
         renderAnalytics();
       }
     }
