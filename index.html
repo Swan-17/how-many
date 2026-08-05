@@ -90,16 +90,6 @@
       margin-top: 8px;
       cursor: pointer;
     }
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: bold;
-      cursor: pointer;
-    }
     .btn-remove {
       background: #ef4444;
       color: white;
@@ -183,8 +173,7 @@
       <!-- HOST MANAGEMENT PANEL -->
       <div id="host-panel" class="card hidden">
         <h3 style="margin-top: 0; font-size: 16px; color: #f59e0b;">MANAGE MEMBERS (HOST)</h3>
-        <div id="host-member-controls" style="margin-bottom: 12px;"></div>
-        <button class="btn-danger" style="width:100%;" onclick="resetEntireGroup()">⚠️ Reset Entire Group Fresh</button>
+        <div id="host-member-controls"></div>
       </div>
     </div>
 
@@ -310,7 +299,6 @@
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // Store user profile keyed uniquely by Email
         members[userEmail] = {
           name: userName,
           email: userEmail,
@@ -404,31 +392,6 @@
         syncWithCloud();
       } catch (err) {
         console.error('Error removing member:', err);
-      }
-    }
-
-    async function resetEntireGroup() {
-      if (!confirm("Are you sure you want to completely clear all members and start fresh?")) return;
-
-      const freshPayload = {
-        code: "CRAZY8",
-        host_email: HOST_EMAIL,
-        members: {},
-        daily_logs: {}
-      };
-
-      try {
-        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-          body: JSON.stringify(freshPayload)
-        });
-
-        localStorage.clear();
-        alert('Group reset complete!');
-        location.reload();
-      } catch (err) {
-        console.error('Reset error:', err);
       }
     }
 
