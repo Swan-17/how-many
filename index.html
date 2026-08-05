@@ -64,6 +64,7 @@
     .member-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       padding: 10px 0;
       border-bottom: 1px solid #334155;
     }
@@ -87,6 +88,16 @@
       font-weight: bold;
       width: 100%;
       margin-top: 8px;
+      cursor: pointer;
+    }
+    .btn-remove {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
       cursor: pointer;
     }
     .chart-container {
@@ -146,13 +157,19 @@
 
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
-        <p style="margin: 4px 0; color: #94a3b8;">You: <strong id="user-display-name">---</strong></p>
+        <p style="margin: 4px 0; color: #94a3b8;">You: <strong id="user-display-name">---</strong> <span id="host-tag" style="color:#f59e0b; font-size:12px; display:none;">(Host)</span></p>
         <p style="margin: 4px 0 12px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">BEER2026</strong></p>
         
         <h4 style="margin: 12px 0 6px 0; font-size: 13px; color: #94a3b8;">GROUP MEMBERS</h4>
         <div id="group-members-badges">
           <span class="member-badge">Syncing members...</span>
         </div>
+      </div>
+
+      <!-- HOST MANAGEMENT PANEL -->
+      <div id="host-panel" class="card hidden">
+        <h3 style="margin-top: 0; font-size: 16px; color: #f59e0b;">MANAGE MEMBERS (HOST)</h3>
+        <div id="host-member-controls"></div>
       </div>
     </div>
 
@@ -196,6 +213,7 @@
     let freqChartInstance = null;
     let weeklyChartInstance = null;
     let isSyncing = false;
+    let currentHost = null;
 
     window.onload = function() {
       document.getElementById('current-date-label').innerText = todayDate;
@@ -233,7 +251,6 @@
       updateDisplay();
       syncWithCloud();
 
-      // Auto-poll the cloud every 5 seconds for live member updates
       setInterval(syncWithCloud, 5000);
     }
 
@@ -256,7 +273,6 @@
       isSyncing = true;
 
       try {
-        // 1. Fetch current remote bin
         const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
           method: 'GET',
           headers: { 
@@ -268,25 +284,35 @@
         let rawRecord = await getRes.json();
         if (!rawRecord || typeof rawRecord !== 'object') rawRecord = {};
         
-        // Deep merge check
         let members = rawRecord.members && typeof rawRecord.members === 'object' ? rawRecord.members : {};
         let daily_logs = rawRecord.daily_logs && typeof rawRecord.daily_logs === 'object' ? rawRecord.daily_logs : {};
+        
+        // Host logic: First user registered becomes Host
+        currentHost = rawRecord.host || userName;
 
-        // 2. Calculate local total
+        // Check if current user was kicked/removed by host
+        if (members[userName] === undefined && Object.keys(members).length > 0 && localStorage.getItem('beer_username_joined')) {
+          alert('You have been removed from the group.');
+          localStorage.clear();
+          location.reload();
+          return;
+        }
+
+        localStorage.setItem('beer_username_joined', 'true');
+
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // 3. Add/Update THIS member into existing members list without discarding others
         members[userName] = myTotalBeers;
         daily_logs[userName] = historyLogs;
 
         const payloadToSave = {
           code: "BEER2026",
+          host: currentHost,
           members: members,
           daily_logs: daily_logs
         };
 
-        // 4. Push combined payload back to JSONBin
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
@@ -296,14 +322,72 @@
           body: JSON.stringify(payloadToSave)
         });
 
-        // 5. Update interface
         renderMemberListBadges(members);
         renderLeaderboard(members);
         renderCharts(daily_logs);
+        checkHostControls(members, daily_logs);
       } catch (err) {
         console.error('Cloud sync error:', err);
       } finally {
         isSyncing = false;
+      }
+    }
+
+    function checkHostControls(membersObj, logsObj) {
+      const isHost = (userName === currentHost);
+      const hostPanel = document.getElementById('host-panel');
+      const hostTag = document.getElementById('host-tag');
+
+      if (isHost) {
+        hostTag.style.display = 'inline';
+        hostPanel.classList.remove('hidden');
+
+        const controlsContainer = document.getElementById('host-member-controls');
+        controlsContainer.innerHTML = '';
+
+        Object.keys(membersObj).forEach(member => {
+          if (member !== userName) {
+            const row = document.createElement('div');
+            row.className = 'member-row';
+            row.innerHTML = `
+              <span>${member}</span>
+              <button class="btn-remove" onclick="removeMember('${member}')">Remove Member</button>
+            `;
+            controlsContainer.appendChild(row);
+          }
+        });
+
+        if (controlsContainer.children.length === 0) {
+          controlsContainer.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No other members to manage.</span>';
+        }
+      } else {
+        hostTag.style.display = 'none';
+        hostPanel.classList.add('hidden');
+      }
+    }
+
+    async function removeMember(targetMember) {
+      if (!confirm(`Are you sure you want to remove ${targetMember} from the group?`)) return;
+
+      try {
+        const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          method: 'GET',
+          headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }
+        });
+
+        let rawRecord = await getRes.json();
+        delete rawRecord.members[targetMember];
+        delete rawRecord.daily_logs[targetMember];
+
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+          body: JSON.stringify(rawRecord)
+        });
+
+        syncWithCloud();
+      } catch (err) {
+        console.error('Error removing member:', err);
       }
     }
 
@@ -321,7 +405,7 @@
       memberNames.forEach(name => {
         const badge = document.createElement('span');
         badge.className = 'member-badge';
-        badge.innerText = `${name}${name === userName ? ' (You)' : ''}`;
+        badge.innerText = `${name}${name === userName ? ' (You)' : ''}${name === currentHost ? ' 👑' : ''}`;
         container.appendChild(badge);
       });
     }
@@ -340,7 +424,7 @@
 
         const row = document.createElement('div');
         row.className = 'member-row';
-        row.innerHTML = `<span>${name} ${name === userName ? '(You)' : ''}</span><strong>${count} 🍺</strong>`;
+        row.innerHTML = `<span>${name} ${name === userName ? '(You)' : ''}${name === currentHost ? ' 👑' : ''}</span><strong>${count} 🍺</strong>`;
         leaderboardEl.appendChild(row);
       });
 
@@ -352,7 +436,6 @@
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
 
-      // Frequency calculation
       const freqMap = {};
       Object.values(allDailyLogs).forEach(userLogs => {
         if (userLogs && typeof userLogs === 'object') {
@@ -391,7 +474,6 @@
         }
       });
 
-      // Weekly totals calculation
       const weeklyMap = {};
       Object.values(allDailyLogs).forEach(userLogs => {
         if (userLogs && typeof userLogs === 'object') {
