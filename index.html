@@ -151,7 +151,7 @@
         
         <h4 style="margin: 12px 0 6px 0; font-size: 13px; color: #94a3b8;">GROUP MEMBERS</h4>
         <div id="group-members-badges">
-          <span class="member-badge">Loading...</span>
+          <span class="member-badge">Syncing members...</span>
         </div>
       </div>
     </div>
@@ -195,6 +195,7 @@
 
     let freqChartInstance = null;
     let weeklyChartInstance = null;
+    let isSyncing = false;
 
     window.onload = function() {
       document.getElementById('current-date-label').innerText = todayDate;
@@ -231,6 +232,9 @@
 
       updateDisplay();
       syncWithCloud();
+
+      // Auto-poll the cloud every 5 seconds for live member updates
+      setInterval(syncWithCloud, 5000);
     }
 
     function changeCount(delta) {
@@ -248,28 +252,31 @@
     }
 
     async function syncWithCloud() {
-      if (!API_KEY || !BIN_ID) return; 
+      if (!API_KEY || !BIN_ID || isSyncing) return; 
+      isSyncing = true;
 
       try {
         // 1. Fetch current remote bin
         const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
           method: 'GET',
           headers: { 
-            'X-Master-Key': API_KEY
+            'X-Master-Key': API_KEY,
+            'X-Bin-Meta': 'false'
           }
         });
 
-        const resData = await getRes.json();
+        let rawRecord = await getRes.json();
+        if (!rawRecord || typeof rawRecord !== 'object') rawRecord = {};
         
-        let rawRecord = resData.record || resData;
+        // Deep merge check
         let members = rawRecord.members && typeof rawRecord.members === 'object' ? rawRecord.members : {};
         let daily_logs = rawRecord.daily_logs && typeof rawRecord.daily_logs === 'object' ? rawRecord.daily_logs : {};
 
-        // 2. Calculate local user total
+        // 2. Calculate local total
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // 3. Merge local user into members and daily logs
+        // 3. Add/Update THIS member into existing members list without discarding others
         members[userName] = myTotalBeers;
         daily_logs[userName] = historyLogs;
 
@@ -279,7 +286,7 @@
           daily_logs: daily_logs
         };
 
-        // 4. Save merged structure back to JSONBin
+        // 4. Push combined payload back to JSONBin
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
@@ -289,12 +296,14 @@
           body: JSON.stringify(payloadToSave)
         });
 
-        // 5. Render Member Badges on Page 1 & Analytics on Page 2
+        // 5. Update interface
         renderMemberListBadges(members);
         renderLeaderboard(members);
         renderCharts(daily_logs);
       } catch (err) {
         console.error('Cloud sync error:', err);
+      } finally {
+        isSyncing = false;
       }
     }
 
