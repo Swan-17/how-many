@@ -95,6 +95,17 @@
       width: 100%;
       margin-top: 10px;
     }
+    .member-badge {
+      display: inline-block;
+      background: #334155;
+      color: #f59e0b;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-right: 6px;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -135,8 +146,13 @@
 
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
-        <p style="margin: 4px 0; color: #94a3b8;">Member: <strong id="user-display-name">---</strong></p>
-        <p style="margin: 4px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">BEER2026</strong></p>
+        <p style="margin: 4px 0; color: #94a3b8;">You: <strong id="user-display-name">---</strong></p>
+        <p style="margin: 4px 0 12px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">BEER2026</strong></p>
+        
+        <h4 style="margin: 12px 0 6px 0; font-size: 13px; color: #94a3b8;">GROUP MEMBERS</h4>
+        <div id="group-members-badges">
+          <span class="member-badge">Loading...</span>
+        </div>
       </div>
     </div>
 
@@ -245,17 +261,15 @@
 
         const resData = await getRes.json();
         
-        // Unpack JSONBin's "record" wrapper safely
         let rawRecord = resData.record || resData;
-        
         let members = rawRecord.members && typeof rawRecord.members === 'object' ? rawRecord.members : {};
         let daily_logs = rawRecord.daily_logs && typeof rawRecord.daily_logs === 'object' ? rawRecord.daily_logs : {};
 
-        // 2. Calculate local user's total beers
+        // 2. Calculate local user total
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // 3. Update ONLY this user's entries in the global objects
+        // 3. Merge local user into members and daily logs
         members[userName] = myTotalBeers;
         daily_logs[userName] = historyLogs;
 
@@ -275,12 +289,32 @@
           body: JSON.stringify(payloadToSave)
         });
 
-        // 5. Render analytics with combined members data
+        // 5. Render Member Badges on Page 1 & Analytics on Page 2
+        renderMemberListBadges(members);
         renderLeaderboard(members);
         renderCharts(daily_logs);
       } catch (err) {
         console.error('Cloud sync error:', err);
       }
+    }
+
+    function renderMemberListBadges(membersObj) {
+      const container = document.getElementById('group-members-badges');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const memberNames = Object.keys(membersObj);
+      if (memberNames.length === 0) {
+        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No members joined yet</span>';
+        return;
+      }
+
+      memberNames.forEach(name => {
+        const badge = document.createElement('span');
+        badge.className = 'member-badge';
+        badge.innerText = `${name}${name === userName ? ' (You)' : ''}`;
+        container.appendChild(badge);
+      });
     }
 
     function renderLeaderboard(membersObj) {
@@ -309,7 +343,7 @@
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
 
-      // Frequency calculation across all members
+      // Frequency calculation
       const freqMap = {};
       Object.values(allDailyLogs).forEach(userLogs => {
         if (userLogs && typeof userLogs === 'object') {
@@ -348,7 +382,7 @@
         }
       });
 
-      // Weekly totals calculation across all members
+      // Weekly totals calculation
       const weeklyMap = {};
       Object.values(allDailyLogs).forEach(userLogs => {
         if (userLogs && typeof userLogs === 'object') {
