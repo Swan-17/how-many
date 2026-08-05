@@ -149,10 +149,10 @@
     </div>
   </div>
 
-  <script>
+<script>
     // Config: Replace these with your JSONBin credentials
-    const BIN_ID = '6a735891da38895dfebd8ae4'; 
-    const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; 
+    const BIN_ID = 'YOUR_BIN_ID'; 
+    const API_KEY = 'YOUR_API_KEY'; 
 
     let userName = localStorage.getItem('beer_username');
     let groupCode = localStorage.getItem('beer_group_code');
@@ -211,26 +211,34 @@
       document.getElementById('beer-count').innerText = todayCount;
     }
 
-    // Push local data to JSONBin and load live data from other members
+    // Safely fetch, merge, and save group data
     async function syncWithCloud() {
-      if (BIN_ID === 'YOUR_BIN_ID') return; // Skip if credentials aren't pasted yet
+      if (BIN_ID === 'YOUR_BIN_ID') return; 
 
       try {
-        // Fetch current bin data
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          headers: { 'X-Master-Key': API_KEY }
+        // 1. GET current cloud data
+        const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          method: 'GET',
+          headers: { 
+            'X-Master-Key': API_KEY,
+            'X-Bin-Meta': 'false'
+          }
         });
-        const json = await res.json();
-        let binData = json.record || { members: {} };
 
-        // Calculate user's total beers
+        let binData = await getRes.json();
+        
+        // Safety check for data structure
+        if (!binData || typeof binData !== 'object') binData = {};
+        if (!binData.members) binData.members = {};
+
+        // 2. Calculate local total
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // Update current member's total in the group data
+        // 3. MERGE: Add/Update ONLY this specific user in the members list
         binData.members[userName] = myTotalBeers;
 
-        // Save back to JSONBin
+        // 4. PUT updated object back to JSONBin
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
@@ -240,6 +248,7 @@
           body: JSON.stringify(binData)
         });
 
+        // 5. Render updated leaderboard containing ALL users
         renderLeaderboard(binData.members);
       } catch (err) {
         console.error('Cloud sync error:', err);
@@ -248,10 +257,17 @@
 
     function renderLeaderboard(membersObj) {
       const leaderboardEl = document.getElementById('leaderboard-list');
+      if (!leaderboardEl) return;
+      
       leaderboardEl.innerHTML = '';
 
       let totalGroupBeers = 0;
       const sortedMembers = Object.keys(membersObj).sort((a,b) => membersObj[b] - membersObj[a]);
+
+      if (sortedMembers.length === 0) {
+        leaderboardEl.innerHTML = '<div class="member-row" style="color:#94a3b8;">No members found.</div>';
+        return;
+      }
 
       sortedMembers.forEach(name => {
         const count = membersObj[name];
@@ -282,7 +298,9 @@
         p2.classList.remove('hidden');
         btn1.classList.remove('active');
         btn2.classList.add('active');
-        syncWithCloud(); // Refresh group standings when switching to Analytics
+        
+        // Fetch fresh group state every time user views Analytics
+        syncWithCloud();
       }
     }
   </script>
