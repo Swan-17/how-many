@@ -70,146 +70,200 @@
       background: #0f172a;
       border: 1px solid #334155;
       color: white;
-      padding: 6px 10px;
+      padding: 8px 10px;
       border-radius: 6px;
       font-weight: bold;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .btn-submit {
+      background: #f59e0b;
+      color: #000;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      width: 100%;
+      margin-top: 8px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-  <!-- Navigation Bar -->
-  <nav>
-    <button id="nav-p1" class="active" onclick="switchPage(1)">Tracker</button>
-    <button id="nav-p2" onclick="switchPage(2)">Analytics</button>
-  </nav>
-
-  <!-- PAGE 1: DAILY LOGGER -->
-  <div id="page1">
+  <!-- JOIN GROUP SCREEN (Shown if not joined) -->
+  <div id="join-screen">
     <div class="card" style="text-align: center;">
-      <h2 style="margin: 0; font-size: 14px; color: #94a3b8;">TODAY'S BEERS (<span id="current-date-label"></span>)</h2>
-      <div class="counter">
-        <button class="btn-circle btn-minus" onclick="changeCount(-1)">-</button>
-        <span id="beer-count" class="count-display">0</span>
-        <button class="btn-circle btn-plus" onclick="changeCount(1)">+</button>
+      <h2 style="margin-top: 0;">Join Group</h2>
+      <div style="margin-bottom: 12px; text-align: left;">
+        <label style="color: #94a3b8; font-size: 12px;">YOUR NAME</label>
+        <input type="text" id="join-name" placeholder="e.g. Alex">
       </div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin-top: 0; font-size: 16px;">Profile & Group</h3>
-      <div style="margin-bottom: 10px;">
-        <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 4px;">YOUR NAME</label>
-        <input type="text" id="username-input" value="User" onchange="updateUsername(this.value)" style="width: 100%; box-sizing: border-box;">
+      <div style="margin-bottom: 12px; text-align: left;">
+        <label style="color: #94a3b8; font-size: 12px;">GROUP CODE</label>
+        <input type="text" id="join-code" placeholder="e.g. BEER2026" style="text-transform: uppercase;">
       </div>
-      <p style="margin: 8px 0 4px 0; color: #94a3b8;">Group: <strong>Founders Club</strong></p>
-      <p style="margin: 4px 0; color: #94a3b8;">Code: <strong>BEER2026</strong></p>
+      <button class="btn-submit" onclick="joinGroup()">Join Group</button>
     </div>
   </div>
 
-  <!-- PAGE 2: REAL ANALYTICS -->
-  <div id="page2" class="hidden">
-    <div class="card" style="text-align: center;">
-      <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">YOUR ALL-TIME CONSUMPTION</h3>
-      <p id="analytics-total" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">0</p>
-    </div>
+  <!-- MAIN APP (Shown after joining) -->
+  <div id="app-screen" class="hidden">
+    <!-- Navigation Bar -->
+    <nav>
+      <button id="nav-p1" class="active" onclick="switchPage(1)">Tracker</button>
+      <button id="nav-p2" onclick="switchPage(2)">Analytics</button>
+    </nav>
 
-    <div class="card">
-      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">THIS MONTH'S TOTAL</h3>
-      <div class="member-row">
-        <span id="analytics-user-name">User</span>
-        <strong id="analytics-month-total">0 🍺</strong>
+    <!-- PAGE 1: DAILY LOGGER -->
+    <div id="page1">
+      <div class="card" style="text-align: center;">
+        <h2 style="margin: 0; font-size: 14px; color: #94a3b8;">TODAY'S BEERS (<span id="current-date-label"></span>)</h2>
+        <div class="counter">
+          <button class="btn-circle btn-minus" onclick="changeCount(-1)">-</button>
+          <span id="beer-count" class="count-display">0</span>
+          <button class="btn-circle btn-plus" onclick="changeCount(1)">+</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
+        <p style="margin: 4px 0; color: #94a3b8;">Member: <strong id="user-display-name">---</strong></p>
+        <p style="margin: 4px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">BEER2026</strong></p>
       </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">MOST COMMON BEER FREQUENCY</h3>
-      <div id="frequency-list">
-        <!-- Generated dynamically from actual logs -->
+    <!-- PAGE 2: REAL ANALYTICS -->
+    <div id="page2" class="hidden">
+      <div class="card" style="text-align: center;">
+        <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">TOTAL GROUP CONSUMPTION</h3>
+        <p id="group-total-beers" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">0</p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">GROUP LEADERBOARD</h3>
+        <div id="leaderboard-list">
+          <!-- Populated dynamically with all group members -->
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    let userName = localStorage.getItem('beer_username') || 'User';
+    // Config: Replace these with your JSONBin credentials
+    const BIN_ID = '6a735891da38895dfebd8ae4'; 
+    const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; 
+
+    let userName = localStorage.getItem('beer_username');
+    let groupCode = localStorage.getItem('beer_group_code');
     let historyLogs = JSON.parse(localStorage.getItem('beer_history') || '{}');
     const todayDate = new Date().toISOString().split('T')[0];
 
     window.onload = function() {
-      document.getElementById('username-input').value = userName;
       document.getElementById('current-date-label').innerText = todayDate;
 
-      // Ensure today entry exists in history (defaults to 0 if brand new day)
+      if (userName && groupCode) {
+        showApp();
+      }
+    };
+
+    function joinGroup() {
+      const nameInput = document.getElementById('join-name').value.trim();
+      const codeInput = document.getElementById('join-code').value.trim().toUpperCase();
+
+      if (!nameInput || !codeInput) return alert('Please enter both your name and group code.');
+      if (codeInput !== 'BEER2026') return alert('Invalid group code! Try: BEER2026');
+
+      userName = nameInput;
+      groupCode = codeInput;
+
+      localStorage.setItem('beer_username', userName);
+      localStorage.setItem('beer_group_code', groupCode);
+
+      showApp();
+    }
+
+    function showApp() {
+      document.getElementById('join-screen').classList.add('hidden');
+      document.getElementById('app-screen').classList.remove('hidden');
+      document.getElementById('user-display-name').innerText = userName;
+
       if (historyLogs[todayDate] === undefined) {
         historyLogs[todayDate] = 0;
-        saveLogs();
+        localStorage.setItem('beer_history', JSON.stringify(historyLogs));
       }
 
       updateDisplay();
-    };
-
-    function updateUsername(newName) {
-      userName = newName || 'User';
-      localStorage.setItem('beer_username', userName);
-      updateDisplay();
+      syncWithCloud();
     }
 
     function changeCount(delta) {
       const current = historyLogs[todayDate] || 0;
       historyLogs[todayDate] = Math.max(0, current + delta);
-      saveLogs();
-      updateDisplay();
-    }
-
-    function saveLogs() {
       localStorage.setItem('beer_history', JSON.stringify(historyLogs));
+
+      updateDisplay();
+      syncWithCloud();
     }
 
     function updateDisplay() {
       const todayCount = historyLogs[todayDate] || 0;
       document.getElementById('beer-count').innerText = todayCount;
+    }
 
-      // Calculate All-Time Total
-      let totalBeers = 0;
-      const currentMonth = todayDate.substring(0, 7); // YYYY-MM
-      let monthBeers = 0;
-      const frequencyMap = {};
+    // Push local data to JSONBin and load live data from other members
+    async function syncWithCloud() {
+      if (BIN_ID === 'YOUR_BIN_ID') return; // Skip if credentials aren't pasted yet
 
-      Object.keys(historyLogs).forEach(date => {
-        const count = historyLogs[date];
-        totalBeers += count;
+      try {
+        // Fetch current bin data
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { 'X-Master-Key': API_KEY }
+        });
+        const json = await res.json();
+        let binData = json.record || { members: {} };
 
-        if (date.startsWith(currentMonth)) {
-          monthBeers += count;
-        }
+        // Calculate user's total beers
+        let myTotalBeers = 0;
+        Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // Only count days where beers were consumed for frequency ranking
-        if (count > 0) {
-          frequencyMap[count] = (frequencyMap[count] || 0) + 1;
-        }
+        // Update current member's total in the group data
+        binData.members[userName] = myTotalBeers;
+
+        // Save back to JSONBin
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+          },
+          body: JSON.stringify(binData)
+        });
+
+        renderLeaderboard(binData.members);
+      } catch (err) {
+        console.error('Cloud sync error:', err);
+      }
+    }
+
+    function renderLeaderboard(membersObj) {
+      const leaderboardEl = document.getElementById('leaderboard-list');
+      leaderboardEl.innerHTML = '';
+
+      let totalGroupBeers = 0;
+      const sortedMembers = Object.keys(membersObj).sort((a,b) => membersObj[b] - membersObj[a]);
+
+      sortedMembers.forEach(name => {
+        const count = membersObj[name];
+        totalGroupBeers += count;
+
+        const row = document.createElement('div');
+        row.className = 'member-row';
+        row.innerHTML = `<span>${name} ${name === userName ? '(You)' : ''}</span><strong>${count} 🍺</strong>`;
+        leaderboardEl.appendChild(row);
       });
 
-      // Update Analytics DOM
-      document.getElementById('analytics-total').innerText = totalBeers + " 🍺";
-      document.getElementById('analytics-user-name').innerText = userName + " (You)";
-      document.getElementById('analytics-month-total').innerText = monthBeers + " 🍺";
-
-      // Render Dynamic Frequency Ranking
-      const freqListEl = document.getElementById('frequency-list');
-      freqListEl.innerHTML = '';
-
-      const sortedFreqs = Object.keys(frequencyMap).sort((a, b) => frequencyMap[b] - frequencyMap[a]);
-
-      if (sortedFreqs.length === 0) {
-        freqListEl.innerHTML = '<div class="member-row" style="color:#94a3b8;">No drinking days recorded yet</div>';
-      } else {
-        sortedFreqs.forEach(beerAmount => {
-          const daysCount = frequencyMap[beerAmount];
-          const row = document.createElement('div');
-          row.className = 'member-row';
-          row.innerHTML = `<span>${beerAmount} beer${beerAmount > 1 ? 's' : ''} in a day</span><strong>${daysCount} day${daysCount > 1 ? 's' : ''}</strong>`;
-          freqListEl.appendChild(row);
-        });
-      }
+      document.getElementById('group-total-beers').innerText = totalGroupBeers + ' 🍺';
     }
 
     function switchPage(pageNum) {
@@ -228,6 +282,7 @@
         p2.classList.remove('hidden');
         btn1.classList.remove('active');
         btn2.classList.add('active');
+        syncWithCloud(); // Refresh group standings when switching to Analytics
       }
     }
   </script>
