@@ -150,18 +150,19 @@
   </div>
 
 <script>
-    // Config: Replace these with your JSONBin credentials
-    const BIN_ID = '6a735b28da38895dfebd94ac'; 
-    const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; 
+    const BIN_ID = '6a735891da38895dfebd8ae4'; 
+    const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; // Replace with your Master API Key
 
     let userName = localStorage.getItem('beer_username');
     let groupCode = localStorage.getItem('beer_group_code');
     let historyLogs = JSON.parse(localStorage.getItem('beer_history') || '{}');
     const todayDate = new Date().toISOString().split('T')[0];
 
+    let freqChartInstance = null;
+    let weeklyChartInstance = null;
+
     window.onload = function() {
       document.getElementById('current-date-label').innerText = todayDate;
-
       if (userName && groupCode) {
         showApp();
       }
@@ -211,45 +212,38 @@
       document.getElementById('beer-count').innerText = todayCount;
     }
 
-    // Safely fetch, merge, and save group data
     async function syncWithCloud() {
-      if (BIN_ID === 'YOUR_BIN_ID') return; 
+      if (API_KEY === 'YOUR_API_KEY') return; 
 
       try {
-        // 1. GET current cloud data
         const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
           method: 'GET',
-          headers: { 
-            'X-Master-Key': API_KEY,
-            'X-Bin-Meta': 'false'
-          }
+          headers: { 'X-Master-Key': API_KEY }
         });
 
-        let binData = await getRes.json();
-        
-        // Safety check for data structure
-        if (!binData || typeof binData !== 'object') binData = {};
-        if (!binData.members) binData.members = {};
+        const resData = await getRes.json();
+        let cloudRecord = resData.record || {};
+        if (!cloudRecord.members) cloudRecord.members = {};
+        if (!cloudRecord.daily_logs) cloudRecord.daily_logs = {};
 
-        // 2. Calculate local total
+        // Merge user total count and daily logs
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // 3. MERGE: Add/Update ONLY this specific user in the members list
-        binData.members[userName] = myTotalBeers;
+        cloudRecord.members[userName] = myTotalBeers;
+        cloudRecord.daily_logs[userName] = historyLogs;
 
-        // 4. PUT updated object back to JSONBin
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Master-Key': API_KEY
           },
-          body: JSON.stringify(binData)
+          body: JSON.stringify(cloudRecord)
         });
 
-        // 5. Render updated leaderboard containing ALL users
-        renderLeaderboard(binData.members);
+        renderLeaderboard(cloudRecord.members);
+        renderCharts(cloudRecord.daily_logs);
       } catch (err) {
         console.error('Cloud sync error:', err);
       }
@@ -258,16 +252,10 @@
     function renderLeaderboard(membersObj) {
       const leaderboardEl = document.getElementById('leaderboard-list');
       if (!leaderboardEl) return;
-      
       leaderboardEl.innerHTML = '';
 
       let totalGroupBeers = 0;
       const sortedMembers = Object.keys(membersObj).sort((a,b) => membersObj[b] - membersObj[a]);
-
-      if (sortedMembers.length === 0) {
-        leaderboardEl.innerHTML = '<div class="member-row" style="color:#94a3b8;">No members found.</div>';
-        return;
-      }
 
       sortedMembers.forEach(name => {
         const count = membersObj[name];
@@ -280,6 +268,106 @@
       });
 
       document.getElementById('group-total-beers').innerText = totalGroupBeers + ' 🍺';
+    }
+
+    function renderCharts(allDailyLogs) {
+      // 1. Calculate Frequency: Map exact beer amounts to total occurrences
+      const freqMap = {};
+      
+      Object.values(allDailyLogs).forEach(userLogs => {
+        Object.values(userLogs).forEach(count => {
+          if (count > 0) {
+            freqMap[count] = (freqMap[count] || 0) + 1;
+          }
+        });
+      });
+
+      const sortedAmounts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
+      const freqLabels = sortedAmounts.map(amt => `${amt} Beer${amt > 1 ? 's' : ''}`);
+      const freqData = sortedAmounts.map(amt => freqMap[amt]);
+
+      // Render Bar Chart for Daily Frequency
+      if (freqChartInstance) freqChartInstance.destroy();
+      const ctx1 = document.getElementById('freqChart').getContext('2d');
+      freqChartInstance = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: freqLabels,
+          datasets: [{
+            label: 'Times Logged',
+            data: freqData,
+            backgroundColor: '#f59e0b',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.raw} times logged`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+            y: { 
+              ticks: { color: '#94a3b8', stepSize: 1, precision: 0 }, 
+              grid: { color: '#334155' },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+      // 2. Calculate Weekly Totals
+      const weeklyMap = {};
+      Object.values(allDailyLogs).forEach(userLogs => {
+        Object.entries(userLogs).forEach(([dateStr, count]) => {
+          if (count > 0) {
+            const date = new Date(dateStr);
+            const weekNum = Math.ceil(date.getDate() / 7);
+            const monthName = date.toLocaleString('default', { month: 'short' });
+            const weekKey = `W${weekNum} ${monthName}`;
+
+            weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + count;
+          }
+        });
+      });
+
+      const weeklyLabels = Object.keys(weeklyMap);
+      const weeklyData = Object.values(weeklyMap);
+
+      // Render Weekly Line/Bar Chart
+      if (weeklyChartInstance) weeklyChartInstance.destroy();
+      const ctx2 = document.getElementById('weeklyChart').getContext('2d');
+      weeklyChartInstance = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels: weeklyLabels,
+          datasets: [{
+            label: 'Group Beers',
+            data: weeklyData,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.2)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8', precision: 0 }, grid: { color: '#334155' }, beginAtZero: true }
+          }
+        }
+      });
     }
 
     function switchPage(pageNum) {
@@ -299,7 +387,6 @@
         btn1.classList.remove('active');
         btn2.classList.add('active');
         
-        // Fetch fresh group state every time user views Analytics
         syncWithCloud();
       }
     }
