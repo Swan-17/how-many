@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🍺 Multi-Group Drink Tracker</title>
-  <!-- Chart.js CDN -->
+  <!-- Chart.js & Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -45,8 +46,6 @@
       margin-bottom: 16px;
       border: 1px solid #334155;
     }
-
-    /* EXPANDABLE ACCORDION STYLES */
     .accordion-header {
       display: flex;
       justify-content: space-between;
@@ -54,28 +53,11 @@
       cursor: pointer;
       user-select: none;
     }
-    .accordion-header h3 {
-      margin: 0;
-      font-size: 15px;
-    }
-    .accordion-icon {
-      font-size: 14px;
-      color: #f59e0b;
-      transition: transform 0.2s ease;
-    }
-    .accordion-content {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid #334155;
-    }
-
-    /* TRACKER ROW-BASED DRINK CARDS */
-    .drink-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 14px;
-    }
+    .accordion-header h3 { margin: 0; font-size: 15px; }
+    .accordion-icon { font-size: 14px; color: #f59e0b; }
+    .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; }
+    
+    .drink-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
     .drink-row {
       background: #0f172a;
       padding: 12px 16px;
@@ -85,11 +67,7 @@
       align-items: center;
       justify-content: space-between;
     }
-    .drink-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .drink-info { display: flex; align-items: center; gap: 12px; }
     .drink-icon-svg {
       width: 28px;
       height: 28px;
@@ -99,147 +77,45 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    .drink-title {
-      font-size: 15px;
-      color: #f8fafc;
-      font-weight: 700;
-    }
+    .drink-title { font-size: 15px; color: #f8fafc; font-weight: 700; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .stat-box { background: #0f172a; padding: 14px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+    .stat-number { font-size: 26px; font-weight: 900; color: #f59e0b; margin-top: 4px; }
+    .stat-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
 
-    .stat-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 12px;
-    }
-    .stat-box {
-      background: #0f172a;
-      padding: 14px;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      text-align: center;
-    }
-    .stat-number {
-      font-size: 26px;
-      font-weight: 900;
-      color: #f59e0b;
-      margin-top: 4px;
-    }
-    .stat-label {
-      font-size: 11px;
-      color: #94a3b8;
-      font-weight: bold;
-      text-transform: uppercase;
-    }
-
-    .counter-controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-    }
+    .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
     .btn-circle {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      font-size: 18px; font-weight: bold; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
     }
     .btn-minus { background: #334155; color: white; }
     .btn-plus { background: #f59e0b; color: black; }
     .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; text-align: center; }
     
-    .summary-box {
-      background: #0f172a;
-      border: 1px solid #f59e0b;
-      border-radius: 8px;
-      padding: 14px;
-      text-align: center;
-      margin-top: 16px;
-    }
+    .summary-box { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px; text-align: center; margin-top: 16px; }
     .unit-text { font-size: 12px; color: #94a3b8; }
     .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
-
     .hidden { display: none !important; }
     
     input[type="text"], input[type="email"], select {
-      background: #0f172a;
-      border: 1px solid #334155;
-      color: white;
-      padding: 10px;
-      border-radius: 6px;
-      font-weight: bold;
-      width: 100%;
-      margin-top: 4px;
+      background: #0f172a; border: 1px solid #334155; color: white;
+      padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px;
     }
-    .btn-submit {
-      background: #f59e0b;
-      color: #000;
-      border: none;
-      padding: 10px;
-      border-radius: 6px;
-      font-weight: bold;
-      width: 100%;
-      margin-top: 10px;
-      cursor: pointer;
-    }
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .btn-secondary {
-      background: #334155;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .btn-share {
-      background: #059669;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .member-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid #334155;
-    }
+    .btn-submit { background: #f59e0b; color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
+    .btn-danger { background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+    .btn-secondary { background: #334155; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+    .btn-share { background: #059669; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+    
+    .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
-
-    /* INLINE HOST CONTROL PANEL */
-    .inline-host-panel {
-      background: #0f172a;
-      border: 1px solid #f59e0b;
-      border-radius: 8px;
-      padding: 12px;
-      margin: 8px 0 12px 0;
-    }
+    .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
 
-  <!-- FIRST-TIME / UNRECOGNIZED DEVICE LOGIN SCREEN -->
+  <!-- LOGIN SCREEN -->
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">Alcohol Unit Tracker</h2>
     <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your email to sign in or recover your account.</p>
@@ -256,7 +132,6 @@
 
   <!-- MAIN APP SCREEN -->
   <div id="app-screen" class="hidden">
-    <!-- 4-PAGE TOP NAVIGATION -->
     <nav>
       <button id="nav-account" class="active" onclick="switchPage('account')">Account</button>
       <button id="nav-groups" onclick="switchPage('groups')">Groups</button>
@@ -268,7 +143,6 @@
     <div id="page-account">
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
-        
         <div class="member-row">
           <div>
             <span style="font-size: 11px; color: #94a3b8; display: block;">DISPLAY NAME</span>
@@ -276,7 +150,6 @@
           </div>
           <button class="btn-secondary" onclick="editProfileName()">Edit Name</button>
         </div>
-
         <div class="member-row">
           <div>
             <span style="font-size: 11px; color: #94a3b8; display: block;">EMAIL</span>
@@ -289,29 +162,30 @@
             <div class="stat-label">Days Active</div>
             <div id="acc-days-active" class="stat-number">1</div>
           </div>
-
           <div class="stat-box">
             <div class="stat-label">Groups Joined</div>
             <div id="acc-groups-count" class="stat-number">0</div>
           </div>
-
           <div class="stat-box" style="grid-column: span 2;">
             <div class="stat-label">Total Lifetime Pints Drunk</div>
             <div id="acc-total-pints" class="stat-number">0 🍺</div>
           </div>
+        </div>
+
+        <!-- LOG OUT BUTTON -->
+        <div style="margin-top: 18px;">
+          <button class="btn-danger" style="width: 100%; padding: 10px; font-size: 13px;" onclick="logoutUser()">Log Out</button>
         </div>
       </div>
     </div>
 
     <!-- PAGE 2: GROUPS -->
     <div id="page-groups" class="hidden">
-      <!-- ACTIVE GROUPS LIST -->
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">YOUR ACTIVE GROUPS</h3>
         <div id="my-groups-list"></div>
       </div>
 
-      <!-- JOIN EXISTING GROUP (EXPANDABLE ACCORDION) -->
       <div class="card" id="card-join-group">
         <div class="accordion-header" onclick="toggleAccordion('join-accordion-body', 'join-accordion-icon')">
           <h3>Join a Group</h3>
@@ -324,7 +198,6 @@
         </div>
       </div>
 
-      <!-- CREATE NEW GROUP (EXPANDABLE ACCORDION) -->
       <div class="card" id="card-create-group">
         <div class="accordion-header" onclick="toggleAccordion('create-accordion-body', 'create-accordion-icon')">
           <h3>Create a New Group</h3>
@@ -344,19 +217,10 @@
     <div id="page-tracker" class="hidden">
       <div class="card">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
-        
         <div class="drink-list">
-          <!-- PINTS -->
           <div class="drink-row">
             <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24">
-                <path d="M6 3h12l-2 18H8L6 3z" />
-                <path d="M6 6c1-1 3-1 4 0 1-1 3-1 4 0 1-1 3-1 4 0" />
-                <path d="M6 6h12" />
-                <circle cx="10" cy="12" r="0.5" fill="#f59e0b" />
-                <circle cx="14" cy="15" r="0.5" fill="#f59e0b" />
-                <circle cx="11" cy="17" r="0.5" fill="#f59e0b" />
-              </svg>
+              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M6 3h12l-2 18H8L6 3z" /><path d="M6 6c1-1 3-1 4 0 1-1 3-1 4 0 1-1 3-1 4 0" /><path d="M6 6h12" /><circle cx="10" cy="12" r="0.5" fill="#f59e0b" /><circle cx="14" cy="15" r="0.5" fill="#f59e0b" /><circle cx="11" cy="17" r="0.5" fill="#f59e0b" /></svg>
               <span class="drink-title">Pints</span>
             </div>
             <div class="counter-controls">
@@ -365,15 +229,9 @@
               <button class="btn-circle btn-plus" onclick="adjustDrink('pints', 1)">+</button>
             </div>
           </div>
-
-          <!-- BOTTLE / CAN -->
           <div class="drink-row">
             <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24">
-                <path d="M10 2h4v1.5h-4z" />
-                <path d="M11 3.5h2v4.5l2.5 3v11h-7.0v-11l2.5-3v-4.5z" />
-                <rect x="9.5" y="13" width="5" height="5" rx="1" />
-              </svg>
+              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M10 2h4v1.5h-4z" /><path d="M11 3.5h2v4.5l2.5 3v11h-7.0v-11l2.5-3v-4.5z" /><rect x="9.5" y="13" width="5" height="5" rx="1" /></svg>
               <span class="drink-title">Bottles/Cans</span>
             </div>
             <div class="counter-controls">
@@ -382,15 +240,9 @@
               <button class="btn-circle btn-plus" onclick="adjustDrink('bottles', 1)">+</button>
             </div>
           </div>
-
-          <!-- WINE -->
           <div class="drink-row">
             <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24">
-                <path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/>
-                <line x1="12" y1="14" x2="12" y2="21"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-              </svg>
+              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
               <span class="drink-title">Wines</span>
             </div>
             <div class="counter-controls">
@@ -399,16 +251,9 @@
               <button class="btn-circle btn-plus" onclick="adjustDrink('wines', 1)">+</button>
             </div>
           </div>
-
-          <!-- COCKTAILS -->
           <div class="drink-row">
             <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24">
-                <path d="M4 3h16l-8 9-8-9z"/>
-                <line x1="12" y1="12" x2="12" y2="21"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-                <path d="M15 6l3-3"/>
-              </svg>
+              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M4 3h16l-8 9-8-9z"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/><path d="M15 6l3-3"/></svg>
               <span class="drink-title">Cocktails</span>
             </div>
             <div class="counter-controls">
@@ -417,14 +262,9 @@
               <button class="btn-circle btn-plus" onclick="adjustDrink('cocktails', 1)">+</button>
             </div>
           </div>
-
-          <!-- SHOTS -->
           <div class="drink-row">
             <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24">
-                <path d="M6 4h12l-1.5 16h-9L6 4z"/>
-                <line x1="6.5" y1="9" x2="17.5" y2="9"/>
-              </svg>
+              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M6 4h12l-1.5 16h-9L6 4z"/><line x1="6.5" y1="9" x2="17.5" y2="9"/></svg>
               <span class="drink-title">Shots</span>
             </div>
             <div class="counter-controls">
@@ -438,7 +278,7 @@
         <div class="summary-box">
           <div class="unit-text">TOTAL DAILY UNITS: <strong id="total-units-val">0</strong></div>
           <div class="beer-text"><span id="total-beers-val">0</span> Beer 🍺</div>
-          <div class="unit-text" style="font-size: 10px; margin-top: 4px; color:#f59e0b;">Inputs automatically push to all active groups</div>
+          <div class="unit-text" style="font-size: 10px; margin-top: 4px; color:#f59e0b;">Inputs sync real-time across all groups</div>
         </div>
       </div>
     </div>
@@ -462,60 +302,40 @@
 
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3>
-        <div class="chart-container">
-          <canvas id="freqChart"></canvas>
-        </div>
+        <div class="chart-container"><canvas id="freqChart"></canvas></div>
       </div>
 
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3>
-        <div class="chart-container">
-          <canvas id="weeklyChart"></canvas>
-        </div>
+        <div class="chart-container"><canvas id="weeklyChart"></canvas></div>
       </div>
     </div>
   </div>
 
   <script>
-    const BIN_ID = '6a735b28da38895dfebd94ac'; 
-    const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; 
+    const SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
+    const SUPABASE_ANON_KEY = 'PASTE_YOUR_COPIED_ANON_KEY_HERE';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let userName = localStorage.getItem('dt_username') || '';
     let userEmail = localStorage.getItem('dt_useremail') || '';
     let firstCreatedDate = localStorage.getItem('dt_created_date') || new Date().toISOString().split('T')[0];
-    
     const todayDate = new Date().toISOString().split('T')[0];
 
-    let dailyDrinkLogs = JSON.parse(localStorage.getItem('dt_drink_logs') || '{}');
-    let remoteGroups = {};
+    let userJoinedGroups = [];
+    let todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null;
     let freqChartInstance = null;
     let weeklyChartInstance = null;
-    let isSyncing = false;
 
     window.onload = function() {
       document.getElementById('today-date-label').innerText = todayDate;
-      if (!dailyDrinkLogs[todayDate]) {
-        dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-        saveLocalLogs();
-      }
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const sharedCode = urlParams.get('join');
-
       if (userName && userEmail) {
         showApp();
-        if (sharedCode) {
-          switchPage('groups');
-          toggleAccordion('join-accordion-body', 'join-accordion-icon');
-          document.getElementById('join-group-code').value = sharedCode.toUpperCase();
-        }
-      } else if (sharedCode) {
-        document.getElementById('join-group-code').value = sharedCode.toUpperCase();
       }
     };
 
-    function loginUser() {
+    async function loginUser() {
       const nameInput = document.getElementById('init-name').value.trim();
       const emailInput = document.getElementById('init-email').value.trim().toLowerCase();
 
@@ -524,488 +344,296 @@
       }
 
       userEmail = emailInput;
-      userName = nameInput || emailInput.split('@')[0];
-      firstCreatedDate = new Date().toISOString().split('T')[0];
+
+      // Anti-duplication check: Recover established username and creation date from Supabase
+      const { data: existingMember } = await sb.from('group_members')
+        .select('user_name, created_at')
+        .eq('user_email', userEmail)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingMember) {
+        userName = nameInput || existingMember.user_name || emailInput.split('@')[0];
+        firstCreatedDate = existingMember.created_at ? existingMember.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+      } else {
+        userName = nameInput || emailInput.split('@')[0];
+        firstCreatedDate = new Date().toISOString().split('T')[0];
+      }
 
       localStorage.setItem('dt_username', userName);
       localStorage.setItem('dt_useremail', userEmail);
       localStorage.setItem('dt_created_date', firstCreatedDate);
 
       showApp();
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const sharedCode = urlParams.get('join');
-      if (sharedCode) {
-        switchPage('groups');
-        toggleAccordion('join-accordion-body', 'join-accordion-icon');
-        document.getElementById('join-group-code').value = sharedCode.toUpperCase();
-      }
     }
 
-    function showApp() {
+    async function logoutUser() {
+      if (!confirm('Are you sure you want to log out?')) return;
+
+      // Clear local device storage
+      localStorage.removeItem('dt_username');
+      localStorage.removeItem('dt_useremail');
+      localStorage.removeItem('dt_created_date');
+
+      // Reset state variables
+      userName = '';
+      userEmail = '';
+      userJoinedGroups = [];
+      todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      activeHostCode = null;
+
+      // Clear input fields on login form
+      document.getElementById('init-name').value = '';
+      document.getElementById('init-email').value = '';
+
+      // Clean up Supabase real-time channels
+      sb.removeAllChannels();
+
+      // UI Switch back to Login Screen
+      document.getElementById('app-screen').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('hidden');
+    }
+
+    async function showApp() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
-      
-      updateTrackerUI();
-      syncWithCloud();
-      setInterval(syncWithCloud, 6000);
+
+      await fetchTodayDrinkLogs();
+      await fetchUserGroups();
+      setupRealtimeSubscriptions();
+
       switchPage('account');
     }
 
-    function editProfileName() {
-      const newName = prompt("Enter your new display name (updates across all groups):", userName);
-      if (newName && newName.trim()) {
-        userName = newName.trim();
-        localStorage.setItem('dt_username', userName);
-        updateAccountPage();
-        syncWithCloud();
-      }
+    function calculateUnitsAndBeers(entry) {
+      if (!entry) return { units: 0, beers: 0 };
+      const totalUnits = (entry.pints * 2) + (entry.bottles * 1.33) + (entry.wines * 2) + (entry.cocktails * 2) + (entry.shots * 1);
+      return { units: Number(totalUnits.toFixed(2)), beers: Math.round(totalUnits / 2) };
     }
 
-    /* CLOSE ALL OPEN EXPANDABLE SECTIONS */
-    function closeAllExpandables() {
-      closeHostPanel();
-      
-      const joinBody = document.getElementById('join-accordion-body');
-      const joinIcon = document.getElementById('join-accordion-icon');
-      if (joinBody && !joinBody.classList.contains('hidden')) {
-        joinBody.classList.add('hidden');
-        if (joinIcon) joinIcon.innerText = '▼';
+    async function fetchTodayDrinkLogs() {
+      const { data } = await sb.from('drink_logs')
+        .select('*')
+        .eq('user_email', userEmail)
+        .eq('log_date', todayDate)
+        .maybeSingle();
+
+      if (data) {
+        todayDrinkEntry = { pints: data.pints, bottles: data.bottles, wines: data.wines, cocktails: data.cocktails, shots: data.shots };
+      } else {
+        await sb.from('drink_logs').insert([{ user_email: userEmail, log_date: todayDate }]);
       }
-
-      const createBody = document.getElementById('create-accordion-body');
-      const createIcon = document.getElementById('create-accordion-icon');
-      if (createBody && !createBody.classList.contains('hidden')) {
-        createBody.classList.add('hidden');
-        if (createIcon) createIcon.innerText = '▼';
-      }
-    }
-
-    function toggleAccordion(bodyId, iconId) {
-      const body = document.getElementById(bodyId);
-      const icon = document.getElementById(iconId);
-      const isCurrentlyHidden = body.classList.contains('hidden');
-
-      closeAllExpandables();
-
-      if (isCurrentlyHidden) {
-        body.classList.remove('hidden');
-        icon.innerText = '▲';
-      }
-    }
-
-    /* GLOBAL DISMISSAL ON OUTSIDE CLICK */
-    function handleGlobalClick(e) {
-      const joinCard = document.getElementById('card-join-group');
-      const createCard = document.getElementById('card-create-group');
-      let isInsideHostPanel = false;
-
-      if (activeHostCode) {
-        const hostPanel = document.getElementById(`host-panel-${activeHostCode}`);
-        const manageBtn = document.getElementById(`manage-btn-${activeHostCode}`);
-        if ((hostPanel && hostPanel.contains(e.target)) || (manageBtn && manageBtn.contains(e.target))) {
-          isInsideHostPanel = true;
-        }
-      }
-
-      const isInsideJoin = joinCard && joinCard.contains(e.target);
-      const isInsideCreate = createCard && createCard.contains(e.target);
-
-      if (!isInsideJoin && !isInsideCreate && !isInsideHostPanel) {
-        closeAllExpandables();
-      }
-    }
-
-    function closeHostPanel() {
-      if (activeHostCode) {
-        const oldPanel = document.getElementById(`host-panel-${activeHostCode}`);
-        if (oldPanel) oldPanel.remove();
-        activeHostCode = null;
-      }
-    }
-
-    function adjustDrink(type, delta) {
-      if (!dailyDrinkLogs[todayDate]) {
-        dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-      }
-      const current = dailyDrinkLogs[todayDate][type] || 0;
-      dailyDrinkLogs[todayDate][type] = Math.max(0, current + delta);
-      saveLocalLogs();
       updateTrackerUI();
+    }
+
+    async function adjustDrink(type, delta) {
+      const currentVal = todayDrinkEntry[type] || 0;
+      const newVal = Math.max(0, currentVal + delta);
+      todayDrinkEntry[type] = newVal;
+
+      updateTrackerUI();
+
+      await sb.from('drink_logs').upsert({
+        user_email: userEmail,
+        log_date: todayDate,
+        [type]: newVal
+      }, { onConflict: 'user_email,log_date' });
+
       updateAccountPage();
-      syncWithCloud();
-    }
-
-    function saveLocalLogs() {
-      localStorage.setItem('dt_drink_logs', JSON.stringify(dailyDrinkLogs));
-    }
-
-    function calculateUnitsAndBeers(logEntry) {
-      if (!logEntry) return { units: 0, beers: 0 };
-      const pints = logEntry.pints || 0;
-      const bottles = logEntry.bottles || 0;
-      const wines = logEntry.wines || 0;
-      const cocktails = logEntry.cocktails || 0;
-      const shots = logEntry.shots || 0;
-
-      const totalUnits = (pints * 2) + (bottles * 1.33) + (wines * 2) + (cocktails * 2) + (shots * 1);
-      const roundedBeers = Math.round(totalUnits / 2);
-      return { units: Number(totalUnits.toFixed(2)), beers: roundedBeers };
     }
 
     function updateTrackerUI() {
-      const todayEntry = dailyDrinkLogs[todayDate] || { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-      
-      document.getElementById('cnt-pints').innerText = todayEntry.pints || 0;
-      document.getElementById('cnt-bottles').innerText = todayEntry.bottles || 0;
-      document.getElementById('cnt-wines').innerText = todayEntry.wines || 0;
-      document.getElementById('cnt-cocktails').innerText = todayEntry.cocktails || 0;
-      document.getElementById('cnt-shots').innerText = todayEntry.shots || 0;
+      document.getElementById('cnt-pints').innerText = todayDrinkEntry.pints || 0;
+      document.getElementById('cnt-bottles').innerText = todayDrinkEntry.bottles || 0;
+      document.getElementById('cnt-wines').innerText = todayDrinkEntry.wines || 0;
+      document.getElementById('cnt-cocktails').innerText = todayDrinkEntry.cocktails || 0;
+      document.getElementById('cnt-shots').innerText = todayDrinkEntry.shots || 0;
 
-      const calc = calculateUnitsAndBeers(todayEntry);
+      const calc = calculateUnitsAndBeers(todayDrinkEntry);
       document.getElementById('total-units-val').innerText = calc.units;
       document.getElementById('total-beers-val').innerText = calc.beers;
     }
 
-    function updateAccountPage() {
-      document.getElementById('acc-name-display').innerText = userName;
-      document.getElementById('acc-email-display').innerText = userEmail;
+    async function fetchUserGroups() {
+      const { data } = await sb.from('group_members')
+        .select('group_code, groups(name, host_email)')
+        .eq('user_email', userEmail);
 
-      const startDate = new Date(firstCreatedDate);
-      const currentDate = new Date();
-      const diffTime = Math.abs(currentDate - startDate);
-      const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      document.getElementById('acc-days-active').innerText = diffDays;
+      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups.name, host_email: d.groups.host_email })) : [];
 
-      let joinedCount = 0;
-      Object.keys(remoteGroups).forEach(code => {
-        if (remoteGroups[code].members && remoteGroups[code].members[userEmail] !== undefined) {
-          joinedCount++;
-        }
-      });
-      document.getElementById('acc-groups-count').innerText = joinedCount;
-
-      let lifetimeBeers = 0;
-      Object.values(dailyDrinkLogs).forEach(entry => {
-        lifetimeBeers += calculateUnitsAndBeers(entry).beers;
-      });
-      document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
-    }
-
-    async function syncWithCloud() {
-      if (isSyncing) return;
-      isSyncing = true;
-
-      try {
-        const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }
-        });
-        
-        let rootData = await getRes.json();
-        if (!rootData || typeof rootData !== 'object') rootData = {};
-        if (!rootData.groups) rootData.groups = {};
-
-        if (!rootData.groups["CRAZY8"]) {
-          rootData.groups["CRAZY8"] = {
-            name: "Crazy 8",
-            host_email: "matthewswan17@gmail.com",
-            members: {},
-            logs: {}
-          };
-        }
-
-        remoteGroups = rootData.groups;
-
-        let stateChanged = false;
-        Object.keys(remoteGroups).forEach(code => {
-          const group = remoteGroups[code];
-          if (group.members && group.members[userEmail] !== undefined) {
-            if (group.members[userEmail] !== userName) {
-              group.members[userEmail] = userName;
-              stateChanged = true;
-            }
-            if (!group.logs) group.logs = {};
-            group.logs[userEmail] = dailyDrinkLogs;
-            stateChanged = true;
-          }
-        });
-
-        if (stateChanged) {
-          await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-            body: JSON.stringify(rootData)
-          });
-        }
-
-        renderMyGroups();
-        updateAccountPage();
-        populateAnalyticsDropdown();
-        renderAnalytics();
-      } catch (e) {
-        console.error('Cloud sync error:', e);
-      } finally {
-        isSyncing = false;
-      }
+      renderMyGroups();
+      populateAnalyticsDropdown();
+      updateAccountPage();
     }
 
     function renderMyGroups() {
       const container = document.getElementById('my-groups-list');
       container.innerHTML = '';
-      
-      let count = 0;
-      Object.keys(remoteGroups).forEach(code => {
-        const grp = remoteGroups[code];
-        if (grp.members && grp.members[userEmail] !== undefined) {
-          count++;
-          const isHost = (grp.host_email === userEmail);
-          
-          const groupItemWrapper = document.createElement('div');
-          groupItemWrapper.id = `group-item-${code}`;
-          
-          const row = document.createElement('div');
-          row.className = 'member-row';
-          row.innerHTML = `
-            <div>
-              <strong>${grp.name}</strong>
-              ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
-            </div>
-            <div style="display:flex; gap:6px;">
-              ${isHost ? `<button class="btn-share" onclick="shareGroup('${code}')">Share</button>` : ''}
-              ${isHost ? `<button id="manage-btn-${code}" class="btn-secondary" onclick="toggleHostPanel('${code}')">Manage</button>` : ''}
-              <button class="btn-danger" onclick="leaveGroup('${code}')">Leave</button>
-            </div>
-          `;
-          
-          groupItemWrapper.appendChild(row);
-          container.appendChild(groupItemWrapper);
 
-          if (activeHostCode === code) {
-            renderInlineHostPanel(code);
-          }
-        }
-      });
-
-      if (count === 0) {
+      if (userJoinedGroups.length === 0) {
         container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
-      }
-    }
-
-    function toggleHostPanel(code) {
-      if (activeHostCode === code) {
-        closeHostPanel();
-      } else {
-        closeAllExpandables();
-        activeHostCode = code;
-        renderInlineHostPanel(code);
-      }
-    }
-
-    function renderInlineHostPanel(code) {
-      const wrapper = document.getElementById(`group-item-${code}`);
-      if (!wrapper) return;
-
-      const grp = remoteGroups[code];
-      const panel = document.createElement('div');
-      panel.id = `host-panel-${code}`;
-      panel.className = 'inline-host-panel';
-
-      let membersListHTML = '';
-      Object.keys(grp.members).forEach(mEmail => {
-        if (mEmail !== userEmail) {
-          membersListHTML += `
-            <div class="member-row" style="padding: 6px 0;">
-              <span style="font-size: 13px;">${grp.members[mEmail]} <span style="font-size: 11px; color: #94a3b8;">(${mEmail})</span></span>
-              <button class="btn-danger" onclick="removeMemberByHost('${code}', '${mEmail}')">Remove</button>
-            </div>
-          `;
-        }
-      });
-
-      if (!membersListHTML) {
-        membersListHTML = '<span style="color:#94a3b8; font-size:12px; display:block; margin-top:4px;">No other members in group.</span>';
+        return;
       }
 
-      panel.innerHTML = `
-        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
-        <div style="margin-bottom: 10px;">
-          <label style="color: #94a3b8; font-size: 11px;">UPDATE GROUP CODE</label>
-          <div style="display: flex; gap: 6px; margin-top: 4px;">
-            <input type="text" id="edit-group-code-${code}" value="${code}" style="text-transform: uppercase; margin: 0;">
-            <button class="btn-secondary" onclick="updateGroupCodeByHost('${code}')">Save</button>
+      userJoinedGroups.forEach(grp => {
+        const isHost = (grp.host_email === userEmail);
+        const wrapper = document.createElement('div');
+        wrapper.id = `group-item-${grp.code}`;
+
+        const row = document.createElement('div');
+        row.className = 'member-row';
+        row.innerHTML = `
+          <div>
+            <strong>${grp.name}</strong>
+            ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
           </div>
-        </div>
-        <label style="color: #94a3b8; font-size: 11px;">MANAGE MEMBERS</label>
-        <div>${membersListHTML}</div>
-      `;
+          <div style="display:flex; gap:6px;">
+            ${isHost ? `<button class="btn-share" onclick="shareGroup('${grp.code}')">Share</button>` : ''}
+            ${isHost ? `<button id="manage-btn-${grp.code}" class="btn-secondary" onclick="toggleHostPanel('${grp.code}')">Manage</button>` : ''}
+            <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
+          </div>
+        `;
+        wrapper.appendChild(row);
+        container.appendChild(wrapper);
 
-      wrapper.appendChild(panel);
-    }
-
-    async function shareGroup(code) {
-      closeAllExpandables();
-      const grp = remoteGroups[code];
-      if (!grp) return;
-
-      const baseUrl = window.location.href.split('?')[0];
-      const shareUrl = `${baseUrl}?join=${code}`;
-      const shareData = {
-        title: `Join ${grp.name} on Drink Tracker`,
-        text: `Join my group "${grp.name}" on Drink Tracker using Code: ${code}`,
-        url: shareUrl
-      };
-
-      if (navigator.share) {
-        try {
-          await navigator.share(shareData);
-        } catch (err) {}
-      } else {
-        const copyText = `Join my group "${grp.name}" on Drink Tracker!\nCode: ${code}\nLink: ${shareUrl}`;
-        navigator.clipboard.writeText(copyText).then(() => {
-          alert(`Share link and code copied to clipboard!\n\nCode: ${code}\nLink: ${shareUrl}`);
-        }).catch(() => {
-          alert(`Join Code: ${code}\nLink: ${shareUrl}`);
-        });
-      }
-    }
-
-    async function joinGroup() {
-      const code = document.getElementById('join-group-code').value.trim().toUpperCase();
-      if (!code) return alert('Please enter a valid group code.');
-      if (!remoteGroups[code]) return alert('Group code not found.');
-
-      remoteGroups[code].members[userEmail] = userName;
-      if (!remoteGroups[code].logs) remoteGroups[code].logs = {};
-      remoteGroups[code].logs[userEmail] = dailyDrinkLogs;
-
-      await saveRemoteState();
-      alert(`Successfully joined ${remoteGroups[code].name}!`);
-      document.getElementById('join-group-code').value = '';
-      closeAllExpandables();
-      syncWithCloud();
-    }
-
-    async function leaveGroup(code) {
-      if (!confirm(`Are you sure you want to leave ${remoteGroups[code]?.name || code}?`)) return;
-
-      delete remoteGroups[code].members[userEmail];
-      if (remoteGroups[code].logs) delete remoteGroups[code].logs[userEmail];
-
-      if (activeHostCode === code) closeHostPanel();
-
-      await saveRemoteState();
-      syncWithCloud();
+        if (activeHostCode === grp.code) renderInlineHostPanel(grp.code);
+      });
     }
 
     async function createGroup() {
       const name = document.getElementById('create-group-name').value.trim();
       const code = document.getElementById('create-group-code').value.trim().toUpperCase();
 
-      if (!name || !code) return alert('Please provide a group name and a unique code.');
-      if (remoteGroups[code]) return alert('This group code is already taken. Try another code.');
+      if (!name || !code) return alert('Provide a group name and unique code.');
 
-      remoteGroups[code] = {
-        name: name,
-        host_email: userEmail,
-        members: { [userEmail]: userName },
-        logs: { [userEmail]: dailyDrinkLogs }
-      };
+      const { error } = await sb.from('groups').insert([{ code, name, host_email: userEmail }]);
+      if (error) return alert('Group code is already taken.');
 
-      await saveRemoteState();
-      alert(`Group "${name}" created successfully with code: ${code}`);
+      await sb.from('group_members').insert([{ group_code: code, user_email: userEmail, user_name: userName }]);
+
       document.getElementById('create-group-name').value = '';
       document.getElementById('create-group-code').value = '';
       closeAllExpandables();
-      syncWithCloud();
+      await fetchUserGroups();
     }
 
-    async function removeMemberByHost(groupCode, memberEmail) {
-      if (!confirm(`Remove ${memberEmail} from group?`)) return;
-      delete remoteGroups[groupCode].members[memberEmail];
-      if (remoteGroups[groupCode].logs) delete remoteGroups[groupCode].logs[memberEmail];
-      await saveRemoteState();
-      syncWithCloud();
+    async function joinGroup() {
+      const code = document.getElementById('join-group-code').value.trim().toUpperCase();
+      if (!code) return alert('Enter a valid code.');
+
+      const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
+      if (!grp) return alert('Group code not found.');
+
+      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }]);
+
+      document.getElementById('join-group-code').value = '';
+      closeAllExpandables();
+      await fetchUserGroups();
     }
 
-    async function updateGroupCodeByHost(oldCode) {
-      const inputEl = document.getElementById(`edit-group-code-${oldCode}`);
-      if (!inputEl) return;
-      
-      const newCode = inputEl.value.trim().toUpperCase();
-      if (!newCode) return;
-      if (newCode === oldCode) return alert('Code remains unchanged.');
-      if (remoteGroups[newCode]) return alert('That code is already in use by another group.');
-
-      remoteGroups[newCode] = remoteGroups[oldCode];
-      delete remoteGroups[oldCode];
-      
-      activeHostCode = newCode;
-
-      await saveRemoteState();
-      alert(`Group code successfully updated to ${newCode}`);
-      syncWithCloud();
+    async function leaveGroup(code) {
+      if (!confirm('Leave this group?')) return;
+      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
+      if (activeHostCode === code) closeHostPanel();
+      await fetchUserGroups();
     }
 
-    async function saveRemoteState() {
-      await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-        body: JSON.stringify({ groups: remoteGroups })
+    function toggleHostPanel(code) {
+      if (activeHostCode === code) closeHostPanel();
+      else {
+        closeAllExpandables();
+        activeHostCode = code;
+        renderInlineHostPanel(code);
+      }
+    }
+
+    async function renderInlineHostPanel(code) {
+      const wrapper = document.getElementById(`group-item-${code}`);
+      if (!wrapper) return;
+
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      const panel = document.createElement('div');
+      panel.id = `host-panel-${code}`;
+      panel.className = 'inline-host-panel';
+
+      let memberRows = '';
+      members.forEach(m => {
+        if (m.user_email !== userEmail) {
+          memberRows += `
+            <div class="member-row" style="padding: 6px 0;">
+              <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: #94a3b8;">(${m.user_email})</span></span>
+              <button class="btn-danger" onclick="removeMember('${code}', '${m.user_email}')">Remove</button>
+            </div>`;
+        }
       });
+
+      panel.innerHTML = `
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
+        <label style="color: #94a3b8; font-size: 11px;">MEMBERS</label>
+        <div>${memberRows || '<span style="color:#94a3b8; font-size:12px;">No other members.</span>'}</div>
+      `;
+      wrapper.appendChild(panel);
+    }
+
+    async function removeMember(code, email) {
+      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
+      renderInlineHostPanel(code);
+    }
+
+    function setupRealtimeSubscriptions() {
+      sb.channel('db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs' }, () => {
+          renderAnalytics();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, () => {
+          fetchUserGroups();
+        })
+        .subscribe();
     }
 
     function populateAnalyticsDropdown() {
       const select = document.getElementById('analytics-group-select');
-      const currentVal = select.value;
+      const cur = select.value;
       select.innerHTML = '';
 
-      let joinedCount = 0;
-      Object.keys(remoteGroups).forEach(code => {
-        const grp = remoteGroups[code];
-        if (grp.members && grp.members[userEmail] !== undefined) {
-          joinedCount++;
-          const opt = document.createElement('option');
-          opt.value = code;
-          opt.innerText = grp.name;
-          select.appendChild(opt);
-        }
+      if (userJoinedGroups.length === 0) {
+        select.innerHTML = '<option value="">No active groups joined</option>';
+        return;
+      }
+
+      userJoinedGroups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.code;
+        opt.innerText = g.name;
+        select.appendChild(opt);
       });
 
-      if (joinedCount === 0) {
-        const opt = document.createElement('option');
-        opt.value = "";
-        opt.innerText = "No active groups joined";
-        select.appendChild(opt);
-      } else if (currentVal && remoteGroups[currentVal]) {
-        select.value = currentVal;
-      }
+      if (cur) select.value = cur;
     }
 
-    function renderAnalytics() {
+    async function renderAnalytics() {
       const code = document.getElementById('analytics-group-select').value;
-      const grp = remoteGroups[code];
       const leaderboardEl = document.getElementById('leaderboard-list');
       leaderboardEl.innerHTML = '';
 
-      if (!grp) {
+      if (!code) {
         document.getElementById('group-total-beers').innerText = '0 🍺';
         return;
       }
 
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      if (!members) return;
+
+      const emails = members.map(m => m.user_email);
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
+
       let totalGroupBeers = 0;
-      const userTotals = [];
-
-      Object.keys(grp.members).forEach(mEmail => {
-        const mName = grp.members[mEmail];
-        const mLogs = (grp.logs && grp.logs[mEmail]) ? grp.logs[mEmail] : {};
-        
-        let mBeers = 0;
-        Object.values(mLogs).forEach(dayLog => {
-          mBeers += calculateUnitsAndBeers(dayLog).beers;
-        });
-
-        totalGroupBeers += mBeers;
-        userTotals.push({ email: mEmail, name: mName, beers: mBeers });
+      const userTotals = members.map(m => {
+        const userLogs = logs ? logs.filter(l => l.user_email === m.user_email) : [];
+        let beers = 0;
+        userLogs.forEach(l => beers += calculateUnitsAndBeers(l).beers);
+        totalGroupBeers += beers;
+        return { name: m.user_name, email: m.user_email, beers };
       });
 
       userTotals.sort((a, b) => b.beers - a.beers);
@@ -1013,19 +641,15 @@
       userTotals.forEach(item => {
         const row = document.createElement('div');
         row.className = 'member-row';
-        row.innerHTML = `
-          <span>${item.name} ${item.email === userEmail ? '(You)' : ''} ${item.email === grp.host_email ? '👑 Host' : ''}</span>
-          <strong>${item.beers} 🍺</strong>
-        `;
+        row.innerHTML = `<span>${item.name} ${item.email === userEmail ? '(You)' : ''}</span><strong>${item.beers} 🍺</strong>`;
         leaderboardEl.appendChild(row);
       });
 
       document.getElementById('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-
-      renderCharts(grp.logs || {});
+      renderCharts(logs || []);
     }
 
-    function renderCharts(groupLogs) {
+    function renderCharts(logs) {
       const canvas1 = document.getElementById('freqChart');
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
@@ -1033,98 +657,110 @@
       const freqMap = {};
       const weeklyMap = {};
 
-      Object.values(groupLogs).forEach(userLogMap => {
-        if (userLogMap && typeof userLogMap === 'object') {
-          Object.entries(userLogMap).forEach(([dateStr, logEntry]) => {
-            const beers = calculateUnitsAndBeers(logEntry).beers;
-            if (beers > 0) {
-              freqMap[beers] = (freqMap[beers] || 0) + 1;
-
-              const date = new Date(dateStr);
-              const weekNum = Math.ceil(date.getDate() / 7);
-              const monthName = date.toLocaleString('default', { month: 'short' });
-              const weekKey = `W${weekNum} ${monthName}`;
-              weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + beers;
-            }
-          });
+      logs.forEach(l => {
+        const beers = calculateUnitsAndBeers(l).beers;
+        if (beers > 0) {
+          freqMap[beers] = (freqMap[beers] || 0) + 1;
+          const date = new Date(l.log_date);
+          const weekNum = Math.ceil(date.getDate() / 7);
+          const monthName = date.toLocaleString('default', { month: 'short' });
+          const weekKey = `W${weekNum} ${monthName}`;
+          weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + beers;
         }
       });
 
       const sortedAmounts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
-      const freqLabels = sortedAmounts.map(amt => `${amt} Beer${amt > 1 ? 's' : ''}`);
-      const freqData = sortedAmounts.map(amt => freqMap[amt]);
-
       if (freqChartInstance) freqChartInstance.destroy();
       freqChartInstance = new Chart(canvas1.getContext('2d'), {
         type: 'bar',
-        data: {
-          labels: freqLabels,
-          datasets: [{ label: 'Occurrences', data: freqData, backgroundColor: '#f59e0b', borderRadius: 6 }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
-            y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#334155' }, beginAtZero: true }
-          }
-        }
+        data: { labels: sortedAmounts.map(amt => `${amt} Beer${amt > 1 ? 's' : ''}`), datasets: [{ data: sortedAmounts.map(amt => freqMap[amt]), backgroundColor: '#f59e0b', borderRadius: 6 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
 
       if (weeklyChartInstance) weeklyChartInstance.destroy();
       weeklyChartInstance = new Chart(canvas2.getContext('2d'), {
         type: 'line',
-        data: {
-          labels: Object.keys(weeklyMap),
-          datasets: [{
-            label: 'Group Beers',
-            data: Object.values(weeklyMap),
-            borderColor: '#f59e0b',
-            backgroundColor: 'rgba(245, 158, 11, 0.2)',
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
-            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true }
-          }
-        }
+        data: { labels: Object.keys(weeklyMap), datasets: [{ data: Object.values(weeklyMap), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
+    }
+
+    function updateAccountPage() {
+      document.getElementById('acc-name-display').innerText = userName;
+      document.getElementById('acc-email-display').innerText = userEmail;
+
+      const startDate = new Date(firstCreatedDate);
+      const diffDays = Math.max(1, Math.ceil(Math.abs(new Date() - startDate) / (1000 * 60 * 60 * 24)));
+      document.getElementById('acc-days-active').innerText = diffDays;
+      document.getElementById('acc-groups-count').innerText = userJoinedGroups.length;
+
+      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data }) => {
+        let lifetimeBeers = 0;
+        if (data) data.forEach(entry => lifetimeBeers += calculateUnitsAndBeers(entry).beers);
+        document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
+      });
+    }
+
+    function editProfileName() {
+      const newName = prompt("Enter new display name:", userName);
+      if (newName && newName.trim()) {
+        userName = newName.trim();
+        localStorage.setItem('dt_username', userName);
+        sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail).then(() => fetchUserGroups());
+      }
+    }
+
+    function shareGroup(code) {
+      const shareUrl = `${window.location.href.split('?')[0]}?join=${code}`;
+      if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url: shareUrl });
+      else navigator.clipboard.writeText(shareUrl).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
+    }
+
+    function closeAllExpandables() {
+      closeHostPanel();
+      ['join-accordion-body', 'create-accordion-body'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+    }
+
+    function toggleAccordion(bodyId, iconId) {
+      const body = document.getElementById(bodyId);
+      const isHidden = body.classList.contains('hidden');
+      closeAllExpandables();
+      if (isHidden) body.classList.remove('hidden');
+    }
+
+    function closeHostPanel() {
+      if (activeHostCode) {
+        const p = document.getElementById(`host-panel-${activeHostCode}`);
+        if (p) p.remove();
+        activeHostCode = null;
+      }
+    }
+
+    function handleGlobalClick(e) {
+      const joinCard = document.getElementById('card-join-group');
+      const createCard = document.getElementById('card-create-group');
+      let isInsideHost = activeHostCode && document.getElementById(`host-panel-${activeHostCode}`)?.contains(e.target);
+
+      if (!joinCard?.contains(e.target) && !createCard?.contains(e.target) && !isInsideHost) {
+        closeAllExpandables();
+      }
     }
 
     function switchPage(page) {
       closeAllExpandables();
-      document.getElementById('page-account').classList.add('hidden');
-      document.getElementById('page-groups').classList.add('hidden');
-      document.getElementById('page-tracker').classList.add('hidden');
-      document.getElementById('page-stats').classList.add('hidden');
+      ['account', 'groups', 'tracker', 'stats'].forEach(p => {
+        document.getElementById(`page-${p}`).classList.add('hidden');
+        document.getElementById(`nav-${p}`).classList.remove('active');
+      });
 
-      document.getElementById('nav-account').classList.remove('active');
-      document.getElementById('nav-groups').classList.remove('active');
-      document.getElementById('nav-tracker').classList.remove('active');
-      document.getElementById('nav-stats').classList.remove('active');
+      document.getElementById(`page-${page}`).classList.remove('hidden');
+      document.getElementById(`nav-${page}`).classList.add('active');
 
-      if (page === 'account') {
-        document.getElementById('page-account').classList.remove('hidden');
-        document.getElementById('nav-account').classList.add('active');
-        updateAccountPage();
-      } else if (page === 'groups') {
-        document.getElementById('page-groups').classList.remove('hidden');
-        document.getElementById('nav-groups').classList.add('active');
-      } else if (page === 'tracker') {
-        document.getElementById('page-tracker').classList.remove('hidden');
-        document.getElementById('nav-tracker').classList.add('active');
-      } else if (page === 'stats') {
-        document.getElementById('page-stats').classList.remove('hidden');
-        document.getElementById('nav-stats').classList.add('active');
-        renderAnalytics();
-      }
+      if (page === 'account') updateAccountPage();
+      if (page === 'stats') renderAnalytics();
     }
   </script>
 </body>
