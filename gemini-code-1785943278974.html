@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🍺 Group Beer Tracker</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    nav button {
+      flex: 1;
+      padding: 12px;
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    nav button.active {
+      background: #f59e0b;
+      color: #000;
+      border-color: #f59e0b;
+    }
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+    .counter {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 16px;
+    }
+    .btn-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-minus { background: #334155; color: white; }
+    .btn-plus { background: #f59e0b; color: black; }
+    .count-display { font-size: 48px; font-weight: 900; color: #f59e0b; }
+    .hidden { display: none; }
+    .member-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #334155;
+    }
+    .member-row:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav>
+    <button id="nav-p1" class="active" onclick="switchPage(1)">Tracker</button>
+    <button id="nav-p2" onclick="switchPage(2)">Analytics</button>
+  </nav>
+
+  <!-- PAGE 1: DAILY LOGGER -->
+  <div id="page1">
+    <div class="card" style="text-align: center;">
+      <h2 style="margin: 0; font-size: 14px; color: #94a3b8;">TODAY'S BEERS</h2>
+      <div class="counter">
+        <button class="btn-circle btn-minus" onclick="changeCount(-1)">-</button>
+        <span id="beer-count" class="count-display">0</span>
+        <button class="btn-circle btn-plus" onclick="changeCount(1)">+</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
+      <p style="margin: 4px 0; color: #94a3b8;">Group: <strong>Founders Club</strong></p>
+      <p style="margin: 4px 0; color: #94a3b8;">Code: <strong>BEER2026</strong></p>
+    </div>
+  </div>
+
+  <!-- PAGE 2: ANALYTICS -->
+  <div id="page2" class="hidden">
+    <div class="card" style="text-align: center;">
+      <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">TOTAL GROUP CONSUMPTION</h3>
+      <p id="total-beers" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">34</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">MEMBER LEADERBOARD</h3>
+      <div class="member-row">
+        <span> Alex (You)</span>
+        <strong id="user-total-display">0 🍺</strong>
+      </div>
+      <div class="member-row">
+        <span> Sarah</span>
+        <strong>18 🍺</strong>
+      </div>
+      <div class="member-row">
+        <span> Mike</span>
+        <strong>16 🍺</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">TOP DAILY FREQUENCY</h3>
+      <div class="member-row">
+        <span>4 beers in a day</span>
+        <strong>7 days</strong>
+      </div>
+      <div class="member-row">
+        <span>6 beers in a day</span>
+        <strong>4 days</strong>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentBeers = 0;
+    const mockBaseGroupTotal = 34;
+
+    function changeCount(delta) {
+      currentBeers = Math.max(0, currentBeers + delta);
+      document.getElementById('beer-count').innerText = currentBeers;
+      
+      // Update analytics on page 2
+      document.getElementById('user-total-display').innerText = currentBeers + " 🍺";
+      document.getElementById('total-beers').innerText = mockBaseGroupTotal + currentBeers;
+    }
+
+    function switchPage(pageNum) {
+      if (pageNum === 1) {
+        document.getElementById('page1').classList.remove('hidden');
+        document.getElementById('page2').classList.add('hidden');
+        document.getElementById('nav-p1').classList.add('active');
+        document.getElementById('nav-p2').classList.remove('active');
+      } else {
+        document.getElementById('page1').classList.add('hidden');
+        document.getElementById('page2').classList.remove('hidden');
+        document.getElementById('nav-p1').classList.remove('active');
+        document.getElementById('nav-p2').classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>
