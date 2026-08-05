@@ -134,7 +134,7 @@
   <!-- JOIN GROUP SCREEN -->
   <div id="join-screen">
     <div class="card" style="text-align: center;">
-      <h2 style="margin-top: 0;">Join CRAZY8 Group</h2>
+      <h2 style="margin-top: 0;">Join Group</h2>
       <div style="margin-bottom: 12px; text-align: left;">
         <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
         <input type="text" id="join-name" placeholder="e.g. Alex">
@@ -145,7 +145,7 @@
       </div>
       <div style="margin-bottom: 12px; text-align: left;">
         <label style="color: #94a3b8; font-size: 12px;">GROUP CODE</label>
-        <input type="text" id="join-code" placeholder="CRAZY8" style="text-transform: uppercase;">
+        <input type="text" id="join-code" style="text-transform: uppercase;">
       </div>
       <button class="btn-submit" onclick="joinGroup()">Sign Up & Join</button>
     </div>
@@ -172,7 +172,6 @@
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
         <p style="margin: 4px 0; color: #94a3b8;">You: <strong id="user-display-name">---</strong> <span id="host-tag" style="color:#f59e0b; font-size:12px; display:none;">(Host 👑)</span></p>
-        <p style="margin: 4px 0; color: #94a3b8;">Email: <strong id="user-display-email" style="font-size:12px; color:#cbd5e1;">---</strong></p>
         <p style="margin: 4px 0 12px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">CRAZY8</strong></p>
         
         <h4 style="margin: 12px 0 6px 0; font-size: 13px; color: #94a3b8;">GROUP MEMBERS</h4>
@@ -263,7 +262,6 @@
       document.getElementById('join-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
       document.getElementById('user-display-name').innerText = userName;
-      document.getElementById('user-display-email').innerText = userEmail;
 
       if (historyLogs[todayDate] === undefined) {
         historyLogs[todayDate] = 0;
@@ -309,11 +307,6 @@
         let members = rawRecord.members && typeof rawRecord.members === 'object' ? rawRecord.members : {};
         let daily_logs = rawRecord.daily_logs && typeof rawRecord.daily_logs === 'object' ? rawRecord.daily_logs : {};
 
-        // Unique Email Check: If another user registered this email with a different name, prompt user
-        if (members[userEmail] && members[userEmail].name !== userName && localStorage.getItem('beer_username_joined')) {
-          // Keep synced
-        }
-
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
@@ -344,7 +337,7 @@
 
         renderMemberListBadges(members);
         renderLeaderboard(members);
-        renderCharts(daily_logs, members);
+        renderCharts(daily_logs);
         checkHostControls(members);
       } catch (err) {
         console.error('Cloud sync error:', err);
@@ -372,8 +365,7 @@
             row.className = 'member-row';
             row.innerHTML = `
               <div>
-                <strong>${member.name}</strong><br>
-                <span style="font-size:11px; color:#94a3b8;">${member.email}</span>
+                <strong>${member.name}</strong>
               </div>
               <button class="btn-remove" onclick="removeMember('${emailKey}')">Remove</button>
             `;
@@ -475,7 +467,7 @@
       document.getElementById('group-total-beers').innerText = totalGroupBeers + ' 🍺';
     }
 
-    function renderCharts(allDailyLogs, membersObj) {
+    function renderCharts(allDailyLogs) {
       const canvas1 = document.getElementById('freqChart');
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
