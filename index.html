@@ -66,6 +66,14 @@
       border-bottom: 1px solid #334155;
     }
     .member-row:last-child { border-bottom: none; }
+    input[type="text"] {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -79,7 +87,7 @@
   <!-- PAGE 1: DAILY LOGGER -->
   <div id="page1">
     <div class="card" style="text-align: center;">
-      <h2 style="margin: 0; font-size: 14px; color: #94a3b8;">TODAY'S BEERS</h2>
+      <h2 style="margin: 0; font-size: 14px; color: #94a3b8;">TODAY'S BEERS (<span id="current-date-label"></span>)</h2>
       <div class="counter">
         <button class="btn-circle btn-minus" onclick="changeCount(-1)">-</button>
         <span id="beer-count" class="count-display">0</span>
@@ -88,82 +96,120 @@
     </div>
 
     <div class="card">
-      <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
-      <p style="margin: 4px 0; color: #94a3b8;">Group: <strong>Founders Club</strong></p>
+      <h3 style="margin-top: 0; font-size: 16px;">Profile & Group</h3>
+      <div style="margin-bottom: 10px;">
+        <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 4px;">YOUR NAME</label>
+        <input type="text" id="username-input" value="User" onchange="updateUsername(this.value)" style="width: 100%; box-sizing: border-box;">
+      </div>
+      <p style="margin: 8px 0 4px 0; color: #94a3b8;">Group: <strong>Founders Club</strong></p>
       <p style="margin: 4px 0; color: #94a3b8;">Code: <strong>BEER2026</strong></p>
     </div>
   </div>
 
-  <!-- PAGE 2: ANALYTICS -->
+  <!-- PAGE 2: REAL ANALYTICS -->
   <div id="page2" class="hidden">
     <div class="card" style="text-align: center;">
-      <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">TOTAL GROUP CONSUMPTION</h3>
-      <p id="total-beers" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">34</p>
+      <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">YOUR ALL-TIME CONSUMPTION</h3>
+      <p id="analytics-total" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">0</p>
     </div>
 
     <div class="card">
-      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">MEMBER LEADERBOARD</h3>
+      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">THIS MONTH'S TOTAL</h3>
       <div class="member-row">
-        <span>Alex (You)</span>
-        <strong id="user-total-display">0 🍺</strong>
-      </div>
-      <div class="member-row">
-        <span>Sarah</span>
-        <strong>18 🍺</strong>
-      </div>
-      <div class="member-row">
-        <span>Mike</span>
-        <strong>16 🍺</strong>
+        <span id="analytics-user-name">User</span>
+        <strong id="analytics-month-total">0 🍺</strong>
       </div>
     </div>
 
     <div class="card">
-      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">TOP DAILY FREQUENCY</h3>
-      <div class="member-row">
-        <span>4 beers in a day</span>
-        <strong>7 days</strong>
-      </div>
-      <div class="member-row">
-        <span>6 beers in a day</span>
-        <strong>4 days</strong>
+      <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">MOST COMMON BEER FREQUENCY</h3>
+      <div id="frequency-list">
+        <!-- Generated dynamically from actual logs -->
       </div>
     </div>
   </div>
 
   <script>
-    let currentBeers = 0;
-    const mockBaseGroupTotal = 34;
+    let userName = localStorage.getItem('beer_username') || 'User';
+    let historyLogs = JSON.parse(localStorage.getItem('beer_history') || '{}');
     const todayDate = new Date().toISOString().split('T')[0];
 
-    // Load saved count on launch
     window.onload = function() {
-      const savedDate = localStorage.getItem('beer_date');
-      const savedCount = localStorage.getItem('beer_count');
+      document.getElementById('username-input').value = userName;
+      document.getElementById('current-date-label').innerText = todayDate;
 
-      if (savedDate === todayDate && savedCount !== null) {
-        currentBeers = parseInt(savedCount, 10);
-      } else {
-        currentBeers = 0;
-        localStorage.setItem('beer_date', todayDate);
-        localStorage.setItem('beer_count', '0');
+      // Ensure today entry exists in history (defaults to 0 if brand new day)
+      if (historyLogs[todayDate] === undefined) {
+        historyLogs[todayDate] = 0;
+        saveLogs();
       }
 
       updateDisplay();
     };
 
-    function changeCount(delta) {
-      currentBeers = Math.max(0, currentBeers + delta);
-      
-      localStorage.setItem('beer_count', currentBeers.toString());
-      localStorage.setItem('beer_date', todayDate);
-
+    function updateUsername(newName) {
+      userName = newName || 'User';
+      localStorage.setItem('beer_username', userName);
       updateDisplay();
     }
 
+    function changeCount(delta) {
+      const current = historyLogs[todayDate] || 0;
+      historyLogs[todayDate] = Math.max(0, current + delta);
+      saveLogs();
+      updateDisplay();
+    }
+
+    function saveLogs() {
+      localStorage.setItem('beer_history', JSON.stringify(historyLogs));
+    }
+
     function updateDisplay() {
-      document.getElementById('beer-count').innerText = currentBeers;
-      document.getElementById('user-total-display').innerText = currentBeers + " 🍺";
-      document.getElementById('total-beers').innerText = mockBaseGroupTotal + currentBeers;
+      const todayCount = historyLogs[todayDate] || 0;
+      document.getElementById('beer-count').innerText = todayCount;
+
+      // Calculate All-Time Total
+      let totalBeers = 0;
+      const currentMonth = todayDate.substring(0, 7); // YYYY-MM
+      let monthBeers = 0;
+      const frequencyMap = {};
+
+      Object.keys(historyLogs).forEach(date => {
+        const count = historyLogs[date];
+        totalBeers += count;
+
+        if (date.startsWith(currentMonth)) {
+          monthBeers += count;
+        }
+
+        // Only count days where beers were consumed for frequency ranking
+        if (count > 0) {
+          frequencyMap[count] = (frequencyMap[count] || 0) + 1;
+        }
+      });
+
+      // Update Analytics DOM
+      document.getElementById('analytics-total').innerText = totalBeers + " 🍺";
+      document.getElementById('analytics-user-name').innerText = userName + " (You)";
+      document.getElementById('analytics-month-total').innerText = monthBeers + " 🍺";
+
+      // Render Dynamic Frequency Ranking
+      const freqListEl = document.getElementById('frequency-list');
+      freqListEl.innerHTML = '';
+
+      const sortedFreqs = Object.keys(frequencyMap).sort((a, b) => frequencyMap[b] - frequencyMap[a]);
+
+      if (sortedFreqs.length === 0) {
+        freqListEl.innerHTML = '<div class="member-row" style="color:#94a3b8;">No drinking days recorded yet</div>';
+      } else {
+        sortedFreqs.forEach(beerAmount => {
+          const daysCount = frequencyMap[beerAmount];
+          const row = document.createElement('div');
+          row.className = 'member-row';
+          row.innerHTML = `<span>${beerAmount} beer${beerAmount > 1 ? 's' : ''} in a day</span><strong>${daysCount} day${daysCount > 1 ? 's' : ''}</strong>`;
+          freqListEl.appendChild(row);
+        });
+      }
     }
 
     function switchPage(pageNum) {
