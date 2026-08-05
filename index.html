@@ -341,13 +341,19 @@
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
         
         <div class="drink-list">
-          <!-- PINTS -->
+          <!-- PINTS (CLASSIC FLARED PINT GLASS WITH FOAM & BUBBLES) -->
           <div class="drink-row">
             <div class="drink-info">
               <svg class="drink-icon-svg" viewBox="0 0 24 24">
-                <path d="M7 3h10l-1 18H8L7 3z"/>
-                <path d="M6 7h12"/>
-                <path d="M12 7v14" stroke-dasharray="2 2"/>
+                <!-- Flared pint glass outline -->
+                <path d="M6 3h12l-2 18H8L6 3z" />
+                <!-- Foam head top layer -->
+                <path d="M6 6c1-1 3-1 4 0 1-1 3-1 4 0 1-1 3-1 4 0" />
+                <path d="M6 6h12" />
+                <!-- Bubbles -->
+                <circle cx="10" cy="12" r="0.5" fill="#f59e0b" />
+                <circle cx="14" cy="15" r="0.5" fill="#f59e0b" />
+                <circle cx="11" cy="17" r="0.5" fill="#f59e0b" />
               </svg>
               <span class="drink-title">Pints</span>
             </div>
@@ -358,13 +364,16 @@
             </div>
           </div>
 
-          <!-- BOTTLE / CAN -->
+          <!-- BOTTLE / CAN (LONGNECK BEER BOTTLE WITH CAP & LABEL) -->
           <div class="drink-row">
             <div class="drink-info">
               <svg class="drink-icon-svg" viewBox="0 0 24 24">
-                <rect x="7" y="2" width="10" height="20" rx="3"/>
-                <ellipse cx="12" cy="5" rx="5" ry="1"/>
-                <line x1="7" y1="18" x2="17" y2="18"/>
+                <!-- Crown cap -->
+                <path d="M10 2h4v1.5h-4z" />
+                <!-- Long neck expanding into bottle body -->
+                <path d="M11 3.5h2v4.5l2.5 3v11h-7.0v-11l2.5-3v-4.5z" />
+                <!-- Bottle label -->
+                <rect x="9.5" y="13" width="5" height="5" rx="1" />
               </svg>
               <span class="drink-title">Bottles/Cans</span>
             </div>
