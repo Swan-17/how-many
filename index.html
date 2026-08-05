@@ -144,7 +144,7 @@
     <div id="page2" class="hidden">
       <div class="card" style="text-align: center;">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">TOTAL GROUP CONSUMPTION</h3>
-        <p id="group-total-beers" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">0</p>
+        <p id="group-total-beers" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">0 🍺</p>
       </div>
 
       <div class="card">
@@ -235,41 +235,49 @@
       if (!API_KEY || !BIN_ID) return; 
 
       try {
-        // 1. Get current remote data
+        // 1. Fetch current remote bin
         const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
           method: 'GET',
           headers: { 
-            'X-Master-Key': API_KEY,
-            'X-Bin-Meta': 'false'
+            'X-Master-Key': API_KEY
           }
         });
 
-        let cloudRecord = await getRes.json();
-        if (!cloudRecord || typeof cloudRecord !== 'object') cloudRecord = {};
-        if (!cloudRecord.members) cloudRecord.members = {};
-        if (!cloudRecord.daily_logs) cloudRecord.daily_logs = {};
+        const resData = await getRes.json();
+        
+        // Unpack JSONBin's "record" wrapper safely
+        let rawRecord = resData.record || resData;
+        
+        let members = rawRecord.members && typeof rawRecord.members === 'object' ? rawRecord.members : {};
+        let daily_logs = rawRecord.daily_logs && typeof rawRecord.daily_logs === 'object' ? rawRecord.daily_logs : {};
 
-        // 2. Calculate local total
+        // 2. Calculate local user's total beers
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
-        // 3. Merge this specific user into cloud record without overwriting others
-        cloudRecord.members[userName] = myTotalBeers;
-        cloudRecord.daily_logs[userName] = historyLogs;
+        // 3. Update ONLY this user's entries in the global objects
+        members[userName] = myTotalBeers;
+        daily_logs[userName] = historyLogs;
 
-        // 4. Save merged data
+        const payloadToSave = {
+          code: "BEER2026",
+          members: members,
+          daily_logs: daily_logs
+        };
+
+        // 4. Save merged structure back to JSONBin
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Master-Key': API_KEY
           },
-          body: JSON.stringify(cloudRecord)
+          body: JSON.stringify(payloadToSave)
         });
 
-        // 5. Render Analytics
-        renderLeaderboard(cloudRecord.members);
-        renderCharts(cloudRecord.daily_logs);
+        // 5. Render analytics with combined members data
+        renderLeaderboard(members);
+        renderCharts(daily_logs);
       } catch (err) {
         console.error('Cloud sync error:', err);
       }
@@ -297,19 +305,20 @@
     }
 
     function renderCharts(allDailyLogs) {
-      // Check if canvases exist in DOM
       const canvas1 = document.getElementById('freqChart');
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
 
-      // 1. Frequency Logic
+      // Frequency calculation across all members
       const freqMap = {};
       Object.values(allDailyLogs).forEach(userLogs => {
-        Object.values(userLogs).forEach(count => {
-          if (count > 0) {
-            freqMap[count] = (freqMap[count] || 0) + 1;
-          }
-        });
+        if (userLogs && typeof userLogs === 'object') {
+          Object.values(userLogs).forEach(count => {
+            if (count > 0) {
+              freqMap[count] = (freqMap[count] || 0) + 1;
+            }
+          });
+        }
       });
 
       const sortedAmounts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
@@ -339,19 +348,21 @@
         }
       });
 
-      // 2. Weekly Totals Logic
+      // Weekly totals calculation across all members
       const weeklyMap = {};
       Object.values(allDailyLogs).forEach(userLogs => {
-        Object.entries(userLogs).forEach(([dateStr, count]) => {
-          if (count > 0) {
-            const date = new Date(dateStr);
-            const weekNum = Math.ceil(date.getDate() / 7);
-            const monthName = date.toLocaleString('default', { month: 'short' });
-            const weekKey = `W${weekNum} ${monthName}`;
+        if (userLogs && typeof userLogs === 'object') {
+          Object.entries(userLogs).forEach(([dateStr, count]) => {
+            if (count > 0) {
+              const date = new Date(dateStr);
+              const weekNum = Math.ceil(date.getDate() / 7);
+              const monthName = date.toLocaleString('default', { month: 'short' });
+              const weekKey = `W${weekNum} ${monthName}`;
 
-            weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + count;
-          }
-        });
+              weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + count;
+            }
+          });
+        }
       });
 
       if (weeklyChartInstance) weeklyChartInstance.destroy();
