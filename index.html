@@ -3,32 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🍺 Group Beer Tracker</title>
+  <title>🍺 Group Drink & Beer Tracker</title>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #0f172a;
       color: #f8fafc;
-      max-width: 480px;
+      max-width: 520px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 16px;
     }
     nav {
       display: flex;
-      gap: 10px;
-      margin-bottom: 24px;
+      gap: 8px;
+      margin-bottom: 20px;
     }
     nav button {
       flex: 1;
-      padding: 12px;
+      padding: 12px 8px;
       background: #1e293b;
       color: #94a3b8;
       border: 1px solid #334155;
       border-radius: 8px;
       font-weight: bold;
+      font-size: 14px;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
     nav button.active {
       background: #f59e0b;
@@ -37,47 +40,75 @@
     }
     .card {
       background: #1e293b;
-      padding: 20px;
+      padding: 18px;
       border-radius: 12px;
       margin-bottom: 16px;
+      border: 1px solid #334155;
     }
-    .counter {
+    .drink-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .drink-card {
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      text-align: center;
+    }
+    .drink-title {
+      font-size: 13px;
+      color: #94a3b8;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .counter-controls {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 20px;
-      margin-top: 16px;
+      gap: 12px;
+      margin-top: 6px;
     }
     .btn-circle {
-      width: 48px;
-      height: 48px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       border: none;
-      font-size: 24px;
+      font-size: 18px;
       font-weight: bold;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .btn-minus { background: #334155; color: white; }
     .btn-plus { background: #f59e0b; color: black; }
-    .count-display { font-size: 48px; font-weight: 900; color: #f59e0b; }
-    .hidden { display: none; }
-    .member-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid #334155;
+    .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; }
+    
+    .summary-box {
+      background: #0f172a;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      margin-top: 14px;
     }
-    .member-row:last-child { border-bottom: none; }
-    input[type="text"], input[type="email"] {
+    .unit-text { font-size: 12px; color: #94a3b8; }
+    .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
+
+    .hidden { display: none !important; }
+    
+    input[type="text"], input[type="email"], select {
       background: #0f172a;
       border: 1px solid #334155;
       color: white;
-      padding: 8px 10px;
+      padding: 10px;
       border-radius: 6px;
       font-weight: bold;
       width: 100%;
-      box-sizing: border-box;
+      margin-top: 4px;
     }
     .btn-submit {
       background: #f59e0b;
@@ -87,117 +118,199 @@
       border-radius: 6px;
       font-weight: bold;
       width: 100%;
-      margin-top: 8px;
+      margin-top: 10px;
       cursor: pointer;
     }
-    .btn-remove {
+    .btn-danger {
       background: #ef4444;
       color: white;
       border: none;
-      padding: 4px 8px;
+      padding: 6px 10px;
       border-radius: 4px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: bold;
       cursor: pointer;
     }
-    .chart-container {
-      position: relative;
-      height: 220px;
-      width: 100%;
-      margin-top: 10px;
+    .member-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #334155;
     }
-    .member-badge {
+    .member-row:last-child { border-bottom: none; }
+    .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
+    .group-pill {
       display: inline-block;
       background: #334155;
       color: #f59e0b;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: bold;
-      margin-right: 6px;
-      margin-top: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin: 2px;
     }
   </style>
 </head>
 <body>
 
-  <!-- JOIN GROUP SCREEN -->
-  <div id="join-screen">
-    <div class="card" style="text-align: center;">
-      <h2 style="margin-top: 0;">Join Group</h2>
-      <div style="margin-bottom: 12px; text-align: left;">
-        <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
-        <input type="text" id="join-name" placeholder="e.g. Alex">
-      </div>
-      <div style="margin-bottom: 12px; text-align: left;">
-        <label style="color: #94a3b8; font-size: 12px;">YOUR EMAIL</label>
-        <input type="email" id="join-email" placeholder="name@example.com">
-      </div>
-      <div style="margin-bottom: 12px; text-align: left;">
-        <label style="color: #94a3b8; font-size: 12px;">GROUP CODE</label>
-        <input type="text" id="join-code" style="text-transform: uppercase;">
-      </div>
-      <button class="btn-submit" onclick="joinGroup()">Sign Up & Join</button>
+  <!-- LOGIN / SETUP OVERLAY -->
+  <div id="login-screen" class="card">
+    <h2 style="margin-top: 0; text-align: center;">Welcome to Drink Tracker</h2>
+    <div style="margin-bottom: 10px;">
+      <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
+      <input type="text" id="init-name" placeholder="e.g. Alex">
     </div>
+    <div style="margin-bottom: 10px;">
+      <label style="color: #94a3b8; font-size: 12px;">YOUR EMAIL</label>
+      <input type="email" id="init-email" placeholder="alex@example.com">
+    </div>
+    <button class="btn-submit" onclick="loginUser()">Start Tracking</button>
   </div>
 
   <!-- MAIN APP -->
   <div id="app-screen" class="hidden">
     <nav>
-      <button id="nav-p1" class="active" onclick="switchPage(1)">Tracker</button>
-      <button id="nav-p2" onclick="switchPage(2)">Analytics</button>
+      <button id="nav-p1" class="active" onclick="switchTab('tracker')">Tracker</button>
+      <button id="nav-p2" onclick="switchTab('groups')">Groups</button>
+      <button id="nav-p3" onclick="switchTab('analytics')">Analytics</button>
     </nav>
 
-    <!-- PAGE 1: DAILY LOGGER -->
-    <div id="page1">
-      <div class="card" style="text-align: center;">
-        <h2 style="margin: 0; font-size: 14px; color: #94a3b8;">TODAY'S BEERS (<span id="current-date-label"></span>)</h2>
-        <div class="counter">
-          <button class="btn-circle btn-minus" onclick="changeCount(-1)">-</button>
-          <span id="beer-count" class="count-display">0</span>
-          <button class="btn-circle btn-plus" onclick="changeCount(1)">+</button>
+    <!-- HEADER / PROFILE EDIT BAR -->
+    <div class="card" style="padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span style="font-size: 11px; color: #94a3b8; display: block;">LOGGED IN AS</span>
+        <strong id="user-name-display" style="color: #f59e0b;">---</strong>
+      </div>
+      <button style="background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" onclick="editProfileName()">Edit Name</button>
+    </div>
+
+    <!-- TAB 1: TRACKER -->
+    <div id="tab-tracker">
+      <div class="card">
+        <h3 style="margin: 0; font-size: 15px; color: #94a3b8; text-align: center;">TODAY'S DRINK COUNTER (<span id="today-date-label"></span>)</h3>
+        
+        <div class="drink-grid">
+          <div class="drink-card">
+            <div class="drink-title">Pints (2u)</div>
+            <div class="counter-controls">
+              <button class="btn-circle btn-minus" onclick="adjustDrink('pints', -1)">-</button>
+              <span id="cnt-pints" class="count-val">0</span>
+              <button class="btn-circle btn-plus" onclick="adjustDrink('pints', 1)">+</button>
+            </div>
+          </div>
+          
+          <div class="drink-card">
+            <div class="drink-title">Bottles/Cans (1.33u)</div>
+            <div class="counter-controls">
+              <button class="btn-circle btn-minus" onclick="adjustDrink('bottles', -1)">-</button>
+              <span id="cnt-bottles" class="count-val">0</span>
+              <button class="btn-circle btn-plus" onclick="adjustDrink('bottles', 1)">+</button>
+            </div>
+          </div>
+
+          <div class="drink-card">
+            <div class="drink-title">Wines (2u)</div>
+            <div class="counter-controls">
+              <button class="btn-circle btn-minus" onclick="adjustDrink('wines', -1)">-</button>
+              <span id="cnt-wines" class="count-val">0</span>
+              <button class="btn-circle btn-plus" onclick="adjustDrink('wines', 1)">+</button>
+            </div>
+          </div>
+
+          <div class="drink-card">
+            <div class="drink-title">Cocktails (2u)</div>
+            <div class="counter-controls">
+              <button class="btn-circle btn-minus" onclick="adjustDrink('cocktails', -1)">-</button>
+              <span id="cnt-cocktails" class="count-val">0</span>
+              <button class="btn-circle btn-plus" onclick="adjustDrink('cocktails', 1)">+</button>
+            </div>
+          </div>
+
+          <div class="drink-card" style="grid-column: span 2;">
+            <div class="drink-title">Shots (1u)</div>
+            <div class="counter-controls">
+              <button class="btn-circle btn-minus" onclick="adjustDrink('shots', -1)">-</button>
+              <span id="cnt-shots" class="count-val">0</span>
+              <button class="btn-circle btn-plus" onclick="adjustDrink('shots', 1)">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <div class="unit-text">TOTAL UNITS: <strong id="total-units-val">0</strong></div>
+          <div class="beer-text"><span id="total-beers-val">0</span> 🍺</div>
+          <div class="unit-text" style="font-size: 10px; margin-top: 2px;">(Equated Pints = Total Units ÷ 2, rounded)</div>
         </div>
       </div>
+    </div>
 
+    <!-- TAB 2: GROUPS -->
+    <div id="tab-groups" class="hidden">
+      <!-- MY GROUPS -->
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 16px;">Group Info</h3>
-        <p style="margin: 4px 0; color: #94a3b8;">You: <strong id="user-display-name">---</strong> <span id="host-tag" style="color:#f59e0b; font-size:12px; display:none;">(Host 👑)</span></p>
-        <p style="margin: 4px 0 12px 0; color: #94a3b8;">Group Code: <strong id="group-code-label">CRAZY8</strong></p>
-        
-        <h4 style="margin: 12px 0 6px 0; font-size: 13px; color: #94a3b8;">GROUP MEMBERS</h4>
-        <div id="group-members-badges">
-          <span class="member-badge">Syncing members...</span>
-        </div>
+        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">MY ACTIVE GROUPS</h3>
+        <div id="my-groups-list"></div>
+      </div>
+
+      <!-- JOIN GROUP -->
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 15px;">Join an Existing Group</h3>
+        <label style="color: #94a3b8; font-size: 12px;">ENTER UNIQUE GROUP CODE</label>
+        <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. CRAZY8">
+        <button class="btn-submit" onclick="joinGroup()">Join Group</button>
+      </div>
+
+      <!-- CREATE GROUP -->
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 15px;">Create a New Group</h3>
+        <label style="color: #94a3b8; font-size: 12px;">GROUP NAME</label>
+        <input type="text" id="create-group-name" placeholder="e.g. Weekend Crew">
+        <label style="color: #94a3b8; font-size: 12px; margin-top: 8px; display: block;">UNIQUE GROUP CODE</label>
+        <input type="text" id="create-group-code" style="text-transform: uppercase;" placeholder="e.g. CREW2026">
+        <button class="btn-submit" onclick="createGroup()">Create Group & Become Host</button>
       </div>
 
       <!-- HOST MANAGEMENT PANEL -->
       <div id="host-panel" class="card hidden">
-        <h3 style="margin-top: 0; font-size: 16px; color: #f59e0b;">MANAGE MEMBERS (HOST)</h3>
-        <div id="host-member-controls"></div>
+        <h3 style="margin-top: 0; font-size: 15px; color: #f59e0b;">HOST CONTROLS (<span id="host-group-name"></span>)</h3>
+        <div style="margin-bottom: 10px;">
+          <label style="color: #94a3b8; font-size: 12px;">UPDATE GROUP CODE</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="edit-group-code" style="text-transform: uppercase;">
+            <button style="background: #334155; color: white; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer;" onclick="updateGroupCodeByHost()">Save</button>
+          </div>
+        </div>
+        <h4 style="margin: 10px 0 6px 0; font-size: 12px; color: #94a3b8;">REMOVE MEMBERS</h4>
+        <div id="host-member-list"></div>
       </div>
     </div>
 
-    <!-- PAGE 2: ANALYTICS -->
-    <div id="page2" class="hidden">
+    <!-- TAB 3: ANALYTICS -->
+    <div id="tab-analytics" class="hidden">
+      <div class="card">
+        <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP ANALYTICS</label>
+        <select id="analytics-group-select" onchange="renderAnalytics()"></select>
+      </div>
+
       <div class="card" style="text-align: center;">
-        <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">TOTAL GROUP CONSUMPTION</h3>
-        <p id="group-total-beers" style="font-size: 36px; font-weight: bold; color: #f59e0b; margin: 8px 0 0 0;">0 🍺</p>
+        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP EQUIVALENT BEERS</h3>
+        <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
       </div>
 
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">GROUP LEADERBOARD</h3>
+        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LEADERBOARD</h3>
         <div id="leaderboard-list"></div>
       </div>
 
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">DAILY BEER FREQUENCY</h3>
+        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3>
         <div class="chart-container">
           <canvas id="freqChart"></canvas>
         </div>
       </div>
 
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">BEERS CONSUMED BY WEEK</h3>
+        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3>
         <div class="chart-container">
           <canvas id="weeklyChart"></canvas>
         </div>
@@ -208,239 +321,390 @@
   <script>
     const BIN_ID = '6a735b28da38895dfebd94ac'; 
     const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; 
-    const HOST_EMAIL = 'matthewswan17@gmail.com';
 
-    let userName = localStorage.getItem('beer_username');
-    let userEmail = localStorage.getItem('beer_useremail');
-    let groupCode = localStorage.getItem('beer_group_code');
-    let historyLogs = JSON.parse(localStorage.getItem('beer_history') || '{}');
+    let userName = localStorage.getItem('dt_username') || '';
+    let userEmail = localStorage.getItem('dt_useremail') || '';
     const todayDate = new Date().toISOString().split('T')[0];
 
+    // Drinks log structure: { "YYYY-MM-DD": { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 } }
+    let dailyDrinkLogs = JSON.parse(localStorage.getItem('dt_drink_logs') || '{}');
+    
+    // Remote groups cache: { GROUP_CODE: { name: "", host_email: "", members: { email: name }, logs: { email: { date: { ... } } } } }
+    let remoteGroups = {};
+    let activeHostCode = null;
     let freqChartInstance = null;
     let weeklyChartInstance = null;
     let isSyncing = false;
 
     window.onload = function() {
-      document.getElementById('current-date-label').innerText = todayDate;
-      if (userName && userEmail && groupCode) {
+      document.getElementById('today-date-label').innerText = todayDate;
+      if (!dailyDrinkLogs[todayDate]) {
+        dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+        saveLocalLogs();
+      }
+      if (userName && userEmail) {
         showApp();
       }
     };
 
-    function joinGroup() {
-      const nameInput = document.getElementById('join-name').value.trim();
-      const emailInput = document.getElementById('join-email').value.trim().toLowerCase();
-      const codeInput = document.getElementById('join-code').value.trim().toUpperCase();
-
-      if (!nameInput || !emailInput || !codeInput) return alert('Please enter your name, email, and group code.');
-      if (!emailInput.includes('@') || !emailInput.includes('.')) return alert('Please enter a valid email address.');
-      if (codeInput !== 'CRAZY8') return alert('Invalid group code! Try: CRAZY8');
-
-      userName = nameInput;
-      userEmail = emailInput;
-      groupCode = codeInput;
-
-      localStorage.setItem('beer_username', userName);
-      localStorage.setItem('beer_useremail', userEmail);
-      localStorage.setItem('beer_group_code', groupCode);
-
+    function loginUser() {
+      const name = document.getElementById('init-name').value.trim();
+      const email = document.getElementById('init-email').value.trim().toLowerCase();
+      if (!name || !email || !email.includes('@')) return alert('Please enter a valid name and email.');
+      
+      userName = name;
+      userEmail = email;
+      localStorage.setItem('dt_username', userName);
+      localStorage.setItem('dt_useremail', userEmail);
       showApp();
     }
 
     function showApp() {
-      document.getElementById('join-screen').classList.add('hidden');
+      document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
-      document.getElementById('user-display-name').innerText = userName;
+      document.getElementById('user-name-display').innerText = userName;
 
-      if (historyLogs[todayDate] === undefined) {
-        historyLogs[todayDate] = 0;
-        localStorage.setItem('beer_history', JSON.stringify(historyLogs));
+      updateTrackerUI();
+      syncWithCloud();
+      setInterval(syncWithCloud, 6000);
+    }
+
+    function editProfileName() {
+      const newName = prompt("Enter your new display name:", userName);
+      if (newName && newName.trim()) {
+        userName = newName.trim();
+        localStorage.setItem('dt_username', userName);
+        document.getElementById('user-name-display').innerText = userName;
+        syncWithCloud();
       }
-
-      updateDisplay();
-      syncWithCloud();
-
-      setInterval(syncWithCloud, 5000);
     }
 
-    function changeCount(delta) {
-      const current = historyLogs[todayDate] || 0;
-      historyLogs[todayDate] = Math.max(0, current + delta);
-      localStorage.setItem('beer_history', JSON.stringify(historyLogs));
-
-      updateDisplay();
+    /* TRACKER LOGIC */
+    function adjustDrink(type, delta) {
+      if (!dailyDrinkLogs[todayDate]) {
+        dailyDrinkLogs[todayDate] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      }
+      const current = dailyDrinkLogs[todayDate][type] || 0;
+      dailyDrinkLogs[todayDate][type] = Math.max(0, current + delta);
+      saveLocalLogs();
+      updateTrackerUI();
       syncWithCloud();
     }
 
-    function updateDisplay() {
-      const todayCount = historyLogs[todayDate] || 0;
-      document.getElementById('beer-count').innerText = todayCount;
+    function saveLocalLogs() {
+      localStorage.setItem('dt_drink_logs', JSON.stringify(dailyDrinkLogs));
     }
 
+    function calculateUnitsAndBeers(logEntry) {
+      if (!logEntry) return { units: 0, beers: 0 };
+      const pints = logEntry.pints || 0;
+      const bottles = logEntry.bottles || 0;
+      const wines = logEntry.wines || 0;
+      const cocktails = logEntry.cocktails || 0;
+      const shots = logEntry.shots || 0;
+
+      const totalUnits = (pints * 2) + (bottles * 1.33) + (wines * 2) + (cocktails * 2) + (shots * 1);
+      const roundedBeers = Math.round(totalUnits / 2);
+      return { units: Number(totalUnits.toFixed(2)), beers: roundedBeers };
+    }
+
+    function updateTrackerUI() {
+      const todayEntry = dailyDrinkLogs[todayDate] || { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      
+      document.getElementById('cnt-pints').innerText = todayEntry.pints || 0;
+      document.getElementById('cnt-bottles').innerText = todayEntry.bottles || 0;
+      document.getElementById('cnt-wines').innerText = todayEntry.wines || 0;
+      document.getElementById('cnt-cocktails').innerText = todayEntry.cocktails || 0;
+      document.getElementById('cnt-shots').innerText = todayEntry.shots || 0;
+
+      const calc = calculateUnitsAndBeers(todayEntry);
+      document.getElementById('total-units-val').innerText = calc.units;
+      document.getElementById('total-beers-val').innerText = calc.beers;
+    }
+
+    /* CLOUD SYNC & RACE CONDITION MITIGATION */
     async function syncWithCloud() {
-      if (!API_KEY || !BIN_ID || isSyncing) return; 
+      if (isSyncing) return;
       isSyncing = true;
 
       try {
         const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          method: 'GET',
-          headers: { 
-            'X-Master-Key': API_KEY,
-            'X-Bin-Meta': 'false'
+          headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }
+        });
+        
+        let rootData = await getRes.json();
+        if (!rootData || typeof rootData !== 'object') rootData = {};
+        if (!rootData.groups) rootData.groups = {};
+
+        // Seed default CRAZY8 group if missing
+        if (!rootData.groups["CRAZY8"]) {
+          rootData.groups["CRAZY8"] = {
+            name: "Crazy 8",
+            host_email: "matthewswan17@gmail.com",
+            members: {},
+            logs: {}
+          };
+        }
+
+        remoteGroups = rootData.groups;
+
+        // Auto-push user data to all groups where user is a member
+        let stateChanged = false;
+        Object.keys(remoteGroups).forEach(code => {
+          const group = remoteGroups[code];
+          if (group.members && group.members[userEmail] !== undefined) {
+            // Update name
+            if (group.members[userEmail] !== userName) {
+              group.members[userEmail] = userName;
+              stateChanged = true;
+            }
+            // Update logs non-destructively
+            if (!group.logs) group.logs = {};
+            group.logs[userEmail] = dailyDrinkLogs;
+            stateChanged = true;
           }
         });
 
-        let rawRecord = await getRes.json();
-        if (!rawRecord || typeof rawRecord !== 'object') rawRecord = {};
-        
-        let members = rawRecord.members && typeof rawRecord.members === 'object' ? rawRecord.members : {};
-        let daily_logs = rawRecord.daily_logs && typeof rawRecord.daily_logs === 'object' ? rawRecord.daily_logs : {};
+        if (stateChanged) {
+          await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+            body: JSON.stringify(rootData)
+          });
+        }
 
-        let myTotalBeers = 0;
-        Object.values(historyLogs).forEach(count => myTotalBeers += count);
-
-        members[userEmail] = {
-          name: userName,
-          email: userEmail,
-          total: myTotalBeers
-        };
-        
-        daily_logs[userEmail] = historyLogs;
-
-        const payloadToSave = {
-          code: "CRAZY8",
-          host_email: HOST_EMAIL,
-          members: members,
-          daily_logs: daily_logs
-        };
-
-        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': API_KEY
-          },
-          body: JSON.stringify(payloadToSave)
-        });
-
-        renderMemberListBadges(members);
-        renderLeaderboard(members);
-        renderCharts(daily_logs);
-        checkHostControls(members);
-      } catch (err) {
-        console.error('Cloud sync error:', err);
+        renderMyGroups();
+        populateAnalyticsDropdown();
+        renderAnalytics();
+      } catch (e) {
+        console.error('Cloud sync error:', e);
       } finally {
         isSyncing = false;
       }
     }
 
-    function checkHostControls(membersObj) {
-      const isHost = (userEmail.toLowerCase() === HOST_EMAIL.toLowerCase());
-      const hostPanel = document.getElementById('host-panel');
-      const hostTag = document.getElementById('host-tag');
-
-      if (isHost) {
-        hostTag.style.display = 'inline';
-        hostPanel.classList.remove('hidden');
-
-        const controlsContainer = document.getElementById('host-member-controls');
-        controlsContainer.innerHTML = '';
-
-        Object.keys(membersObj).forEach(emailKey => {
-          const member = membersObj[emailKey];
-          if (emailKey.toLowerCase() !== HOST_EMAIL.toLowerCase()) {
-            const row = document.createElement('div');
-            row.className = 'member-row';
-            row.innerHTML = `
-              <div>
-                <strong>${member.name}</strong>
-              </div>
-              <button class="btn-remove" onclick="removeMember('${emailKey}')">Remove</button>
-            `;
-            controlsContainer.appendChild(row);
-          }
-        });
-
-        if (controlsContainer.children.length === 0) {
-          controlsContainer.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No other members to manage.</span>';
-        }
-      } else {
-        hostTag.style.display = 'none';
-        hostPanel.classList.add('hidden');
-      }
-    }
-
-    async function removeMember(targetEmail) {
-      if (!confirm(`Remove member associated with ${targetEmail}?`)) return;
-
-      try {
-        const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          method: 'GET',
-          headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }
-        });
-
-        let rawRecord = await getRes.json();
-        delete rawRecord.members[targetEmail];
-        delete rawRecord.daily_logs[targetEmail];
-
-        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-          body: JSON.stringify(rawRecord)
-        });
-
-        syncWithCloud();
-      } catch (err) {
-        console.error('Error removing member:', err);
-      }
-    }
-
-    function renderMemberListBadges(membersObj) {
-      const container = document.getElementById('group-members-badges');
-      if (!container) return;
+    /* GROUPS MANAGEMENT */
+    function renderMyGroups() {
+      const container = document.getElementById('my-groups-list');
       container.innerHTML = '';
+      
+      let count = 0;
+      Object.keys(remoteGroups).forEach(code => {
+        const grp = remoteGroups[code];
+        if (grp.members && grp.members[userEmail] !== undefined) {
+          count++;
+          const isHost = (grp.host_email === userEmail);
+          const row = document.createElement('div');
+          row.className = 'member-row';
+          row.innerHTML = `
+            <div>
+              <strong>${grp.name}</strong> <span style="font-size:11px; color:#f59e0b;">(${code})</span>
+              ${isHost ? '<span style="font-size:11px;"> 👑 Host</span>' : ''}
+            </div>
+            <div>
+              ${isHost ? `<button style="background:#334155; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;" onclick="manageHostGroup('${code}')">Manage</button>` : ''}
+            </div>
+          `;
+          container.appendChild(row);
+        }
+      });
 
-      Object.keys(membersObj).forEach(emailKey => {
-        const member = membersObj[emailKey];
-        const badge = document.createElement('span');
-        badge.className = 'member-badge';
-        badge.innerText = `${member.name}${emailKey.toLowerCase() === userEmail.toLowerCase() ? ' (You)' : ''}${emailKey.toLowerCase() === HOST_EMAIL.toLowerCase() ? ' 👑' : ''}`;
-        container.appendChild(badge);
+      if (count === 0) {
+        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You have not joined any groups yet.</span>';
+      }
+    }
+
+    async function joinGroup() {
+      const code = document.getElementById('join-group-code').value.trim().toUpperCase();
+      if (!code) return alert('Enter a group code.');
+      
+      if (!remoteGroups[code]) {
+        return alert('Group code not found. Please double check the code.');
+      }
+
+      remoteGroups[code].members[userEmail] = userName;
+      if (!remoteGroups[code].logs) remoteGroups[code].logs = {};
+      remoteGroups[code].logs[userEmail] = dailyDrinkLogs;
+
+      await saveRemoteState();
+      alert(`Joined group ${remoteGroups[code].name}!`);
+      document.getElementById('join-group-code').value = '';
+      syncWithCloud();
+    }
+
+    async function createGroup() {
+      const name = document.getElementById('create-group-name').value.trim();
+      const code = document.getElementById('create-group-code').value.trim().toUpperCase();
+
+      if (!name || !code) return alert('Provide both group name and group code.');
+      if (remoteGroups[code]) return alert('This group code is already taken. Try another.');
+
+      remoteGroups[code] = {
+        name: name,
+        host_email: userEmail,
+        members: { [userEmail]: userName },
+        logs: { [userEmail]: dailyDrinkLogs }
+      };
+
+      await saveRemoteState();
+      alert(`Group "${name}" created with code: ${code}`);
+      document.getElementById('create-group-name').value = '';
+      document.getElementById('create-group-code').value = '';
+      syncWithCloud();
+    }
+
+    function manageHostGroup(code) {
+      activeHostCode = code;
+      const grp = remoteGroups[code];
+      document.getElementById('host-group-name').innerText = grp.name;
+      document.getElementById('edit-group-code').value = code;
+      document.getElementById('host-panel').classList.remove('hidden');
+
+      const list = document.getElementById('host-member-list');
+      list.innerHTML = '';
+
+      Object.keys(grp.members).forEach(mEmail => {
+        if (mEmail !== userEmail) {
+          const row = document.createElement('div');
+          row.className = 'member-row';
+          row.innerHTML = `
+            <span>${grp.members[mEmail]} (${mEmail})</span>
+            <button class="btn-danger" onclick="removeMemberByHost('${code}', '${mEmail}')">Remove</button>
+          `;
+          list.appendChild(row);
+        }
+      });
+
+      if (list.children.length === 0) {
+        list.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No other members to manage.</span>';
+      }
+    }
+
+    async function removeMemberByHost(groupCode, memberEmail) {
+      if (!confirm(`Remove member ${memberEmail} from this group?`)) return;
+      delete remoteGroups[groupCode].members[memberEmail];
+      if (remoteGroups[groupCode].logs) delete remoteGroups[groupCode].logs[memberEmail];
+      await saveRemoteState();
+      manageHostGroup(groupCode);
+      syncWithCloud();
+    }
+
+    async function updateGroupCodeByHost() {
+      const newCode = document.getElementById('edit-group-code').value.trim().toUpperCase();
+      if (!newCode || !activeHostCode) return;
+      if (newCode === activeHostCode) return alert('Code is unchanged.');
+      if (remoteGroups[newCode]) return alert('That group code is already in use.');
+
+      remoteGroups[newCode] = remoteGroups[activeHostCode];
+      delete remoteGroups[activeHostCode];
+      activeHostCode = newCode;
+
+      await saveRemoteState();
+      alert(`Group code updated to ${newCode}`);
+      manageHostGroup(newCode);
+      syncWithCloud();
+    }
+
+    async function saveRemoteState() {
+      await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+        body: JSON.stringify({ groups: remoteGroups })
       });
     }
 
-    function renderLeaderboard(membersObj) {
+    /* ANALYTICS */
+    function populateAnalyticsDropdown() {
+      const select = document.getElementById('analytics-group-select');
+      const currentVal = select.value;
+      select.innerHTML = '';
+
+      let joinedCount = 0;
+      Object.keys(remoteGroups).forEach(code => {
+        const grp = remoteGroups[code];
+        if (grp.members && grp.members[userEmail] !== undefined) {
+          joinedCount++;
+          const opt = document.createElement('option');
+          opt.value = code;
+          opt.innerText = `${grp.name} (${code})`;
+          select.appendChild(opt);
+        }
+      });
+
+      if (joinedCount === 0) {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.innerText = "No joined groups";
+        select.appendChild(opt);
+      } else if (currentVal && remoteGroups[currentVal]) {
+        select.value = currentVal;
+      }
+    }
+
+    function renderAnalytics() {
+      const code = document.getElementById('analytics-group-select').value;
+      const grp = remoteGroups[code];
       const leaderboardEl = document.getElementById('leaderboard-list');
-      if (!leaderboardEl) return;
       leaderboardEl.innerHTML = '';
 
+      if (!grp) {
+        document.getElementById('group-total-beers').innerText = '0 🍺';
+        return;
+      }
+
       let totalGroupBeers = 0;
-      const sortedEmails = Object.keys(membersObj).sort((a,b) => membersObj[b].total - membersObj[a].total);
+      const userTotals = [];
 
-      sortedEmails.forEach(emailKey => {
-        const member = membersObj[emailKey];
-        totalGroupBeers += member.total;
+      Object.keys(grp.members).forEach(mEmail => {
+        const mName = grp.members[mEmail];
+        const mLogs = (grp.logs && grp.logs[mEmail]) ? grp.logs[mEmail] : {};
+        
+        let mBeers = 0;
+        Object.values(mLogs).forEach(dayLog => {
+          mBeers += calculateUnitsAndBeers(dayLog).beers;
+        });
 
+        totalGroupBeers += mBeers;
+        userTotals.push({ email: mEmail, name: mName, beers: mBeers });
+      });
+
+      userTotals.sort((a, b) => b.beers - a.beers);
+
+      userTotals.forEach(item => {
         const row = document.createElement('div');
         row.className = 'member-row';
-        row.innerHTML = `<span>${member.name} ${emailKey.toLowerCase() === userEmail.toLowerCase() ? '(You)' : ''}${emailKey.toLowerCase() === HOST_EMAIL.toLowerCase() ? ' 👑' : ''}</span><strong>${member.total} 🍺</strong>`;
+        row.innerHTML = `
+          <span>${item.name} ${item.email === userEmail ? '(You)' : ''} ${item.email === grp.host_email ? '👑' : ''}</span>
+          <strong>${item.beers} 🍺</strong>
+        `;
         leaderboardEl.appendChild(row);
       });
 
-      document.getElementById('group-total-beers').innerText = totalGroupBeers + ' 🍺';
+      document.getElementById('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
+
+      renderCharts(grp.logs || {});
     }
 
-    function renderCharts(allDailyLogs) {
+    function renderCharts(groupLogs) {
       const canvas1 = document.getElementById('freqChart');
       const canvas2 = document.getElementById('weeklyChart');
       if (!canvas1 || !canvas2) return;
 
       const freqMap = {};
-      Object.values(allDailyLogs).forEach(userLogs => {
-        if (userLogs && typeof userLogs === 'object') {
-          Object.values(userLogs).forEach(count => {
-            if (count > 0) {
-              freqMap[count] = (freqMap[count] || 0) + 1;
+      const weeklyMap = {};
+
+      Object.values(groupLogs).forEach(userLogMap => {
+        if (userLogMap && typeof userLogMap === 'object') {
+          Object.entries(userLogMap).forEach(([dateStr, logEntry]) => {
+            const beers = calculateUnitsAndBeers(logEntry).beers;
+            if (beers > 0) {
+              freqMap[beers] = (freqMap[beers] || 0) + 1;
+
+              const date = new Date(dateStr);
+              const weekNum = Math.ceil(date.getDate() / 7);
+              const monthName = date.toLocaleString('default', { month: 'short' });
+              const weekKey = `W${weekNum} ${monthName}`;
+              weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + beers;
             }
           });
         }
@@ -455,12 +719,7 @@
         type: 'bar',
         data: {
           labels: freqLabels,
-          datasets: [{
-            label: 'Times Logged',
-            data: freqData,
-            backgroundColor: '#f59e0b',
-            borderRadius: 6
-          }]
+          datasets: [{ label: 'Occurrences', data: freqData, backgroundColor: '#f59e0b', borderRadius: 6 }]
         },
         options: {
           responsive: true,
@@ -468,24 +727,8 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
-            y: { ticks: { color: '#94a3b8', stepSize: 1, precision: 0 }, grid: { color: '#334155' }, beginAtZero: true }
+            y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#334155' }, beginAtZero: true }
           }
-        }
-      });
-
-      const weeklyMap = {};
-      Object.values(allDailyLogs).forEach(userLogs => {
-        if (userLogs && typeof userLogs === 'object') {
-          Object.entries(userLogs).forEach(([dateStr, count]) => {
-            if (count > 0) {
-              const date = new Date(dateStr);
-              const weekNum = Math.ceil(date.getDate() / 7);
-              const monthName = date.toLocaleString('default', { month: 'short' });
-              const weekKey = `W${weekNum} ${monthName}`;
-
-              weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + count;
-            }
-          });
         }
       });
 
@@ -509,30 +752,31 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
-            y: { ticks: { color: '#94a3b8', precision: 0 }, grid: { color: '#334155' }, beginAtZero: true }
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true }
           }
         }
       });
     }
 
-    function switchPage(pageNum) {
-      const p1 = document.getElementById('page1');
-      const p2 = document.getElementById('page2');
-      const btn1 = document.getElementById('nav-p1');
-      const btn2 = document.getElementById('nav-p2');
+    function switchTab(tab) {
+      document.getElementById('tab-tracker').classList.add('hidden');
+      document.getElementById('tab-groups').classList.add('hidden');
+      document.getElementById('tab-analytics').classList.add('hidden');
 
-      if (pageNum === 1) {
-        p1.classList.remove('hidden');
-        p2.classList.add('hidden');
-        btn1.classList.add('active');
-        btn2.classList.remove('active');
-      } else {
-        p1.classList.add('hidden');
-        p2.classList.remove('hidden');
-        btn1.classList.remove('active');
-        btn2.classList.add('active');
-        
-        syncWithCloud();
+      document.getElementById('nav-p1').classList.remove('active');
+      document.getElementById('nav-p2').classList.remove('active');
+      document.getElementById('nav-p3').classList.remove('active');
+
+      if (tab === 'tracker') {
+        document.getElementById('tab-tracker').classList.remove('hidden');
+        document.getElementById('nav-p1').classList.add('active');
+      } else if (tab === 'groups') {
+        document.getElementById('tab-groups').classList.remove('hidden');
+        document.getElementById('nav-p2').classList.add('active');
+      } else if (tab === 'analytics') {
+        document.getElementById('tab-analytics').classList.remove('hidden');
+        document.getElementById('nav-p3').classList.add('active');
+        renderAnalytics();
       }
     }
   </script>
