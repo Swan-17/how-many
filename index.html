@@ -317,7 +317,7 @@
 
   <script>
     let userName = localStorage.getItem('dt_username') || '';
-    let userEmail = localStorage.getItem('dt_useremail') || '';
+    let userEmail = (localStorage.getItem('dt_useremail') || '').toLowerCase().trim();
     let firstCreatedDate = localStorage.getItem('dt_created_date') || new Date().toISOString().split('T')[0];
     const todayDate = new Date().toISOString().split('T')[0];
 
@@ -436,7 +436,7 @@
         const grp = allGroups[code];
         if (grp.members && grp.members[userEmail] !== undefined) {
           joinedCount++;
-          const isHost = (grp.host_email === userEmail);
+          const isHost = (grp.host_email.toLowerCase() === userEmail);
           
           const wrapper = document.createElement('div');
           wrapper.id = `group-item-${code}`;
@@ -449,8 +449,8 @@
               ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
             </div>
             <div style="display:flex; gap:6px;">
-              ${isHost ? `<button class="btn-share" onclick="shareGroup('${code}')">Share</button>` : ''}
-              <button id="manage-btn-${code}" class="btn-secondary" onclick="toggleHostPanel('${code}')">Manage</button>
+              ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${code}')">Share</button>` : ''}
+              <button id="manage-btn-${code}" class="btn-secondary" onclick="toggleHostPanel(event, '${code}')">Manage</button>
               <button class="btn-danger" onclick="leaveGroup('${code}')">Leave</button>
             </div>
           `;
@@ -528,9 +528,11 @@
       updateAccountPage();
     }
 
-    function toggleHostPanel(code) {
-      if (activeHostCode === code) closeHostPanel();
-      else {
+    function toggleHostPanel(e, code) {
+      if (e) e.stopPropagation();
+      if (activeHostCode === code) {
+        closeHostPanel();
+      } else {
         closeAllExpandables();
         activeHostCode = code;
         renderInlineHostPanel(code);
@@ -542,7 +544,7 @@
       if (!wrapper) return;
 
       const grp = allGroups[code];
-      const isHost = (grp.host_email === userEmail);
+      const isHost = (grp.host_email.toLowerCase() === userEmail);
       const panel = document.createElement('div');
       panel.id = `host-panel-${code}`;
       panel.className = 'inline-host-panel';
@@ -550,11 +552,12 @@
       if (isHost) {
         let memberRows = '';
         Object.keys(grp.members).forEach(mEmail => {
-          if (mEmail !== userEmail) {
+          const normEmail = mEmail.toLowerCase().trim();
+          if (normEmail !== userEmail) {
             memberRows += `
               <div class="member-row" style="padding: 6px 0;">
-                <span style="font-size: 13px;">${grp.members[mEmail]} <span style="font-size: 11px; color: #94a3b8;">(${mEmail})</span></span>
-                <button class="btn-danger" onclick="removeMember('${code}', '${mEmail}')">Remove</button>
+                <span style="font-size: 13px;">${grp.members[mEmail]} <span style="font-size: 11px; color: #94a3b8;">(${normEmail})</span></span>
+                <button class="btn-danger" onclick="removeMember('${code}', '${normEmail}')">Remove</button>
               </div>`;
           }
         });
@@ -585,8 +588,13 @@
     }
 
     function removeMember(code, email) {
+      const targetEmail = email.toLowerCase().trim();
       if (allGroups[code] && allGroups[code].members) {
-        delete allGroups[code].members[email];
+        Object.keys(allGroups[code].members).forEach(mKey => {
+          if (mKey.toLowerCase().trim() === targetEmail) {
+            delete allGroups[code].members[mKey];
+          }
+        });
         saveGroupsData();
         renderInlineHostPanel(code);
       }
@@ -634,9 +642,10 @@
 
       let totalGroupBeers = 0;
       const userTotals = Object.keys(grp.members).map(mEmail => {
-        const beers = (mEmail === userEmail) ? myTotalBeers : 0;
+        const normEmail = mEmail.toLowerCase().trim();
+        const beers = (normEmail === userEmail) ? myTotalBeers : 0;
         totalGroupBeers += beers;
-        return { name: grp.members[mEmail], email: mEmail, beers };
+        return { name: grp.members[mEmail], email: normEmail, beers };
       });
 
       userTotals.sort((a, b) => b.beers - a.beers);
@@ -726,7 +735,8 @@
       }
     }
 
-    function shareGroup(code) {
+    function shareGroup(e, code) {
+      if (e) e.stopPropagation();
       const shareUrl = `${window.location.href.split('?')[0]}?join=${code}`;
       if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url: shareUrl });
       else navigator.clipboard.writeText(shareUrl).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
