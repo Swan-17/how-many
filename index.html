@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🍺 Group Beer Tracker</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -87,11 +89,17 @@
       margin-top: 8px;
       cursor: pointer;
     }
+    .chart-container {
+      position: relative;
+      height: 220px;
+      width: 100%;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
 
-  <!-- JOIN GROUP SCREEN (Shown if not joined) -->
+  <!-- JOIN GROUP SCREEN -->
   <div id="join-screen">
     <div class="card" style="text-align: center;">
       <h2 style="margin-top: 0;">Join Group</h2>
@@ -101,15 +109,14 @@
       </div>
       <div style="margin-bottom: 12px; text-align: left;">
         <label style="color: #94a3b8; font-size: 12px;">GROUP CODE</label>
-        <input type="text" id="join-code" placeholder="1234" style="text-transform: uppercase;">
+        <input type="text" id="join-code" placeholder="BEER2026" style="text-transform: uppercase;">
       </div>
       <button class="btn-submit" onclick="joinGroup()">Join Group</button>
     </div>
   </div>
 
-  <!-- MAIN APP (Shown after joining) -->
+  <!-- MAIN APP -->
   <div id="app-screen" class="hidden">
-    <!-- Navigation Bar -->
     <nav>
       <button id="nav-p1" class="active" onclick="switchPage(1)">Tracker</button>
       <button id="nav-p2" onclick="switchPage(2)">Analytics</button>
@@ -133,7 +140,7 @@
       </div>
     </div>
 
-    <!-- PAGE 2: REAL ANALYTICS -->
+    <!-- PAGE 2: ANALYTICS -->
     <div id="page2" class="hidden">
       <div class="card" style="text-align: center;">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8;">TOTAL GROUP CONSUMPTION</h3>
@@ -142,16 +149,28 @@
 
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">GROUP LEADERBOARD</h3>
-        <div id="leaderboard-list">
-          <!-- Populated dynamically with all group members -->
+        <div id="leaderboard-list"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">DAILY BEER FREQUENCY</h3>
+        <div class="chart-container">
+          <canvas id="freqChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">BEERS CONSUMED BY WEEK</h3>
+        <div class="chart-container">
+          <canvas id="weeklyChart"></canvas>
         </div>
       </div>
     </div>
   </div>
 
-<script>
+  <script>
     const BIN_ID = '6a735891da38895dfebd8ae4'; 
-    const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; // Replace with your Master API Key
+    const API_KEY = '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS'; 
 
     let userName = localStorage.getItem('beer_username');
     let groupCode = localStorage.getItem('beer_group_code');
@@ -213,26 +232,32 @@
     }
 
     async function syncWithCloud() {
-      if (API_KEY === '$2a$10$jXBaeNimBsDxMlon9ER3YOWeFe3h0F4nrg6SmhMpsWbZq5AoxlGkS') return; 
+      if (!API_KEY || !BIN_ID) return; 
 
       try {
+        // 1. Get current remote data
         const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
           method: 'GET',
-          headers: { 'X-Master-Key': API_KEY }
+          headers: { 
+            'X-Master-Key': API_KEY,
+            'X-Bin-Meta': 'false'
+          }
         });
 
-        const resData = await getRes.json();
-        let cloudRecord = resData.record || {};
+        let cloudRecord = await getRes.json();
+        if (!cloudRecord || typeof cloudRecord !== 'object') cloudRecord = {};
         if (!cloudRecord.members) cloudRecord.members = {};
         if (!cloudRecord.daily_logs) cloudRecord.daily_logs = {};
 
-        // Merge user total count and daily logs
+        // 2. Calculate local total
         let myTotalBeers = 0;
         Object.values(historyLogs).forEach(count => myTotalBeers += count);
 
+        // 3. Merge this specific user into cloud record without overwriting others
         cloudRecord.members[userName] = myTotalBeers;
         cloudRecord.daily_logs[userName] = historyLogs;
 
+        // 4. Save merged data
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
@@ -242,6 +267,7 @@
           body: JSON.stringify(cloudRecord)
         });
 
+        // 5. Render Analytics
         renderLeaderboard(cloudRecord.members);
         renderCharts(cloudRecord.daily_logs);
       } catch (err) {
@@ -271,9 +297,13 @@
     }
 
     function renderCharts(allDailyLogs) {
-      // 1. Calculate Frequency: Map exact beer amounts to total occurrences
+      // Check if canvases exist in DOM
+      const canvas1 = document.getElementById('freqChart');
+      const canvas2 = document.getElementById('weeklyChart');
+      if (!canvas1 || !canvas2) return;
+
+      // 1. Frequency Logic
       const freqMap = {};
-      
       Object.values(allDailyLogs).forEach(userLogs => {
         Object.values(userLogs).forEach(count => {
           if (count > 0) {
@@ -286,10 +316,8 @@
       const freqLabels = sortedAmounts.map(amt => `${amt} Beer${amt > 1 ? 's' : ''}`);
       const freqData = sortedAmounts.map(amt => freqMap[amt]);
 
-      // Render Bar Chart for Daily Frequency
       if (freqChartInstance) freqChartInstance.destroy();
-      const ctx1 = document.getElementById('freqChart').getContext('2d');
-      freqChartInstance = new Chart(ctx1, {
+      freqChartInstance = new Chart(canvas1.getContext('2d'), {
         type: 'bar',
         data: {
           labels: freqLabels,
@@ -303,28 +331,15 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { 
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  return `${context.raw} times logged`;
-                }
-              }
-            }
-          },
+          plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
-            y: { 
-              ticks: { color: '#94a3b8', stepSize: 1, precision: 0 }, 
-              grid: { color: '#334155' },
-              beginAtZero: true
-            }
+            y: { ticks: { color: '#94a3b8', stepSize: 1, precision: 0 }, grid: { color: '#334155' }, beginAtZero: true }
           }
         }
       });
 
-      // 2. Calculate Weekly Totals
+      // 2. Weekly Totals Logic
       const weeklyMap = {};
       Object.values(allDailyLogs).forEach(userLogs => {
         Object.entries(userLogs).forEach(([dateStr, count]) => {
@@ -339,19 +354,14 @@
         });
       });
 
-      const weeklyLabels = Object.keys(weeklyMap);
-      const weeklyData = Object.values(weeklyMap);
-
-      // Render Weekly Line/Bar Chart
       if (weeklyChartInstance) weeklyChartInstance.destroy();
-      const ctx2 = document.getElementById('weeklyChart').getContext('2d');
-      weeklyChartInstance = new Chart(ctx2, {
+      weeklyChartInstance = new Chart(canvas2.getContext('2d'), {
         type: 'line',
         data: {
-          labels: weeklyLabels,
+          labels: Object.keys(weeklyMap),
           datasets: [{
             label: 'Group Beers',
-            data: weeklyData,
+            data: Object.values(weeklyMap),
             borderColor: '#f59e0b',
             backgroundColor: 'rgba(245, 158, 11, 0.2)',
             fill: true,
