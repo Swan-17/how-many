@@ -207,6 +207,16 @@
       font-weight: bold;
       cursor: pointer;
     }
+    .btn-share {
+      background: #059669;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+    }
     .member-row {
       display: flex;
       justify-content: space-between;
@@ -216,9 +226,18 @@
     }
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
+
+    /* INLINE HOST CONTROL PANEL */
+    .inline-host-panel {
+      background: #0f172a;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0 12px 0;
+    }
   </style>
 </head>
-<body>
+<body onclick="handleGlobalClick(event)">
 
   <!-- FIRST-TIME / UNRECOGNIZED DEVICE LOGIN SCREEN -->
   <div id="login-screen" class="card">
@@ -239,14 +258,14 @@
   <div id="app-screen" class="hidden">
     <!-- 4-PAGE TOP NAVIGATION -->
     <nav>
-      <button id="nav-account" onclick="switchPage('account')">Account</button>
+      <button id="nav-account" class="active" onclick="switchPage('account')">Account</button>
       <button id="nav-groups" onclick="switchPage('groups')">Groups</button>
-      <button id="nav-tracker" class="active" onclick="switchPage('tracker')">Tracker</button>
+      <button id="nav-tracker" onclick="switchPage('tracker')">Tracker</button>
       <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
     </nav>
 
     <!-- PAGE 1: ACCOUNT -->
-    <div id="page-account" class="hidden">
+    <div id="page-account">
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
         
@@ -293,7 +312,7 @@
       </div>
 
       <!-- JOIN EXISTING GROUP (EXPANDABLE ACCORDION) -->
-      <div class="card">
+      <div class="card" id="card-join-group">
         <div class="accordion-header" onclick="toggleAccordion('join-accordion-body', 'join-accordion-icon')">
           <h3>Join a Group</h3>
           <span id="join-accordion-icon" class="accordion-icon">▼</span>
@@ -306,7 +325,7 @@
       </div>
 
       <!-- CREATE NEW GROUP (EXPANDABLE ACCORDION) -->
-      <div class="card">
+      <div class="card" id="card-create-group">
         <div class="accordion-header" onclick="toggleAccordion('create-accordion-body', 'create-accordion-icon')">
           <h3>Create a New Group</h3>
           <span id="create-accordion-icon" class="accordion-icon">▼</span>
@@ -319,24 +338,10 @@
           <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
         </div>
       </div>
-
-      <!-- HOST CONTROLS PANEL -->
-      <div id="host-panel" class="card hidden">
-        <h3 style="margin-top: 0; font-size: 15px; color: #f59e0b;">HOST CONTROLS: <span id="host-group-name"></span></h3>
-        <div style="margin-bottom: 12px;">
-          <label style="color: #94a3b8; font-size: 12px;">CHANGE LOGIN CODE</label>
-          <div style="display: flex; gap: 6px;">
-            <input type="text" id="edit-group-code" style="text-transform: uppercase;">
-            <button class="btn-secondary" onclick="updateGroupCodeByHost()">Update</button>
-          </div>
-        </div>
-        <h4 style="margin: 10px 0 6px 0; font-size: 12px; color: #94a3b8;">REMOVE GROUP MEMBERS</h4>
-        <div id="host-member-list"></div>
-      </div>
     </div>
 
     <!-- PAGE 3: TRACKER -->
-    <div id="page-tracker">
+    <div id="page-tracker" class="hidden">
       <div class="card">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
         
@@ -495,8 +500,18 @@
         saveLocalLogs();
       }
 
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedCode = urlParams.get('join');
+
       if (userName && userEmail) {
         showApp();
+        if (sharedCode) {
+          switchPage('groups');
+          toggleAccordion('join-accordion-body', 'join-accordion-icon');
+          document.getElementById('join-group-code').value = sharedCode.toUpperCase();
+        }
+      } else if (sharedCode) {
+        document.getElementById('join-group-code').value = sharedCode.toUpperCase();
       }
     };
 
@@ -517,6 +532,14 @@
       localStorage.setItem('dt_created_date', firstCreatedDate);
 
       showApp();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedCode = urlParams.get('join');
+      if (sharedCode) {
+        switchPage('groups');
+        toggleAccordion('join-accordion-body', 'join-accordion-icon');
+        document.getElementById('join-group-code').value = sharedCode.toUpperCase();
+      }
     }
 
     function showApp() {
@@ -526,7 +549,7 @@
       updateTrackerUI();
       syncWithCloud();
       setInterval(syncWithCloud, 6000);
-      switchPage('tracker');
+      switchPage('account');
     }
 
     function editProfileName() {
@@ -539,16 +562,65 @@
       }
     }
 
+    /* CLOSE ALL OPEN EXPANDABLE SECTIONS */
+    function closeAllExpandables() {
+      closeHostPanel();
+      
+      const joinBody = document.getElementById('join-accordion-body');
+      const joinIcon = document.getElementById('join-accordion-icon');
+      if (joinBody && !joinBody.classList.contains('hidden')) {
+        joinBody.classList.add('hidden');
+        if (joinIcon) joinIcon.innerText = '▼';
+      }
+
+      const createBody = document.getElementById('create-accordion-body');
+      const createIcon = document.getElementById('create-accordion-icon');
+      if (createBody && !createBody.classList.contains('hidden')) {
+        createBody.classList.add('hidden');
+        if (createIcon) createIcon.innerText = '▼';
+      }
+    }
+
     function toggleAccordion(bodyId, iconId) {
       const body = document.getElementById(bodyId);
       const icon = document.getElementById(iconId);
-      
-      if (body.classList.contains('hidden')) {
+      const isCurrentlyHidden = body.classList.contains('hidden');
+
+      closeAllExpandables();
+
+      if (isCurrentlyHidden) {
         body.classList.remove('hidden');
         icon.innerText = '▲';
-      } else {
-        body.classList.add('hidden');
-        icon.innerText = '▼';
+      }
+    }
+
+    /* GLOBAL DISMISSAL ON OUTSIDE CLICK */
+    function handleGlobalClick(e) {
+      const joinCard = document.getElementById('card-join-group');
+      const createCard = document.getElementById('card-create-group');
+      let isInsideHostPanel = false;
+
+      if (activeHostCode) {
+        const hostPanel = document.getElementById(`host-panel-${activeHostCode}`);
+        const manageBtn = document.getElementById(`manage-btn-${activeHostCode}`);
+        if ((hostPanel && hostPanel.contains(e.target)) || (manageBtn && manageBtn.contains(e.target))) {
+          isInsideHostPanel = true;
+        }
+      }
+
+      const isInsideJoin = joinCard && joinCard.contains(e.target);
+      const isInsideCreate = createCard && createCard.contains(e.target);
+
+      if (!isInsideJoin && !isInsideCreate && !isInsideHostPanel) {
+        closeAllExpandables();
+      }
+    }
+
+    function closeHostPanel() {
+      if (activeHostCode) {
+        const oldPanel = document.getElementById(`host-panel-${activeHostCode}`);
+        if (oldPanel) oldPanel.remove();
+        activeHostCode = null;
       }
     }
 
@@ -687,6 +759,10 @@
         if (grp.members && grp.members[userEmail] !== undefined) {
           count++;
           const isHost = (grp.host_email === userEmail);
+          
+          const groupItemWrapper = document.createElement('div');
+          groupItemWrapper.id = `group-item-${code}`;
+          
           const row = document.createElement('div');
           row.className = 'member-row';
           row.innerHTML = `
@@ -695,16 +771,101 @@
               ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
             </div>
             <div style="display:flex; gap:6px;">
-              ${isHost ? `<button class="btn-secondary" onclick="manageHostGroup('${code}')">Manage</button>` : ''}
+              ${isHost ? `<button class="btn-share" onclick="shareGroup('${code}')">Share</button>` : ''}
+              ${isHost ? `<button id="manage-btn-${code}" class="btn-secondary" onclick="toggleHostPanel('${code}')">Manage</button>` : ''}
               <button class="btn-danger" onclick="leaveGroup('${code}')">Leave</button>
             </div>
           `;
-          container.appendChild(row);
+          
+          groupItemWrapper.appendChild(row);
+          container.appendChild(groupItemWrapper);
+
+          if (activeHostCode === code) {
+            renderInlineHostPanel(code);
+          }
         }
       });
 
       if (count === 0) {
         container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
+      }
+    }
+
+    function toggleHostPanel(code) {
+      if (activeHostCode === code) {
+        closeHostPanel();
+      } else {
+        closeAllExpandables();
+        activeHostCode = code;
+        renderInlineHostPanel(code);
+      }
+    }
+
+    function renderInlineHostPanel(code) {
+      const wrapper = document.getElementById(`group-item-${code}`);
+      if (!wrapper) return;
+
+      const grp = remoteGroups[code];
+      const panel = document.createElement('div');
+      panel.id = `host-panel-${code}`;
+      panel.className = 'inline-host-panel';
+
+      let membersListHTML = '';
+      Object.keys(grp.members).forEach(mEmail => {
+        if (mEmail !== userEmail) {
+          membersListHTML += `
+            <div class="member-row" style="padding: 6px 0;">
+              <span style="font-size: 13px;">${grp.members[mEmail]} <span style="font-size: 11px; color: #94a3b8;">(${mEmail})</span></span>
+              <button class="btn-danger" onclick="removeMemberByHost('${code}', '${mEmail}')">Remove</button>
+            </div>
+          `;
+        }
+      });
+
+      if (!membersListHTML) {
+        membersListHTML = '<span style="color:#94a3b8; font-size:12px; display:block; margin-top:4px;">No other members in group.</span>';
+      }
+
+      panel.innerHTML = `
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
+        <div style="margin-bottom: 10px;">
+          <label style="color: #94a3b8; font-size: 11px;">UPDATE GROUP CODE</label>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <input type="text" id="edit-group-code-${code}" value="${code}" style="text-transform: uppercase; margin: 0;">
+            <button class="btn-secondary" onclick="updateGroupCodeByHost('${code}')">Save</button>
+          </div>
+        </div>
+        <label style="color: #94a3b8; font-size: 11px;">MANAGE MEMBERS</label>
+        <div>${membersListHTML}</div>
+      `;
+
+      wrapper.appendChild(panel);
+    }
+
+    async function shareGroup(code) {
+      closeAllExpandables();
+      const grp = remoteGroups[code];
+      if (!grp) return;
+
+      const baseUrl = window.location.href.split('?')[0];
+      const shareUrl = `${baseUrl}?join=${code}`;
+      const shareData = {
+        title: `Join ${grp.name} on Drink Tracker`,
+        text: `Join my group "${grp.name}" on Drink Tracker using Code: ${code}`,
+        url: shareUrl
+      };
+
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+        } catch (err) {}
+      } else {
+        const copyText = `Join my group "${grp.name}" on Drink Tracker!\nCode: ${code}\nLink: ${shareUrl}`;
+        navigator.clipboard.writeText(copyText).then(() => {
+          alert(`Share link and code copied to clipboard!\n\nCode: ${code}\nLink: ${shareUrl}`);
+        }).catch(() => {
+          alert(`Join Code: ${code}\nLink: ${shareUrl}`);
+        });
       }
     }
 
@@ -720,6 +881,7 @@
       await saveRemoteState();
       alert(`Successfully joined ${remoteGroups[code].name}!`);
       document.getElementById('join-group-code').value = '';
+      closeAllExpandables();
       syncWithCloud();
     }
 
@@ -729,10 +891,7 @@
       delete remoteGroups[code].members[userEmail];
       if (remoteGroups[code].logs) delete remoteGroups[code].logs[userEmail];
 
-      if (activeHostCode === code) {
-        document.getElementById('host-panel').classList.add('hidden');
-        activeHostCode = null;
-      }
+      if (activeHostCode === code) closeHostPanel();
 
       await saveRemoteState();
       syncWithCloud();
@@ -756,34 +915,8 @@
       alert(`Group "${name}" created successfully with code: ${code}`);
       document.getElementById('create-group-name').value = '';
       document.getElementById('create-group-code').value = '';
+      closeAllExpandables();
       syncWithCloud();
-    }
-
-    function manageHostGroup(code) {
-      activeHostCode = code;
-      const grp = remoteGroups[code];
-      document.getElementById('host-group-name').innerText = grp.name;
-      document.getElementById('edit-group-code').value = code;
-      document.getElementById('host-panel').classList.remove('hidden');
-
-      const list = document.getElementById('host-member-list');
-      list.innerHTML = '';
-
-      Object.keys(grp.members).forEach(mEmail => {
-        if (mEmail !== userEmail) {
-          const row = document.createElement('div');
-          row.className = 'member-row';
-          row.innerHTML = `
-            <span>${grp.members[mEmail]} (${mEmail})</span>
-            <button class="btn-danger" onclick="removeMemberByHost('${code}', '${mEmail}')">Remove Member</button>
-          `;
-          list.appendChild(row);
-        }
-      });
-
-      if (list.children.length === 0) {
-        list.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No other members to manage.</span>';
-      }
     }
 
     async function removeMemberByHost(groupCode, memberEmail) {
@@ -791,23 +924,25 @@
       delete remoteGroups[groupCode].members[memberEmail];
       if (remoteGroups[groupCode].logs) delete remoteGroups[groupCode].logs[memberEmail];
       await saveRemoteState();
-      manageHostGroup(groupCode);
       syncWithCloud();
     }
 
-    async function updateGroupCodeByHost() {
-      const newCode = document.getElementById('edit-group-code').value.trim().toUpperCase();
-      if (!newCode || !activeHostCode) return;
-      if (newCode === activeHostCode) return alert('Code remains unchanged.');
+    async function updateGroupCodeByHost(oldCode) {
+      const inputEl = document.getElementById(`edit-group-code-${oldCode}`);
+      if (!inputEl) return;
+      
+      const newCode = inputEl.value.trim().toUpperCase();
+      if (!newCode) return;
+      if (newCode === oldCode) return alert('Code remains unchanged.');
       if (remoteGroups[newCode]) return alert('That code is already in use by another group.');
 
-      remoteGroups[newCode] = remoteGroups[activeHostCode];
-      delete remoteGroups[activeHostCode];
+      remoteGroups[newCode] = remoteGroups[oldCode];
+      delete remoteGroups[oldCode];
+      
       activeHostCode = newCode;
 
       await saveRemoteState();
       alert(`Group code successfully updated to ${newCode}`);
-      manageHostGroup(newCode);
       syncWithCloud();
     }
 
@@ -964,6 +1099,7 @@
     }
 
     function switchPage(page) {
+      closeAllExpandables();
       document.getElementById('page-account').classList.add('hidden');
       document.getElementById('page-groups').classList.add('hidden');
       document.getElementById('page-tracker').classList.add('hidden');
