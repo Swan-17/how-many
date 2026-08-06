@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🍺 Multi-Group Drink Tracker</title>
+  <!-- Chart.js & Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -16,46 +17,104 @@
       margin: 0 auto;
       padding: 16px;
     }
-    nav { display: flex; gap: 6px; margin-bottom: 16px; }
-    nav button {
-      flex: 1; padding: 10px 4px; background: #1e293b; color: #94a3b8;
-      border: 1px solid #334155; border-radius: 8px; font-weight: bold;
-      font-size: 13px; cursor: pointer; transition: all 0.2s ease;
+    nav {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
     }
-    nav button.active { background: #f59e0b; color: #000; border-color: #f59e0b; }
-    .card { background: #1e293b; padding: 18px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #334155; }
-    .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+    nav button {
+      flex: 1;
+      padding: 10px 4px;
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    nav button.active {
+      background: #f59e0b;
+      color: #000;
+      border-color: #f59e0b;
+    }
+    .card {
+      background: #1e293b;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #334155;
+    }
+
+    .accordion-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
     .accordion-header h3 { margin: 0; font-size: 15px; }
     .accordion-icon { font-size: 14px; color: #f59e0b; }
     .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; }
+
     .drink-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-    .drink-row { background: #0f172a; padding: 12px 16px; border-radius: 10px; border: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+    .drink-row {
+      background: #0f172a;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
     .drink-info { display: flex; align-items: center; gap: 12px; }
-    .drink-icon-svg { width: 28px; height: 28px; fill: none; stroke: #f59e0b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .drink-icon-svg {
+      width: 28px;
+      height: 28px;
+      fill: none;
+      stroke: #f59e0b;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .drink-title { font-size: 15px; color: #f8fafc; font-weight: 700; }
+
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
     .stat-box { background: #0f172a; padding: 14px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
     .stat-number { font-size: 26px; font-weight: 900; color: #f59e0b; margin-top: 4px; }
     .stat-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
+
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .btn-circle { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .btn-circle {
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      font-size: 18px; font-weight: bold; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
     .btn-minus { background: #334155; color: white; }
     .btn-plus { background: #f59e0b; color: black; }
     .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; text-align: center; }
+
     .summary-box { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px; text-align: center; margin-top: 16px; }
     .unit-text { font-size: 12px; color: #94a3b8; }
     .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
+
     .hidden { display: none !important; }
-    input[type="text"], input[type="email"], select { background: #0f172a; border: 1px solid #334155; color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; }
+
+    input[type="text"], input[type="email"], select {
+      background: #0f172a; border: 1px solid #334155; color: white;
+      padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px;
+    }
     .btn-submit { background: #f59e0b; color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
+    .btn-submit:disabled { opacity: 0.6; cursor: default; }
     .btn-danger { background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
     .btn-secondary { background: #334155; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
     .btn-share { background: #059669; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+
     .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
     .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
-    .status-msg { background: #0284c7; color: white; padding: 10px; border-radius: 6px; font-size: 12px; margin-top: 10px; text-align: center; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -63,17 +122,31 @@
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">Alcohol Unit Tracker</h2>
-    <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your email to receive a secure login link.</p>
-    <div style="margin-bottom: 10px;">
-      <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
-      <input type="text" id="init-name" placeholder="e.g. Alex (New users)">
+
+    <div id="login-form-fields">
+      <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">
+        Enter your email — we'll send you a secure sign-in link. This locks your account to that
+        email so it works the same on every device.
+      </p>
+      <div style="margin-bottom: 10px;">
+        <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
+        <input type="text" id="init-name" placeholder="e.g. Alex (new accounts only)">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label style="color: #94a3b8; font-size: 12px;">EMAIL</label>
+        <input type="email" id="init-email" placeholder="alex@example.com">
+      </div>
+      <button id="login-submit-btn" class="btn-submit" onclick="sendMagicLink()">Send Sign-In Link</button>
     </div>
-    <div style="margin-bottom: 10px;">
-      <label style="color: #94a3b8; font-size: 12px;">EMAIL ADDRESS</label>
-      <input type="email" id="init-email" placeholder="alex@example.com">
+
+    <div id="login-check-email" class="hidden" style="text-align: center;">
+      <p style="color: #f8fafc; font-size: 14px;">📬 Check your email</p>
+      <p style="color: #94a3b8; font-size: 13px;">
+        We sent you a secure sign-in link. Open it on this device (or any device) to continue —
+        you'll land back here automatically, signed in.
+      </p>
+      <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 8px;" onclick="resetToLoginScreen()">Use a different email</button>
     </div>
-    <button class="btn-submit" id="btn-login" onclick="sendMagicLink()">Send Magic Login Link ✉️</button>
-    <div id="auth-status" class="status-msg hidden"></div>
   </div>
 
   <!-- MAIN APP SCREEN -->
@@ -98,7 +171,7 @@
         </div>
         <div class="member-row">
           <div>
-            <span style="font-size: 11px; color: #94a3b8; display: block;">VERIFIED EMAIL</span>
+            <span style="font-size: 11px; color: #94a3b8; display: block;">EMAIL</span>
             <strong id="acc-email-display" style="font-size: 13px; color: white;">---</strong>
           </div>
         </div>
@@ -259,125 +332,151 @@
   <script>
     const SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
 
-    let currentUser = null;
+    // ==========================================================
+    // State
+    // ==========================================================
     let userName = '';
     let userEmail = '';
-    let firstCreatedDate = new Date().toISOString().split('T')[0];
+    let firstCreatedDate = '';
     const todayDate = new Date().toISOString().split('T')[0];
 
     let userJoinedGroups = [];
+    let relevantEmails = [];           // emails of everyone in the user's groups, for realtime scoping
     let todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null;
+    let realtimeChannel = null;
     let freqChartInstance = null;
     let weeklyChartInstance = null;
-    let realtimeChannel = null;
 
-    window.onload = async function() {
-      document.getElementById('today-date-label').innerText = todayDate;
+    document.getElementById('today-date-label').innerText = todayDate;
 
-      // Auto Join Code Check from URL parameters (?join=CODE)
-      const urlParams = new URLSearchParams(window.location.search);
-      const autoJoinCode = urlParams.get('join');
-      if (autoJoinCode) {
-        document.getElementById('join-group-code').value = autoJoinCode.toUpperCase();
+    // ==========================================================
+    // Authentication (Supabase magic link)
+    // One verified email = one account, on any device.
+    // Replaces the old flow, which trusted whatever email a
+    // person typed in and never confirmed they actually owned it.
+    // ==========================================================
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (session && session.user) {
+        await handleAuthenticatedSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        resetToLoginScreen();
       }
-
-      // Check current Supabase Auth session on load
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        await handleAuthSession(session);
-      }
-
-      // Auth change listener (fires when clicking Magic Link in email)
-      sb.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          await handleAuthSession(session);
-        } else if (event === 'SIGNED_OUT') {
-          showLoginScreen();
-        }
-      });
-    };
+    });
 
     async function sendMagicLink() {
-      const emailInput = document.getElementById('init-email').value.trim().toLowerCase();
       const nameInput = document.getElementById('init-name').value.trim();
-      const statusEl = document.getElementById('auth-status');
+      const emailInput = document.getElementById('init-email').value.trim().toLowerCase();
 
       if (!emailInput || !emailInput.includes('@')) {
         return alert('Please enter a valid email address.');
       }
 
-      statusEl.classList.remove('hidden');
-      statusEl.innerText = 'Sending login link...';
+      if (nameInput) sessionStorage.setItem('dt_pending_name', nameInput);
 
+      const submitBtn = document.getElementById('login-submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Sending link...';
+
+      const redirectTo = window.location.href.split('?')[0].split('#')[0];
       const { error } = await sb.auth.signInWithOtp({
         email: emailInput,
-        options: {
-          emailRedirectTo: window.location.origin + window.location.pathname,
-          data: { display_name: nameInput || emailInput.split('@')[0] }
-        }
+        options: { emailRedirectTo: redirectTo }
       });
 
-      if (error) {
-        statusEl.style.background = '#ef4444';
-        statusEl.innerText = `Error: ${error.message}`;
-      } else {
-        statusEl.style.background = '#0284c7';
-        statusEl.innerText = `Check your email (${emailInput})! Click the link sent to sign in automatically.`;
-      }
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Send Sign-In Link';
+
+      if (error) return alert(`Could not send sign-in link: ${error.message}`);
+
+      document.getElementById('login-form-fields').classList.add('hidden');
+      document.getElementById('login-check-email').classList.remove('hidden');
     }
 
-    async function handleAuthSession(session) {
-      currentUser = session.user;
-      userEmail = currentUser.email.toLowerCase().trim();
+    async function handleAuthenticatedSession(session) {
+      const sessionEmail = (session.user.email || '').toLowerCase().trim();
+      if (!sessionEmail) return;
 
-      // Fetch user profile from database
-      const { data: profile } = await sb.from('users')
+      userEmail = sessionEmail;
+
+      const { data: existingUser, error: userFetchErr } = await sb.from('users')
         .select('*')
         .eq('email', userEmail)
         .maybeSingle();
 
-      if (profile) {
-        userName = profile.display_name;
-        firstCreatedDate = profile.created_at ? profile.created_at.split('T')[0] : todayDate;
-      } else {
-        userName = currentUser.user_metadata?.display_name || userEmail.split('@')[0];
-        firstCreatedDate = todayDate;
-        await sb.from('users').upsert({ email: userEmail, display_name: userName }, { onConflict: 'email' });
+      if (userFetchErr) {
+        console.error('Failed to load user profile', userFetchErr);
+        alert('There was a problem loading your profile. Please refresh and try again.');
+        return;
       }
 
-      showAppScreen();
+      if (existingUser) {
+        userName = existingUser.display_name;
+        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : todayDate;
+      } else {
+        const pendingName = sessionStorage.getItem('dt_pending_name');
+        userName = pendingName || userEmail.split('@')[0];
+        firstCreatedDate = todayDate;
+
+        const { error: upsertErr } = await sb.from('users')
+          .upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
+
+        if (upsertErr) {
+          console.error('Failed to create user profile', upsertErr);
+          alert('There was a problem setting up your profile. Please try again.');
+          return;
+        }
+      }
+
+      sessionStorage.removeItem('dt_pending_name');
+      await showApp();
     }
 
     async function logoutUser() {
       if (!confirm('Are you sure you want to log out?')) return;
-      if (realtimeChannel) sb.removeChannel(realtimeChannel);
+      teardownRealtime();
       await sb.auth.signOut();
+      // resetToLoginScreen() runs automatically via onAuthStateChange
     }
 
-    function showLoginScreen() {
+    function resetToLoginScreen() {
+      userName = '';
+      userEmail = '';
+      userJoinedGroups = [];
+      relevantEmails = [];
+      todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      activeHostCode = null;
+
+      document.getElementById('init-name').value = '';
+      document.getElementById('init-email').value = '';
+      document.getElementById('login-form-fields').classList.remove('hidden');
+      document.getElementById('login-check-email').classList.add('hidden');
+
       document.getElementById('app-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
     }
 
-    async function showAppScreen() {
+    async function showApp() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
 
       await fetchTodayDrinkLogs();
-      await fetchUserGroups();
-      setupRealtimeSubscriptions();
-
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('join')) {
-        await joinGroup();
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
+      await fetchUserGroups(); // this also (re)builds realtime subscriptions
 
       switchPage('account');
     }
+
+    // ==========================================================
+    // Drink tracking — now uses an atomic DB-side increment
+    // instead of "read value, add 1, write value back" in JS.
+    // The old pattern loses updates when requests overlap; the
+    // RPC below does the read+write as one atomic statement.
+    // ==========================================================
 
     function calculateUnitsAndBeers(entry) {
       if (!entry) return { units: 0, beers: 0 };
@@ -386,33 +485,52 @@
     }
 
     async function fetchTodayDrinkLogs() {
-      const { data } = await sb.from('drink_logs')
+      const { data, error } = await sb.from('drink_logs')
         .select('*')
         .eq('user_email', userEmail)
         .eq('log_date', todayDate)
         .maybeSingle();
 
+      if (error) console.error('Failed to load today\'s drinks', error);
+
       if (data) {
         todayDrinkEntry = { pints: data.pints || 0, bottles: data.bottles || 0, wines: data.wines || 0, cocktails: data.cocktails || 0, shots: data.shots || 0 };
       } else {
+        const { error: insertErr } = await sb.from('drink_logs')
+          .upsert([{ user_email: userEmail, log_date: todayDate }], { onConflict: 'user_email,log_date' });
+        if (insertErr) console.error('Failed to initialize today\'s log', insertErr);
         todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       }
       updateTrackerUI();
     }
 
     async function adjustDrink(type, delta) {
+      // Optimistic UI update so taps feel instant
       const currentVal = todayDrinkEntry[type] || 0;
-      const newVal = Math.max(0, currentVal + delta);
-      todayDrinkEntry[type] = newVal;
-
+      todayDrinkEntry[type] = Math.max(0, currentVal + delta);
       updateTrackerUI();
 
-      await sb.rpc('adjust_drink_count', {
+      const { data, error } = await sb.rpc('increment_drink_log', {
         p_user_email: userEmail,
         p_log_date: todayDate,
-        p_drink_type: type,
+        p_type: type,
         p_delta: delta
       });
+
+      if (error) {
+        console.error('Failed to save drink update', error);
+        alert('Could not save that update — resyncing with the server.');
+        await fetchTodayDrinkLogs(); // fall back to server truth
+        return;
+      }
+
+      if (data && data[0]) {
+        todayDrinkEntry = {
+          pints: data[0].pints, bottles: data[0].bottles, wines: data[0].wines,
+          cocktails: data[0].cocktails, shots: data[0].shots
+        };
+        updateTrackerUI();
+      }
 
       updateAccountPage();
     }
@@ -429,20 +547,44 @@
       document.getElementById('total-beers-val').innerText = calc.beers;
     }
 
+    // ==========================================================
+    // Groups
+    // ==========================================================
+
     async function fetchUserGroups() {
-      const { data } = await sb.from('group_members')
+      const { data, error } = await sb.from('group_members')
         .select('group_code, groups(name, host_email)')
         .eq('user_email', userEmail);
 
-      userJoinedGroups = data ? data.map(d => ({ 
-        code: d.group_code, 
-        name: d.groups?.name || d.group_code, 
-        host_email: (d.groups?.host_email || '').toLowerCase().trim() 
-      })) : [];
+      if (error) console.error('Failed to load your groups', error);
+
+      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
+
+      await fetchRelevantEmails();
+      rebuildRealtimeSubscriptions();
 
       renderMyGroups();
       populateAnalyticsDropdown();
       updateAccountPage();
+    }
+
+    async function fetchRelevantEmails() {
+      const codes = userJoinedGroups.map(g => g.code);
+      if (codes.length === 0) {
+        relevantEmails = [userEmail];
+        return;
+      }
+
+      const { data, error } = await sb.from('group_members').select('user_email').in('group_code', codes);
+      if (error) {
+        console.error('Failed to load group members for live updates', error);
+        relevantEmails = [userEmail];
+        return;
+      }
+
+      const set = new Set(data.map(d => d.user_email.toLowerCase().trim()));
+      set.add(userEmail);
+      relevantEmails = Array.from(set);
     }
 
     function renderMyGroups() {
@@ -467,7 +609,7 @@
             ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
           </div>
           <div style="display:flex; gap:6px;">
-            <button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>
+            ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
             <button id="manage-btn-${grp.code}" class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
             <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
           </div>
@@ -491,7 +633,12 @@
         return alert(`Error creating group: ${error.message}`);
       }
 
-      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
+      const { error: memberErr } = await sb.from('group_members')
+        .upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
+
+      if (memberErr) {
+        alert(`Group was created, but adding you as a member failed: ${memberErr.message}. Try joining with the code.`);
+      }
 
       document.getElementById('create-group-name').value = '';
       document.getElementById('create-group-code').value = '';
@@ -503,10 +650,14 @@
       const code = document.getElementById('join-group-code').value.trim().toUpperCase();
       if (!code) return alert('Enter a valid code.');
 
-      const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
+      const { data: grp, error: grpErr } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
+      if (grpErr) return alert(`Error checking group: ${grpErr.message}`);
       if (!grp) return alert('Group code not found.');
 
-      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
+      const { error } = await sb.from('group_members')
+        .upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
+
+      if (error) return alert(`Could not join group: ${error.message}`);
 
       document.getElementById('join-group-code').value = '';
       closeAllExpandables();
@@ -515,14 +666,16 @@
 
     async function leaveGroup(code) {
       if (!confirm('Leave this group?')) return;
-      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
+      const { error } = await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
+      if (error) return alert(`Could not leave group: ${error.message}`);
       if (activeHostCode === code) closeHostPanel();
       await fetchUserGroups();
     }
 
     async function deleteGroup(code) {
       if (!confirm(`Delete group code "${code}" for everyone? This cannot be undone.`)) return;
-      await sb.from('groups').delete().eq('code', code);
+      const { error } = await sb.from('groups').delete().eq('code', code);
+      if (error) return alert(`Could not delete group: ${error.message}`);
       closeHostPanel();
       await fetchUserGroups();
     }
@@ -543,7 +696,8 @@
 
       const grp = userJoinedGroups.find(g => g.code === code);
       const isHost = grp && (grp.host_email === userEmail);
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      const { data: members, error } = await sb.from('group_members').select('*').eq('group_code', code);
+      if (error) console.error('Failed to load members', error);
 
       const panel = document.createElement('div');
       panel.id = `host-panel-${code}`;
@@ -589,18 +743,55 @@
     }
 
     async function removeMember(code, email) {
-      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
+      const { error } = await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
+      if (error) return alert(`Could not remove member: ${error.message}`);
       renderInlineHostPanel(code);
     }
 
-    function setupRealtimeSubscriptions() {
-      if (realtimeChannel) sb.removeChannel(realtimeChannel);
+    // ==========================================================
+    // Realtime — scoped to only the groups/people relevant to
+    // this user, instead of every row in every table. Under the
+    // old setup, ANY change by ANY user in ANY group triggered a
+    // full refetch on every connected client — with several
+    // people tapping counters at once this caused a storm of
+    // redundant fetches and re-renders, which is what looked
+    // like members randomly disappearing.
+    // ==========================================================
 
-      realtimeChannel = sb.channel('cloud-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs' }, () => renderAnalytics())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, () => fetchUserGroups())
+    function teardownRealtime() {
+      if (realtimeChannel) {
+        sb.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
+    }
+
+    function rebuildRealtimeSubscriptions() {
+      teardownRealtime();
+
+      const groupCodes = userJoinedGroups.map(g => g.code);
+      if (groupCodes.length === 0) return; // nothing group-related to listen to yet
+
+      const codeList = groupCodes.join(',');
+      const emailList = relevantEmails.join(',');
+
+      realtimeChannel = sb.channel('db-changes')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'group_members', filter: `group_code=in.(${codeList})` },
+          () => fetchUserGroups()
+        )
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'drink_logs', filter: `user_email=in.(${emailList})` },
+          () => {
+            const statsPage = document.getElementById('page-stats');
+            if (statsPage && !statsPage.classList.contains('hidden')) renderAnalytics();
+          }
+        )
         .subscribe();
     }
+
+    // ==========================================================
+    // Stats / analytics
+    // ==========================================================
 
     function populateAnalyticsDropdown() {
       const select = document.getElementById('analytics-group-select');
@@ -619,7 +810,7 @@
         select.appendChild(opt);
       });
 
-      if (cur && userJoinedGroups.some(g => g.code === cur)) select.value = cur;
+      if (cur) select.value = cur;
     }
 
     async function renderAnalytics() {
@@ -632,11 +823,13 @@
         return;
       }
 
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!members || members.length === 0) return;
+      const { data: members, error: membersErr } = await sb.from('group_members').select('*').eq('group_code', code);
+      if (membersErr) { console.error('Failed to load members for stats', membersErr); return; }
+      if (!members) return;
 
       const emails = members.map(m => m.user_email);
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
+      const { data: logs, error: logsErr } = await sb.from('drink_logs').select('*').in('user_email', emails);
+      if (logsErr) console.error('Failed to load drink logs for stats', logsErr);
 
       let totalGroupBeers = 0;
       const userTotals = members.map(m => {
@@ -696,6 +889,10 @@
       });
     }
 
+    // ==========================================================
+    // Account page
+    // ==========================================================
+
     function updateAccountPage() {
       document.getElementById('acc-name-display').innerText = userName;
       document.getElementById('acc-email-display').innerText = userEmail;
@@ -705,7 +902,8 @@
       document.getElementById('acc-days-active').innerText = diffDays;
       document.getElementById('acc-groups-count').innerText = userJoinedGroups.length;
 
-      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data }) => {
+      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data, error }) => {
+        if (error) { console.error('Failed to load lifetime stats', error); return; }
         let lifetimeBeers = 0;
         if (data) data.forEach(entry => lifetimeBeers += calculateUnitsAndBeers(entry).beers);
         document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
@@ -717,19 +915,27 @@
       if (newName && newName.trim()) {
         userName = newName.trim();
 
-        await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
-        await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
+        const { error: userErr } = await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
+        const { error: memberErr } = await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
 
-        await fetchUserGroups();
+        if (userErr || memberErr) {
+          alert('Some profile updates failed to save. Please try again.');
+        }
+
+        fetchUserGroups();
       }
     }
 
     function shareGroup(e, code) {
       if (e) e.stopPropagation();
-      const shareUrl = `${window.location.origin}${window.location.pathname}?join=${code}`;
+      const shareUrl = `${window.location.href.split('?')[0]}?join=${code}`;
       if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url: shareUrl });
       else navigator.clipboard.writeText(shareUrl).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
     }
+
+    // ==========================================================
+    // UI helpers (unchanged)
+    // ==========================================================
 
     function closeAllExpandables() {
       closeHostPanel();
