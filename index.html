@@ -123,29 +123,51 @@
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">Alcohol Unit Tracker</h2>
 
+    <!-- LOG IN -->
     <div id="login-form-fields">
-      <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">
-        Enter your email — we'll send you a secure sign-in link. This locks your account to that
-        email so it works the same on every device.
-      </p>
-      <div style="margin-bottom: 10px;">
-        <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
-        <input type="text" id="init-name" placeholder="e.g. Alex (new accounts only)">
-      </div>
+      <h3 style="font-size: 14px; color: #94a3b8; margin-bottom: 4px;">LOG IN</h3>
       <div style="margin-bottom: 10px;">
         <label style="color: #94a3b8; font-size: 12px;">EMAIL</label>
-        <input type="email" id="init-email" placeholder="alex@example.com">
+        <input type="email" id="login-email" placeholder="alex@example.com">
       </div>
-      <button id="login-submit-btn" class="btn-submit" onclick="sendMagicLink()">Send Sign-In Link</button>
+      <div style="margin-bottom: 10px;">
+        <label style="color: #94a3b8; font-size: 12px;">PASSWORD</label>
+        <input type="password" id="login-password" placeholder="Your password">
+      </div>
+      <button id="login-submit-btn" class="btn-submit" onclick="loginUser()">Log In</button>
+      <p id="login-error" class="hidden" style="color: #ef4444; font-size: 12px; text-align: center; margin-top: 8px;"></p>
+    </div>
+
+    <!-- SIGN UP -->
+    <div id="signup-accordion-body" class="accordion-content" style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px;">
+      <div class="accordion-header" onclick="toggleSignupPanel()">
+        <h3 style="font-size: 14px; color: #94a3b8; margin: 0;">New here? Sign up</h3>
+        <span id="signup-accordion-icon" class="accordion-icon">▼</span>
+      </div>
+      <div id="signup-form-fields" class="hidden" style="margin-top: 12px;">
+        <div style="margin-bottom: 10px;">
+          <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
+          <input type="text" id="signup-name" placeholder="e.g. Alex">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="color: #94a3b8; font-size: 12px;">EMAIL</label>
+          <input type="email" id="signup-email" placeholder="alex@example.com">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="color: #94a3b8; font-size: 12px;">PASSWORD</label>
+          <input type="password" id="signup-password" placeholder="At least 6 characters">
+        </div>
+        <button id="signup-submit-btn" class="btn-submit" onclick="signUpUser()">Sign Up</button>
+        <p id="signup-error" class="hidden" style="color: #ef4444; font-size: 12px; text-align: center; margin-top: 8px;"></p>
+      </div>
     </div>
 
     <div id="login-check-email" class="hidden" style="text-align: center;">
       <p style="color: #f8fafc; font-size: 14px;">📬 Check your email</p>
       <p style="color: #94a3b8; font-size: 13px;">
-        We sent you a secure sign-in link. Open it on this device (or any device) to continue —
-        you'll land back here automatically, signed in.
+        We sent you a verification link. Click it to confirm your account, then come back here and log in.
       </p>
-      <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 8px;" onclick="resetToLoginScreen()">Use a different email</button>
+      <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 8px;" onclick="resetToLoginScreen()">Back to login</button>
     </div>
   </div>
 
@@ -361,40 +383,128 @@
     // person typed in and never confirmed they actually owned it.
     // ==========================================================
 
-    sb.auth.onAuthStateChange(async (event, session) => {
-      if (session && session.user) {
+    let authInitialized = false;
+
+    async function initAuth() {
+      const { data: { session }, error } = await sb.auth.getSession();
+
+      if (error) {
+        console.error('[auth] getSession() failed:', error);
+      } else if (session && session.user) {
+        console.log('[auth] Existing session found for', session.user.email, '— auto-signing in.');
         await handleAuthenticatedSession(session);
-      } else if (event === 'SIGNED_OUT') {
+      } else {
+        console.log('[auth] No existing session found on', window.location.origin, '— showing login screen.');
+      }
+
+      authInitialized = true;
+    }
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      console.log('[auth] event:', event, session ? `(session for ${session.user.email})` : '(no session)');
+
+      if (event === 'SIGNED_OUT') {
         resetToLoginScreen();
+        return;
+      }
+
+      // Only react here once initAuth() has already run once, so we don't
+      // double-process the same session on first load.
+      if (authInitialized && session && session.user) {
+        await handleAuthenticatedSession(session);
       }
     });
 
-    async function sendMagicLink() {
-      const nameInput = document.getElementById('init-name').value.trim();
-      const emailInput = document.getElementById('init-email').value.trim().toLowerCase();
+    initAuth();
+
+    function toggleSignupPanel() {
+      const body = document.getElementById('signup-form-fields');
+      const icon = document.getElementById('signup-accordion-icon');
+      const isHidden = body.classList.contains('hidden');
+      body.classList.toggle('hidden');
+      icon.innerText = isHidden ? '▲' : '▼';
+    }
+
+    async function loginUser() {
+      const emailInput = document.getElementById('login-email').value.trim().toLowerCase();
+      const passwordInput = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+      errorEl.classList.add('hidden');
 
       if (!emailInput || !emailInput.includes('@')) {
-        return alert('Please enter a valid email address.');
+        errorEl.innerText = 'Please enter a valid email address.';
+        return errorEl.classList.remove('hidden');
+      }
+      if (!passwordInput) {
+        errorEl.innerText = 'Please enter your password.';
+        return errorEl.classList.remove('hidden');
+      }
+
+      const submitBtn = document.getElementById('login-submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Logging in...';
+
+      const { error } = await sb.auth.signInWithPassword({
+        email: emailInput,
+        password: passwordInput
+      });
+
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Log In';
+
+      if (error) {
+        errorEl.innerText = error.message.includes('Email not confirmed')
+          ? 'Please verify your email first — check your inbox for the link.'
+          : 'Incorrect email or password.';
+        return errorEl.classList.remove('hidden');
+      }
+      // On success, onAuthStateChange picks up the session and shows the app.
+    }
+
+    async function signUpUser() {
+      const nameInput = document.getElementById('signup-name').value.trim();
+      const emailInput = document.getElementById('signup-email').value.trim().toLowerCase();
+      const passwordInput = document.getElementById('signup-password').value;
+      const errorEl = document.getElementById('signup-error');
+      errorEl.classList.add('hidden');
+
+      if (!emailInput || !emailInput.includes('@')) {
+        errorEl.innerText = 'Please enter a valid email address.';
+        return errorEl.classList.remove('hidden');
+      }
+      if (!passwordInput || passwordInput.length < 6) {
+        errorEl.innerText = 'Password must be at least 6 characters.';
+        return errorEl.classList.remove('hidden');
       }
 
       if (nameInput) sessionStorage.setItem('dt_pending_name', nameInput);
 
-      const submitBtn = document.getElementById('login-submit-btn');
+      const submitBtn = document.getElementById('signup-submit-btn');
       submitBtn.disabled = true;
-      submitBtn.innerText = 'Sending link...';
+      submitBtn.innerText = 'Signing up...';
 
       const redirectTo = window.location.href.split('?')[0].split('#')[0];
-      const { error } = await sb.auth.signInWithOtp({
+      const { data, error } = await sb.auth.signUp({
         email: emailInput,
-        options: { emailRedirectTo: redirectTo }
+        password: passwordInput,
+        options: {
+          emailRedirectTo: redirectTo,
+          data: { display_name: nameInput || emailInput.split('@')[0] }
+        }
       });
 
       submitBtn.disabled = false;
-      submitBtn.innerText = 'Send Sign-In Link';
+      submitBtn.innerText = 'Sign Up';
 
-      if (error) return alert(`Could not send sign-in link: ${error.message}`);
+      if (error) {
+        errorEl.innerText = error.message.includes('already registered') || error.message.includes('User already')
+          ? 'That email is already registered — try logging in instead.'
+          : error.message;
+        return errorEl.classList.remove('hidden');
+      }
 
       document.getElementById('login-form-fields').classList.add('hidden');
+      document.getElementById('signup-accordion-body').classList.add('hidden');
       document.getElementById('login-check-email').classList.remove('hidden');
     }
 
@@ -419,7 +529,7 @@
         userName = existingUser.display_name;
         firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : todayDate;
       } else {
-        const pendingName = sessionStorage.getItem('dt_pending_name');
+        const pendingName = sessionStorage.getItem('dt_pending_name') || session.user.user_metadata?.display_name;
         userName = pendingName || userEmail.split('@')[0];
         firstCreatedDate = todayDate;
 
@@ -452,9 +562,17 @@
       todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       activeHostCode = null;
 
-      document.getElementById('init-name').value = '';
-      document.getElementById('init-email').value = '';
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-password').value = '';
+      document.getElementById('signup-name').value = '';
+      document.getElementById('signup-email').value = '';
+      document.getElementById('signup-password').value = '';
+      document.getElementById('login-error').classList.add('hidden');
+      document.getElementById('signup-error').classList.add('hidden');
+      document.getElementById('signup-form-fields').classList.add('hidden');
+      document.getElementById('signup-accordion-icon').innerText = '▼';
       document.getElementById('login-form-fields').classList.remove('hidden');
+      document.getElementById('signup-accordion-body').classList.remove('hidden');
       document.getElementById('login-check-email').classList.add('hidden');
 
       document.getElementById('app-screen').classList.add('hidden');
