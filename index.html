@@ -174,14 +174,14 @@
   <!-- MAIN APP SCREEN -->
   <div id="app-screen" class="hidden">
     <nav>
-      <button id="nav-account" class="active" onclick="switchPage('account')">Account</button>
+      <button id="nav-account" onclick="switchPage('account')">Account</button>
       <button id="nav-groups" onclick="switchPage('groups')">Groups</button>
       <button id="nav-tracker" onclick="switchPage('tracker')">Tracker</button>
-      <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
+      <button id="nav-stats" class="active" onclick="switchPage('stats')">Stats</button>
     </nav>
 
     <!-- PAGE 1: ACCOUNT -->
-    <div id="page-account">
+    <div id="page-account" class="hidden">
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
         <div class="member-row">
@@ -323,7 +323,7 @@
     </div>
 
     <!-- PAGE 4: STATS -->
-    <div id="page-stats" class="hidden">
+    <div id="page-stats">
       <div class="card">
         <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
@@ -579,7 +579,7 @@
       await fetchTodayDrinkLogs();
       await fetchUserGroups();
 
-      switchPage('account');
+      switchPage('stats');
     }
 
     function calculateUnitsAndBeers(entry) {
@@ -943,7 +943,7 @@
         const todayLog = logs ? logs.find(l => l.user_email === m.user_email && l.log_date === todayDate) : null;
         const beers = todayLog ? calculateUnitsAndBeers(todayLog).beers : 0;
         return { name: m.user_name, email: m.user_email.toLowerCase().trim(), beers };
-      }).filter(item => item.beers > 0); // Only include members with at least 1 beer today
+      }).filter(item => item.beers > 0);
 
       dailyTotals.sort((a, b) => b.beers - a.beers);
 
