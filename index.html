@@ -47,7 +47,6 @@
       border: 1px solid #334155;
     }
 
-    /* EXPANDABLE ACCORDION STYLES */
     .accordion-header {
       display: flex;
       justify-content: space-between;
@@ -59,7 +58,6 @@
     .accordion-icon { font-size: 14px; color: #f59e0b; }
     .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; }
 
-    /* TRACKER ROW-BASED DRINK CARDS */
     .drink-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
     .drink-row {
       background: #0f172a;
@@ -123,10 +121,10 @@
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">Alcohol Unit Tracker</h2>
-    <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your email to sign in or recover your account.</p>
+    <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your email to sign in or sync across devices.</p>
     <div style="margin-bottom: 10px;">
       <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
-      <input type="text" id="init-name" placeholder="e.g. Alex">
+      <input type="text" id="init-name" placeholder="e.g. Alex (New accounts only)">
     </div>
     <div style="margin-bottom: 10px;">
       <label style="color: #94a3b8; font-size: 12px;">EMAIL LOGIN</label>
@@ -144,7 +142,7 @@
       <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
     </nav>
 
-    <!-- PAGE 1: ACCOUNT (DEFAULT AUTO-LOAD PAGE) -->
+    <!-- PAGE 1: ACCOUNT -->
     <div id="page-account">
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
@@ -177,7 +175,6 @@
           </div>
         </div>
 
-        <!-- LOG OUT BUTTON -->
         <div style="margin-top: 18px;">
           <button class="btn-danger" style="width: 100%; padding: 10px; font-size: 13px;" onclick="logoutUser()">Log Out</button>
         </div>
@@ -349,19 +346,21 @@
 
       userEmail = emailInput;
 
-      // Query database for existing profile to synchronize display name & creation date across devices
-      const { data: existingMember } = await sb.from('group_members')
-        .select('user_name, created_at')
-        .eq('user_email', userEmail)
-        .limit(1)
+      // 1. Check dedicated users table for existing user profile
+      const { data: existingUser, error: userFetchErr } = await sb.from('users')
+        .select('*')
+        .eq('email', userEmail)
         .maybeSingle();
 
-      if (existingMember) {
-        userName = nameInput || existingMember.user_name || emailInput.split('@')[0];
-        firstCreatedDate = existingMember.created_at ? existingMember.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+      if (existingUser) {
+        userName = existingUser.display_name;
+        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
       } else {
         userName = nameInput || emailInput.split('@')[0];
         firstCreatedDate = new Date().toISOString().split('T')[0];
+        
+        // Save new user profile to central Supabase DB immediately
+        await sb.from('users').upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
       }
 
       localStorage.setItem('dt_username', userName);
@@ -618,6 +617,7 @@
       sb.channel('db-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs' }, () => renderAnalytics())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, () => fetchUserGroups())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => updateAccountPage())
         .subscribe();
     }
 
@@ -736,7 +736,11 @@
       if (newName && newName.trim()) {
         userName = newName.trim();
         localStorage.setItem('dt_username', userName);
+
+        // Update in central users table and group_members
+        await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
         await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
+
         fetchUserGroups();
       }
     }
