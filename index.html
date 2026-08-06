@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+Put your HTML text here<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -176,8 +176,8 @@
     <nav>
       <button id="nav-account" onclick="switchPage('account')">Account</button>
       <button id="nav-groups" onclick="switchPage('groups')">Groups</button>
-      <button id="nav-tracker" onclick="switchPage('tracker')">Tracker</button>
-      <button id="nav-stats" class="active" onclick="switchPage('stats')">Stats</button>
+      <button id="nav-tracker" class="active" onclick="switchPage('tracker')">Tracker</button>
+      <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
     </nav>
 
     <!-- PAGE 1: ACCOUNT -->
@@ -254,7 +254,7 @@
     </div>
 
     <!-- PAGE 3: TRACKER -->
-    <div id="page-tracker" class="hidden">
+    <div id="page-tracker">
       <div class="card">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
         <div class="drink-list">
@@ -323,7 +323,7 @@
     </div>
 
     <!-- PAGE 4: STATS -->
-    <div id="page-stats">
+    <div id="page-stats" class="hidden">
       <div class="card">
         <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
@@ -579,7 +579,7 @@
       await fetchTodayDrinkLogs();
       await fetchUserGroups();
 
-      switchPage('stats');
+      switchPage('tracker');
     }
 
     function calculateUnitsAndBeers(entry) {
