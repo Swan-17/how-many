@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🍺 Multi-Group Drink Tracker</title>
-  <!-- Chart.js & Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -17,99 +16,41 @@
       margin: 0 auto;
       padding: 16px;
     }
-    nav {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 16px;
-    }
+    nav { display: flex; gap: 6px; margin-bottom: 16px; }
     nav button {
-      flex: 1;
-      padding: 10px 4px;
-      background: #1e293b;
-      color: #94a3b8;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      flex: 1; padding: 10px 4px; background: #1e293b; color: #94a3b8;
+      border: 1px solid #334155; border-radius: 8px; font-weight: bold;
+      font-size: 13px; cursor: pointer; transition: all 0.2s ease;
     }
-    nav button.active {
-      background: #f59e0b;
-      color: #000;
-      border-color: #f59e0b;
-    }
-    .card {
-      background: #1e293b;
-      padding: 18px;
-      border-radius: 12px;
-      margin-bottom: 16px;
-      border: 1px solid #334155;
-    }
-
-    .accordion-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      user-select: none;
-    }
+    nav button.active { background: #f59e0b; color: #000; border-color: #f59e0b; }
+    .card { background: #1e293b; padding: 18px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #334155; }
+    .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
     .accordion-header h3 { margin: 0; font-size: 15px; }
     .accordion-icon { font-size: 14px; color: #f59e0b; }
     .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; }
-
     .drink-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-    .drink-row {
-      background: #0f172a;
-      padding: 12px 16px;
-      border-radius: 10px;
-      border: 1px solid #334155;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    .drink-row { background: #0f172a; padding: 12px 16px; border-radius: 10px; border: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
     .drink-info { display: flex; align-items: center; gap: 12px; }
-    .drink-icon-svg {
-      width: 28px;
-      height: 28px;
-      fill: none;
-      stroke: #f59e0b;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
+    .drink-icon-svg { width: 28px; height: 28px; fill: none; stroke: #f59e0b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .drink-title { font-size: 15px; color: #f8fafc; font-weight: 700; }
-
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
     .stat-box { background: #0f172a; padding: 14px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
     .stat-number { font-size: 26px; font-weight: 900; color: #f59e0b; margin-top: 4px; }
     .stat-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
-
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .btn-circle {
-      width: 36px; height: 36px; border-radius: 50%; border: none;
-      font-size: 18px; font-weight: bold; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
+    .btn-circle { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .btn-minus { background: #334155; color: white; }
     .btn-plus { background: #f59e0b; color: black; }
     .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; text-align: center; }
-    
     .summary-box { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px; text-align: center; margin-top: 16px; }
     .unit-text { font-size: 12px; color: #94a3b8; }
     .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
-
     .hidden { display: none !important; }
-    
-    input[type="text"], input[type="email"], select {
-      background: #0f172a; border: 1px solid #334155; color: white;
-      padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px;
-    }
+    input[type="text"], input[type="email"], select { background: #0f172a; border: 1px solid #334155; color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; }
     .btn-submit { background: #f59e0b; color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
     .btn-danger { background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
     .btn-secondary { background: #334155; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
     .btn-share { background: #059669; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
-    
     .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
@@ -121,16 +62,16 @@
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">Alcohol Unit Tracker</h2>
-    <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your email to sign in or sync across devices.</p>
+    <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your details to sign in and sync across all devices.</p>
     <div style="margin-bottom: 10px;">
       <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
-      <input type="text" id="init-name" placeholder="e.g. Alex (New accounts only)">
+      <input type="text" id="init-name" placeholder="e.g. Alex">
     </div>
     <div style="margin-bottom: 10px;">
-      <label style="color: #94a3b8; font-size: 12px;">EMAIL LOGIN</label>
+      <label style="color: #94a3b8; font-size: 12px;">EMAIL ADDRESS</label>
       <input type="email" id="init-email" placeholder="alex@example.com">
     </div>
-    <button class="btn-submit" onclick="loginUser()">Sign In & Remember Device</button>
+    <button class="btn-submit" onclick="loginUser()">Sign In Across Devices</button>
   </div>
 
   <!-- MAIN APP SCREEN -->
@@ -328,11 +269,20 @@
     let activeHostCode = null;
     let freqChartInstance = null;
     let weeklyChartInstance = null;
+    let realtimeChannel = null;
 
-    window.onload = function() {
+    window.onload = async function() {
       document.getElementById('today-date-label').innerText = todayDate;
+      
+      // Auto Join Code Check from URL parameters (?join=CODE)
+      const urlParams = new URLSearchParams(window.location.search);
+      const autoJoinCode = urlParams.get('join');
+      if (autoJoinCode) {
+        document.getElementById('join-group-code').value = autoJoinCode.toUpperCase();
+      }
+
       if (userName && userEmail) {
-        showApp();
+        await showApp();
       }
     };
 
@@ -346,47 +296,38 @@
 
       userEmail = emailInput;
 
-      // 1. Check dedicated users table for existing user profile
-      const { data: existingUser, error: userFetchErr } = await sb.from('users')
+      // Cloud Lookup & Account Sync
+      const { data: existingUser } = await sb.from('users')
         .select('*')
         .eq('email', userEmail)
         .maybeSingle();
 
       if (existingUser) {
         userName = existingUser.display_name;
-        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : todayDate;
       } else {
         userName = nameInput || emailInput.split('@')[0];
-        firstCreatedDate = new Date().toISOString().split('T')[0];
-        
-        // Save new user profile to central Supabase DB immediately
-        await sb.from('users').upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
+        firstCreatedDate = todayDate;
+        await sb.from('users').upsert({ email: userEmail, display_name: userName }, { onConflict: 'email' });
       }
 
       localStorage.setItem('dt_username', userName);
       localStorage.setItem('dt_useremail', userEmail);
       localStorage.setItem('dt_created_date', firstCreatedDate);
 
-      showApp();
+      await showApp();
     }
 
     async function logoutUser() {
       if (!confirm('Are you sure you want to log out?')) return;
 
-      localStorage.removeItem('dt_username');
-      localStorage.removeItem('dt_useremail');
-      localStorage.removeItem('dt_created_date');
-
-      userName = '';
-      userEmail = '';
+      localStorage.clear();
+      userName = ''; userEmail = '';
       userJoinedGroups = [];
       todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       activeHostCode = null;
 
-      document.getElementById('init-name').value = '';
-      document.getElementById('init-email').value = '';
-
-      sb.removeAllChannels();
+      if (realtimeChannel) sb.removeChannel(realtimeChannel);
 
       document.getElementById('app-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
@@ -399,6 +340,13 @@
       await fetchTodayDrinkLogs();
       await fetchUserGroups();
       setupRealtimeSubscriptions();
+
+      // Auto join group if coming from a share link
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('join')) {
+        await joinGroup();
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
 
       switchPage('account');
     }
@@ -419,7 +367,6 @@
       if (data) {
         todayDrinkEntry = { pints: data.pints || 0, bottles: data.bottles || 0, wines: data.wines || 0, cocktails: data.cocktails || 0, shots: data.shots || 0 };
       } else {
-        await sb.from('drink_logs').insert([{ user_email: userEmail, log_date: todayDate }]);
         todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       }
       updateTrackerUI();
@@ -432,11 +379,13 @@
 
       updateTrackerUI();
 
-      await sb.from('drink_logs').upsert({
-        user_email: userEmail,
-        log_date: todayDate,
-        [type]: newVal
-      }, { onConflict: 'user_email,log_date' });
+      // Use Stored Procedure for Atomic Increments (Concurrently Safe)
+      await sb.rpc('adjust_drink_count', {
+        p_user_email: userEmail,
+        p_log_date: todayDate,
+        p_drink_type: type,
+        p_delta: delta
+      });
 
       updateAccountPage();
     }
@@ -458,7 +407,11 @@
         .select('group_code, groups(name, host_email)')
         .eq('user_email', userEmail);
 
-      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
+      userJoinedGroups = data ? data.map(d => ({ 
+        code: d.group_code, 
+        name: d.groups?.name || d.group_code, 
+        host_email: (d.groups?.host_email || '').toLowerCase().trim() 
+      })) : [];
 
       renderMyGroups();
       populateAnalyticsDropdown();
@@ -487,7 +440,7 @@
             ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
           </div>
           <div style="display:flex; gap:6px;">
-            ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
+            <button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>
             <button id="manage-btn-${grp.code}" class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
             <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
           </div>
@@ -511,7 +464,7 @@
         return alert(`Error creating group: ${error.message}`);
       }
 
-      await sb.from('group_members').insert([{ group_code: code, user_email: userEmail, user_name: userName }]);
+      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
 
       document.getElementById('create-group-name').value = '';
       document.getElementById('create-group-code').value = '';
@@ -526,7 +479,7 @@
       const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
       if (!grp) return alert('Group code not found.');
 
-      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }]);
+      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
 
       document.getElementById('join-group-code').value = '';
       closeAllExpandables();
@@ -614,10 +567,11 @@
     }
 
     function setupRealtimeSubscriptions() {
-      sb.channel('db-changes')
+      if (realtimeChannel) sb.removeChannel(realtimeChannel);
+
+      realtimeChannel = sb.channel('cloud-sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs' }, () => renderAnalytics())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, () => fetchUserGroups())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => updateAccountPage())
         .subscribe();
     }
 
@@ -638,7 +592,7 @@
         select.appendChild(opt);
       });
 
-      if (cur) select.value = cur;
+      if (cur && userJoinedGroups.some(g => g.code === cur)) select.value = cur;
     }
 
     async function renderAnalytics() {
@@ -652,7 +606,7 @@
       }
 
       const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!members) return;
+      if (!members || members.length === 0) return;
 
       const emails = members.map(m => m.user_email);
       const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
@@ -737,17 +691,16 @@
         userName = newName.trim();
         localStorage.setItem('dt_username', userName);
 
-        // Update in central users table and group_members
         await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
         await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
 
-        fetchUserGroups();
+        await fetchUserGroups();
       }
     }
 
     function shareGroup(e, code) {
       if (e) e.stopPropagation();
-      const shareUrl = `${window.location.href.split('?')[0]}?join=${code}`;
+      const shareUrl = `${window.location.origin}${window.location.pathname}?join=${code}`;
       if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url: shareUrl });
       else navigator.clipboard.writeText(shareUrl).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
     }
