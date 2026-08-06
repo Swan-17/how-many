@@ -55,6 +55,7 @@
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
     .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
+    .status-msg { background: #0284c7; color: white; padding: 10px; border-radius: 6px; font-size: 12px; margin-top: 10px; text-align: center; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -62,16 +63,17 @@
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">Alcohol Unit Tracker</h2>
-    <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your details to sign in and sync across all devices.</p>
+    <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: -8px;">Enter your email to receive a secure login link.</p>
     <div style="margin-bottom: 10px;">
       <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
-      <input type="text" id="init-name" placeholder="e.g. Alex">
+      <input type="text" id="init-name" placeholder="e.g. Alex (New users)">
     </div>
     <div style="margin-bottom: 10px;">
       <label style="color: #94a3b8; font-size: 12px;">EMAIL ADDRESS</label>
       <input type="email" id="init-email" placeholder="alex@example.com">
     </div>
-    <button class="btn-submit" onclick="loginUser()">Sign In Across Devices</button>
+    <button class="btn-submit" id="btn-login" onclick="sendMagicLink()">Send Magic Login Link ✉️</button>
+    <div id="auth-status" class="status-msg hidden"></div>
   </div>
 
   <!-- MAIN APP SCREEN -->
@@ -96,7 +98,7 @@
         </div>
         <div class="member-row">
           <div>
-            <span style="font-size: 11px; color: #94a3b8; display: block;">EMAIL</span>
+            <span style="font-size: 11px; color: #94a3b8; display: block;">VERIFIED EMAIL</span>
             <strong id="acc-email-display" style="font-size: 13px; color: white;">---</strong>
           </div>
         </div>
@@ -259,9 +261,10 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let userName = localStorage.getItem('dt_username') || '';
-    let userEmail = (localStorage.getItem('dt_useremail') || '').toLowerCase().trim();
-    let firstCreatedDate = localStorage.getItem('dt_created_date') || new Date().toISOString().split('T')[0];
+    let currentUser = null;
+    let userName = '';
+    let userEmail = '';
+    let firstCreatedDate = new Date().toISOString().split('T')[0];
     const todayDate = new Date().toISOString().split('T')[0];
 
     let userJoinedGroups = [];
@@ -273,7 +276,7 @@
 
     window.onload = async function() {
       document.getElementById('today-date-label').innerText = todayDate;
-      
+
       // Auto Join Code Check from URL parameters (?join=CODE)
       const urlParams = new URLSearchParams(window.location.search);
       const autoJoinCode = urlParams.get('join');
@@ -281,59 +284,85 @@
         document.getElementById('join-group-code').value = autoJoinCode.toUpperCase();
       }
 
-      if (userName && userEmail) {
-        await showApp();
+      // Check current Supabase Auth session on load
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        await handleAuthSession(session);
       }
+
+      // Auth change listener (fires when clicking Magic Link in email)
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          await handleAuthSession(session);
+        } else if (event === 'SIGNED_OUT') {
+          showLoginScreen();
+        }
+      });
     };
 
-    async function loginUser() {
-      const nameInput = document.getElementById('init-name').value.trim();
+    async function sendMagicLink() {
       const emailInput = document.getElementById('init-email').value.trim().toLowerCase();
+      const nameInput = document.getElementById('init-name').value.trim();
+      const statusEl = document.getElementById('auth-status');
 
       if (!emailInput || !emailInput.includes('@')) {
         return alert('Please enter a valid email address.');
       }
 
-      userEmail = emailInput;
+      statusEl.classList.remove('hidden');
+      statusEl.innerText = 'Sending login link...';
 
-      // Cloud Lookup & Account Sync
-      const { data: existingUser } = await sb.from('users')
+      const { error } = await sb.auth.signInWithOtp({
+        email: emailInput,
+        options: {
+          emailRedirectTo: window.location.origin + window.location.pathname,
+          data: { display_name: nameInput || emailInput.split('@')[0] }
+        }
+      });
+
+      if (error) {
+        statusEl.style.background = '#ef4444';
+        statusEl.innerText = `Error: ${error.message}`;
+      } else {
+        statusEl.style.background = '#0284c7';
+        statusEl.innerText = `Check your email (${emailInput})! Click the link sent to sign in automatically.`;
+      }
+    }
+
+    async function handleAuthSession(session) {
+      currentUser = session.user;
+      userEmail = currentUser.email.toLowerCase().trim();
+
+      // Fetch user profile from database
+      const { data: profile } = await sb.from('users')
         .select('*')
         .eq('email', userEmail)
         .maybeSingle();
 
-      if (existingUser) {
-        userName = existingUser.display_name;
-        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : todayDate;
+      if (profile) {
+        userName = profile.display_name;
+        firstCreatedDate = profile.created_at ? profile.created_at.split('T')[0] : todayDate;
       } else {
-        userName = nameInput || emailInput.split('@')[0];
+        userName = currentUser.user_metadata?.display_name || userEmail.split('@')[0];
         firstCreatedDate = todayDate;
         await sb.from('users').upsert({ email: userEmail, display_name: userName }, { onConflict: 'email' });
       }
 
-      localStorage.setItem('dt_username', userName);
-      localStorage.setItem('dt_useremail', userEmail);
-      localStorage.setItem('dt_created_date', firstCreatedDate);
-
-      await showApp();
+      showAppScreen();
     }
 
     async function logoutUser() {
       if (!confirm('Are you sure you want to log out?')) return;
-
-      localStorage.clear();
-      userName = ''; userEmail = '';
-      userJoinedGroups = [];
-      todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-      activeHostCode = null;
-
       if (realtimeChannel) sb.removeChannel(realtimeChannel);
+      await sb.auth.signOut();
+    }
 
+    function showLoginScreen() {
       document.getElementById('app-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
     }
 
-    async function showApp() {
+    async function showAppScreen() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
 
@@ -341,7 +370,6 @@
       await fetchUserGroups();
       setupRealtimeSubscriptions();
 
-      // Auto join group if coming from a share link
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('join')) {
         await joinGroup();
@@ -379,7 +407,6 @@
 
       updateTrackerUI();
 
-      // Use Stored Procedure for Atomic Increments (Concurrently Safe)
       await sb.rpc('adjust_drink_count', {
         p_user_email: userEmail,
         p_log_date: todayDate,
@@ -689,7 +716,6 @@
       const newName = prompt("Enter new display name:", userName);
       if (newName && newName.trim()) {
         userName = newName.trim();
-        localStorage.setItem('dt_username', userName);
 
         await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
         await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
