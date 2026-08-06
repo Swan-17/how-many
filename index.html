@@ -101,7 +101,8 @@
 
     .hidden { display: none !important; }
 
-    input[type="text"], input[type="email"], select {
+    /* Added input[type="password"] below */
+    input[type="text"], input[type="email"], input[type="password"], select {
       background: #0f172a; border: 1px solid #334155; color: white;
       padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px;
     }
@@ -358,16 +359,14 @@
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
-    // ==========================================================
     // State
-    // ==========================================================
     let userName = '';
     let userEmail = '';
     let firstCreatedDate = '';
     const todayDate = new Date().toISOString().split('T')[0];
 
     let userJoinedGroups = [];
-    let relevantEmails = [];           // emails of everyone in the user's groups, for realtime scoping
+    let relevantEmails = [];
     let todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null;
     let realtimeChannel = null;
@@ -375,13 +374,6 @@
     let weeklyChartInstance = null;
 
     document.getElementById('today-date-label').innerText = todayDate;
-
-    // ==========================================================
-    // Authentication (Supabase magic link)
-    // One verified email = one account, on any device.
-    // Replaces the old flow, which trusted whatever email a
-    // person typed in and never confirmed they actually owned it.
-    // ==========================================================
 
     let authInitialized = false;
 
@@ -408,8 +400,6 @@
         return;
       }
 
-      // Only react here once initAuth() has already run once, so we don't
-      // double-process the same session on first load.
       if (authInitialized && session && session.user) {
         await handleAuthenticatedSession(session);
       }
@@ -458,7 +448,6 @@
           : 'Incorrect email or password.';
         return errorEl.classList.remove('hidden');
       }
-      // On success, onAuthStateChange picks up the session and shows the app.
     }
 
     async function signUpUser() {
@@ -551,7 +540,6 @@
       if (!confirm('Are you sure you want to log out?')) return;
       teardownRealtime();
       await sb.auth.signOut();
-      // resetToLoginScreen() runs automatically via onAuthStateChange
     }
 
     function resetToLoginScreen() {
@@ -584,17 +572,10 @@
       document.getElementById('app-screen').classList.remove('hidden');
 
       await fetchTodayDrinkLogs();
-      await fetchUserGroups(); // this also (re)builds realtime subscriptions
+      await fetchUserGroups();
 
       switchPage('account');
     }
-
-    // ==========================================================
-    // Drink tracking — now uses an atomic DB-side increment
-    // instead of "read value, add 1, write value back" in JS.
-    // The old pattern loses updates when requests overlap; the
-    // RPC below does the read+write as one atomic statement.
-    // ==========================================================
 
     function calculateUnitsAndBeers(entry) {
       if (!entry) return { units: 0, beers: 0 };
@@ -623,7 +604,6 @@
     }
 
     async function adjustDrink(type, delta) {
-      // Optimistic UI update so taps feel instant
       const currentVal = todayDrinkEntry[type] || 0;
       todayDrinkEntry[type] = Math.max(0, currentVal + delta);
       updateTrackerUI();
@@ -638,7 +618,7 @@
       if (error) {
         console.error('Failed to save drink update', error);
         alert('Could not save that update — resyncing with the server.');
-        await fetchTodayDrinkLogs(); // fall back to server truth
+        await fetchTodayDrinkLogs();
         return;
       }
 
@@ -664,10 +644,6 @@
       document.getElementById('total-units-val').innerText = calc.units;
       document.getElementById('total-beers-val').innerText = calc.beers;
     }
-
-    // ==========================================================
-    // Groups
-    // ==========================================================
 
     async function fetchUserGroups() {
       const { data, error } = await sb.from('group_members')
@@ -866,16 +842,6 @@
       renderInlineHostPanel(code);
     }
 
-    // ==========================================================
-    // Realtime — scoped to only the groups/people relevant to
-    // this user, instead of every row in every table. Under the
-    // old setup, ANY change by ANY user in ANY group triggered a
-    // full refetch on every connected client — with several
-    // people tapping counters at once this caused a storm of
-    // redundant fetches and re-renders, which is what looked
-    // like members randomly disappearing.
-    // ==========================================================
-
     function teardownRealtime() {
       if (realtimeChannel) {
         sb.removeChannel(realtimeChannel);
@@ -887,7 +853,7 @@
       teardownRealtime();
 
       const groupCodes = userJoinedGroups.map(g => g.code);
-      if (groupCodes.length === 0) return; // nothing group-related to listen to yet
+      if (groupCodes.length === 0) return;
 
       const codeList = groupCodes.join(',');
       const emailList = relevantEmails.join(',');
@@ -906,10 +872,6 @@
         )
         .subscribe();
     }
-
-    // ==========================================================
-    // Stats / analytics
-    // ==========================================================
 
     function populateAnalyticsDropdown() {
       const select = document.getElementById('analytics-group-select');
@@ -1007,10 +969,6 @@
       });
     }
 
-    // ==========================================================
-    // Account page
-    // ==========================================================
-
     function updateAccountPage() {
       document.getElementById('acc-name-display').innerText = userName;
       document.getElementById('acc-email-display').innerText = userEmail;
@@ -1050,10 +1008,6 @@
       if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url: shareUrl });
       else navigator.clipboard.writeText(shareUrl).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
     }
-
-    // ==========================================================
-    // UI helpers (unchanged)
-    // ==========================================================
 
     function closeAllExpandables() {
       closeHostPanel();
