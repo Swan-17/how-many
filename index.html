@@ -584,7 +584,7 @@
 
     function calculateUnitsAndBeers(entry) {
       if (!entry) return { units: 0, beers: 0 };
-      const totalUnits = ((entry.pints || 0) * 2) + ((entry.bottles || 0) * 1.33) + ((entry.wines || 0) * 2) + ((entry.cocktails || 0) * 2) + ((entry.shots || 0) * 1);
+      const totalUnits = ((entry.pints || 0) * 2) + ((entry.bottles || 0) * 1.33) + ((entry.wines || 0) * 1.25) + ((entry.cocktails || 0) * 2) + ((entry.shots || 0) * 1);
       return { units: Number(totalUnits.toFixed(2)), beers: Math.round(totalUnits / 2) };
     }
 
