@@ -386,7 +386,7 @@
 
     function calculateUnitsAndBeers(e) {
       if (!e) return { units: 0, beers: 0 };
-      const u = ((e.pints||0)*2) + ((e.bottles||0)*1.33) + ((e.wines||0)*1.25) + ((e.cocktails||0)*2) + ((e.shots||0)*1);
+      const u = ((e.pints||0)*2) + ((e.bottles||0)*1.33) + ((e.wines||0)*1.5) + ((e.cocktails||0)*2) + ((e.shots||0)*1);
       return { units: Number(u.toFixed(2)), beers: Math.round(u / 2) };
     }
 
