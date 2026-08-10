@@ -87,6 +87,8 @@
 
     .clickable-stat { cursor: pointer; transition: background-color 0.2s; position: relative; }
     .clickable-stat:hover { background: #334155; }
+    .clickable-text { cursor: pointer; color: #f59e0b; text-decoration: underline; text-decoration-style: dotted; }
+    .clickable-text:hover { color: #fbbf24; }
     .click-hint { font-size: 10px; color: #64748b; font-weight: normal; margin-top: 4px; display: block; text-transform: none; }
 
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
@@ -137,6 +139,73 @@
       border-bottom: 1px solid #334155; font-size: 14px;
     }
     .breakdown-row:last-child { border-bottom: none; }
+
+    /* Scrollable Calendar Component Styling */
+    .calendar-container {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .calendar-header h4 {
+      margin: 0;
+      font-size: 13px;
+      color: #f59e0b;
+    }
+    .calendar-scroll-area {
+      max-height: 240px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+    }
+    .calendar-day-header {
+      font-size: 10px;
+      font-weight: bold;
+      color: #64748b;
+      padding-bottom: 4px;
+    }
+    .calendar-day {
+      padding: 8px 0;
+      font-size: 12px;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #f8fafc;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s ease;
+    }
+    .calendar-day:hover:not(.disabled) {
+      background: #334155;
+    }
+    .calendar-day.selected {
+      background: #f59e0b;
+      color: #000;
+      font-weight: bold;
+    }
+    .calendar-day.today {
+      border: 1px solid #f59e0b;
+    }
+    .calendar-day.disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+      background: transparent;
+    }
+    .calendar-day.empty {
+      background: transparent;
+      cursor: default;
+    }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -232,10 +301,10 @@
           </div>
           
           <!-- Clickable Lifetime Pints -->
-          <div class="stat-box clickable-stat" style="grid-column: span 2;" onclick="openBreakdownModal()">
-            <div class="stat-label">Total Lifetime Beers Drunk</div>
+          <div class="stat-box clickable-stat" style="grid-column: span 2;" onclick="openBreakdownModal(lifetimeTotals, 'Your Lifetime Drink Breakdown')">
+            <div class="stat-label">Total Lifetime Pints Drunk</div>
             <div id="acc-total-pints" class="stat-number">0 🍺</div>
-            <span class="click-hint">(Click to see breakdown)</span>
+            <span class="click-hint">(Click to view breakdown)</span>
           </div>
         </div>
       </div>
@@ -272,7 +341,7 @@
         </div>
       </div>
 
-      <!-- Logout Button (At bottom of Account page) -->
+      <!-- Logout Button -->
       <div style="margin-top: 24px; margin-bottom: 24px;">
         <button class="btn-danger" style="width: 100%; padding: 12px; font-size: 14px;" onclick="logoutUser()">Log Out</button>
       </div>
@@ -282,7 +351,14 @@
     <!-- PAGE 2: TRACKER -->
     <div id="page-tracker">
       <div class="card">
-        <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
+        
+        <!-- Back to Today Button -->
+        <button id="back-to-today-btn" class="btn-submit hidden" style="margin-top: 0; margin-bottom: 12px;" onclick="resetToTodayDate()">Back to Today</button>
+
+        <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">
+          LOG DRINKS FOR (<span id="today-date-label"></span>)
+        </h3>
+
         <div class="drink-list">
           <div class="drink-row">
             <div class="drink-info">
@@ -345,6 +421,42 @@
           <div class="unit-text">TOTAL DAILY UNITS: <strong id="total-units-val">0</strong></div>
           <div class="beer-text"><span id="total-beers-val">0</span> Beer 🍺</div>
         </div>
+
+        <!-- Log Missed Drinks Accordion -->
+        <div style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px;">
+          <button class="btn-secondary" style="width: 100%; padding: 10px; font-size: 12px;" onclick="event.stopPropagation(); toggleAccordion('missed-drinks-body', 'missed-drinks-icon')">
+            📅 Previous Days <span id="missed-drinks-icon" class="accordion-icon" style="float: right;">▼</span>
+          </button>
+          
+          <div id="missed-drinks-body" class="accordion-content hidden" onclick="event.stopPropagation()">
+            <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 4px;">SELECT PREVIOUS DATE</label>
+            
+            <!-- Scrollable Calendar Component -->
+            <div class="calendar-container">
+              <div class="calendar-header">
+                <button class="btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="navigateCalendarMonth(-1)">◄</button>
+                <h4 id="calendar-month-year">Month Year</h4>
+                <button class="btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="navigateCalendarMonth(1)">►</button>
+              </div>
+
+              <div class="calendar-grid">
+                <div class="calendar-day-header">Mon</div>
+                <div class="calendar-day-header">Tue</div>
+                <div class="calendar-day-header">Wed</div>
+                <div class="calendar-day-header">Thu</div>
+                <div class="calendar-day-header">Fri</div>
+                <div class="calendar-day-header">Sat</div>
+                <div class="calendar-day-header">Sun</div>
+              </div>
+
+              <div class="calendar-scroll-area">
+                <div id="calendar-days-grid" class="calendar-grid"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -355,9 +467,11 @@
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
 
-      <div class="card" style="text-align: center;">
+      <!-- Clickable Total Group Beers Card -->
+      <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, 'Total Group Drink Breakdown')">
         <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
         <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
+        <span class="click-hint">(Click to view breakdown)</span>
       </div>
 
       <div class="card">
@@ -386,7 +500,7 @@
   <!-- BREAKDOWN MODAL -->
   <div id="breakdown-modal" class="modal-overlay hidden" onclick="closeBreakdownModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
-      <h3 style="margin-top: 0; margin-bottom: 16px; color: #f59e0b; text-align: center;">Lifetime Drink Breakdown</h3>
+      <h3 id="modal-title" style="margin-top: 0; margin-bottom: 16px; color: #f59e0b; text-align: center;">Drink Breakdown</h3>
       <div class="breakdown-row">
         <span>Pints:</span> <strong id="bd-pints">0</strong>
       </div>
@@ -413,11 +527,36 @@
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
+    // Helper: Calculates current effective date based on 4am cutoff
+    function getEffectiveTodayDate() {
+      const now = new Date();
+      if (now.getHours() < 4) {
+        now.setDate(now.getDate() - 1);
+      }
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Helper: Finds Monday date for any date string
+    function getMondayDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      return new Date(date.getFullYear(), date.getMonth(), diff);
+    }
+
     // State
     let userName = '';
     let userEmail = '';
     let firstCreatedDate = '';
-    const todayDate = new Date().toISOString().split('T')[0];
+    let activeLogDate = getEffectiveTodayDate();
+
+    // Calendar state
+    let calendarViewYear = new Date().getFullYear();
+    let calendarViewMonth = new Date().getMonth();
 
     let userJoinedGroups = [];
     let relevantEmails = [];
@@ -427,10 +566,12 @@
     let freqChartInstance = null;
     let weeklyChartInstance = null;
     
-    // Stores aggregated totals for the modal
+    // Aggregated totals for breakdown modals
     let lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+    let groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+    let userBreakdownsByEmail = {}; // Map of user_email -> { pints, bottles, wines, cocktails, shots }
 
-    document.getElementById('today-date-label').innerText = todayDate;
+    document.getElementById('today-date-label').innerText = activeLogDate;
 
     let authInitialized = false;
 
@@ -573,11 +714,11 @@
 
       if (existingUser) {
         userName = existingUser.display_name;
-        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : todayDate;
+        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : getEffectiveTodayDate();
       } else {
         const pendingName = sessionStorage.getItem('dt_pending_name') || session.user.user_metadata?.display_name;
         userName = pendingName || userEmail.split('@')[0];
-        firstCreatedDate = todayDate;
+        firstCreatedDate = getEffectiveTodayDate();
 
         const { error: upsertErr } = await sb.from('users')
           .upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
@@ -628,7 +769,12 @@
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('app-screen').classList.remove('hidden');
 
-      await fetchTodayDrinkLogs();
+      activeLogDate = getEffectiveTodayDate();
+      document.getElementById('today-date-label').innerText = activeLogDate;
+
+      renderCalendar();
+
+      await fetchDrinkLogsForDate(activeLogDate);
       await fetchUserGroups();
 
       switchPage('tracker');
@@ -640,24 +786,115 @@
       return { units: Number(totalUnits.toFixed(2)), beers: Math.round(totalUnits / 2) };
     }
 
-    async function fetchTodayDrinkLogs() {
+    async function fetchDrinkLogsForDate(targetDate) {
+      document.getElementById('today-date-label').innerText = targetDate;
+
       const { data, error } = await sb.from('drink_logs')
         .select('*')
         .eq('user_email', userEmail)
-        .eq('log_date', todayDate)
+        .eq('log_date', targetDate)
         .maybeSingle();
 
-      if (error) console.error('Failed to load today\'s drinks', error);
+      if (error) console.error(`Failed to load drinks for ${targetDate}`, error);
 
       if (data) {
         todayDrinkEntry = { pints: data.pints || 0, bottles: data.bottles || 0, wines: data.wines || 0, cocktails: data.cocktails || 0, shots: data.shots || 0 };
       } else {
         const { error: insertErr } = await sb.from('drink_logs')
-          .upsert([{ user_email: userEmail, log_date: todayDate }], { onConflict: 'user_email,log_date' });
-        if (insertErr) console.error('Failed to initialize today\'s log', insertErr);
+          .upsert([{ user_email: userEmail, log_date: targetDate }], { onConflict: 'user_email,log_date' });
+        if (insertErr) console.error(`Failed to initialize log for ${targetDate}`, insertErr);
         todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       }
       updateTrackerUI();
+    }
+
+    async function changeActiveLogDate(newDate) {
+      if (!newDate) return;
+      activeLogDate = newDate;
+
+      const effectiveToday = getEffectiveTodayDate();
+      const backBtn = document.getElementById('back-to-today-btn');
+
+      if (activeLogDate !== effectiveToday) {
+        backBtn.classList.remove('hidden');
+      } else {
+        backBtn.classList.add('hidden');
+      }
+
+      renderCalendar();
+      await fetchDrinkLogsForDate(activeLogDate);
+    }
+
+    function resetToTodayDate() {
+      const effectiveToday = getEffectiveTodayDate();
+      changeActiveLogDate(effectiveToday);
+    }
+
+    /* Scrollable Calendar Logic */
+    function renderCalendar() {
+      const grid = document.getElementById('calendar-days-grid');
+      const headerText = document.getElementById('calendar-month-year');
+      grid.innerHTML = '';
+
+      const effectiveTodayStr = getEffectiveTodayDate();
+      const dateObj = new Date(calendarViewYear, calendarViewMonth, 1);
+      
+      headerText.innerText = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+      // Monday offset calculation (0 = Mon, 6 = Sun)
+      let firstDayIndex = dateObj.getDay() - 1;
+      if (firstDayIndex === -1) firstDayIndex = 6;
+
+      const totalDays = new Date(calendarViewYear, calendarViewMonth + 1, 0).getDate();
+
+      // Render leading empty cells
+      for (let i = 0; i < firstDayIndex; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'calendar-day empty';
+        grid.appendChild(emptyCell);
+      }
+
+      // Render day cells
+      for (let day = 1; day <= totalDays; day++) {
+        const mm = String(calendarViewMonth + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const dateStr = `${calendarViewYear}-${mm}-${dd}`;
+
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day';
+        dayCell.innerText = day;
+
+        if (dateStr === activeLogDate) {
+          dayCell.classList.add('selected');
+        }
+        if (dateStr === effectiveTodayStr) {
+          dayCell.classList.add('today');
+        }
+
+        // Disable future dates beyond effective today
+        if (dateStr > effectiveTodayStr) {
+          dayCell.classList.add('disabled');
+        } else {
+          dayCell.onclick = (e) => {
+            e.stopPropagation();
+            changeActiveLogDate(dateStr);
+          };
+        }
+
+        grid.appendChild(dayCell);
+      }
+    }
+
+    function navigateCalendarMonth(delta) {
+      calendarViewMonth += delta;
+      if (calendarViewMonth < 0) {
+        calendarViewMonth = 11;
+        calendarViewYear--;
+      } else if (calendarViewMonth > 11) {
+        calendarViewMonth = 0;
+        calendarViewYear++;
+      }
+      renderCalendar();
     }
 
     async function adjustDrink(type, delta) {
@@ -667,7 +904,7 @@
 
       const { data, error } = await sb.rpc('increment_drink_log', {
         p_user_email: userEmail,
-        p_log_date: todayDate,
+        p_log_date: activeLogDate,
         p_type: type,
         p_delta: delta
       });
@@ -675,7 +912,7 @@
       if (error) {
         console.error('Failed to save drink update', error);
         alert('Could not save that update — resyncing with the server.');
-        await fetchTodayDrinkLogs();
+        await fetchDrinkLogsForDate(activeLogDate);
         return;
       }
 
@@ -951,6 +1188,7 @@
     }
 
     async function renderAnalytics() {
+      const effectiveToday = getEffectiveTodayDate();
       const code = document.getElementById('analytics-group-select').value;
       const leaderboardEl = document.getElementById('leaderboard-list');
       const dailyLeaderboardEl = document.getElementById('daily-leaderboard-list');
@@ -973,28 +1211,55 @@
       if (logsErr) console.error('Failed to load drink logs for stats', logsErr);
 
       let totalGroupBeers = 0;
+      groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      userBreakdownsByEmail = {};
+
       const userTotals = members.map(m => {
-        const userLogs = logs ? logs.filter(l => l.user_email === m.user_email) : [];
+        const mEmail = m.user_email.toLowerCase().trim();
+        const userLogs = logs ? logs.filter(l => l.user_email.toLowerCase().trim() === mEmail) : [];
         let beers = 0;
-        userLogs.forEach(l => beers += calculateUnitsAndBeers(l).beers);
+
+        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+        userLogs.forEach(l => {
+          beers += calculateUnitsAndBeers(l).beers;
+          uBreakdown.pints += (l.pints || 0);
+          uBreakdown.bottles += (l.bottles || 0);
+          uBreakdown.wines += (l.wines || 0);
+          uBreakdown.cocktails += (l.cocktails || 0);
+          uBreakdown.shots += (l.shots || 0);
+
+          groupTotalsBreakdown.pints += (l.pints || 0);
+          groupTotalsBreakdown.bottles += (l.bottles || 0);
+          groupTotalsBreakdown.wines += (l.wines || 0);
+          groupTotalsBreakdown.cocktails += (l.cocktails || 0);
+          groupTotalsBreakdown.shots += (l.shots || 0);
+        });
+
+        userBreakdownsByEmail[mEmail] = uBreakdown;
         totalGroupBeers += beers;
-        return { name: m.user_name, email: m.user_email.toLowerCase().trim(), beers };
+        return { name: m.user_name, email: mEmail, beers };
       });
 
       userTotals.sort((a, b) => b.beers - a.beers);
 
+      // Render Lifetime Leaderboard with Clickable Beer Numbers
       userTotals.forEach(item => {
         const row = document.createElement('div');
         row.className = 'member-row';
-        row.innerHTML = `<span>${item.name} ${item.email === userEmail ? '(You)' : ''}</span><strong>${item.beers} 🍺</strong>`;
+        row.innerHTML = `
+          <span>${item.name} ${item.email === userEmail ? '(You)' : ''}</span>
+          <strong class="clickable-text" onclick="openUserBreakdownModal('${item.email}', '${item.name}')">${item.beers} 🍺</strong>
+        `;
         leaderboardEl.appendChild(row);
       });
 
       // Daily Leaderboard calculations
       const dailyTotals = members.map(m => {
-        const todayLog = logs ? logs.find(l => l.user_email === m.user_email && l.log_date === todayDate) : null;
+        const mEmail = m.user_email.toLowerCase().trim();
+        const todayLog = logs ? logs.find(l => l.user_email.toLowerCase().trim() === mEmail && l.log_date === effectiveToday) : null;
         const beers = todayLog ? calculateUnitsAndBeers(todayLog).beers : 0;
-        return { name: m.user_name, email: m.user_email.toLowerCase().trim(), beers };
+        return { name: m.user_name, email: mEmail, beers };
       }).filter(item => item.beers > 0);
 
       dailyTotals.sort((a, b) => b.beers - a.beers);
@@ -1014,6 +1279,12 @@
       renderCharts(logs || []);
     }
 
+    function openUserBreakdownModal(email, displayName) {
+      const breakdown = userBreakdownsByEmail[email.toLowerCase().trim()] || { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      const title = `${displayName}'s Drink Breakdown`;
+      openBreakdownModal(breakdown, title);
+    }
+
     function renderCharts(logs) {
       const canvas1 = document.getElementById('freqChart');
       const canvas2 = document.getElementById('weeklyChart');
@@ -1026,14 +1297,25 @@
         const beers = calculateUnitsAndBeers(l).beers;
         if (beers > 0) {
           freqMap[beers] = (freqMap[beers] || 0) + 1;
-          const date = new Date(l.log_date);
-          const weekNum = Math.ceil(date.getDate() / 7);
-          const monthName = date.toLocaleString('default', { month: 'short' });
-          const weekKey = `W${weekNum} ${monthName}`;
-          weeklyMap[weekKey] = (weeklyMap[weekKey] || 0) + beers;
+
+          // Compute Monday "week commencing" date key
+          const monday = getMondayDate(l.log_date);
+          const yyyy = monday.getFullYear();
+          const mm = String(monday.getMonth() + 1).padStart(2, '0');
+          const dd = String(monday.getDate()).padStart(2, '0');
+          const mondayKey = `${yyyy}-${mm}-${dd}`; // Key for chronological sorting
+
+          const monthName = monday.toLocaleString('default', { month: 'short' });
+          const label = `w/c ${monthName} ${monday.getDate()}`;
+
+          if (!weeklyMap[mondayKey]) {
+            weeklyMap[mondayKey] = { label, beers: 0 };
+          }
+          weeklyMap[mondayKey].beers += beers;
         }
       });
 
+      // Frequency Chart
       const sortedAmounts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
       if (freqChartInstance) freqChartInstance.destroy();
       freqChartInstance = new Chart(canvas1.getContext('2d'), {
@@ -1042,10 +1324,24 @@
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
 
+      // Chronological Weekly Line Chart
+      const sortedWeeks = Object.keys(weeklyMap).sort();
+      const weeklyLabels = sortedWeeks.map(k => weeklyMap[k].label);
+      const weeklyData = sortedWeeks.map(k => weeklyMap[k].beers);
+
       if (weeklyChartInstance) weeklyChartInstance.destroy();
       weeklyChartInstance = new Chart(canvas2.getContext('2d'), {
         type: 'line',
-        data: { labels: Object.keys(weeklyMap), datasets: [{ data: Object.values(weeklyMap), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.3 }] },
+        data: {
+          labels: weeklyLabels,
+          datasets: [{
+            data: weeklyData,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.2)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
     }
@@ -1079,13 +1375,15 @@
       });
     }
 
-    // Modal Control Functions
-    function openBreakdownModal() {
-      document.getElementById('bd-pints').innerText = lifetimeTotals.pints;
-      document.getElementById('bd-bottles').innerText = lifetimeTotals.bottles;
-      document.getElementById('bd-wines').innerText = lifetimeTotals.wines;
-      document.getElementById('bd-cocktails').innerText = lifetimeTotals.cocktails;
-      document.getElementById('bd-shots').innerText = lifetimeTotals.shots;
+    // Modal Control Functions (Reusable across Account and Stats)
+    function openBreakdownModal(dataObj, customTitle) {
+      const data = dataObj || { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      document.getElementById('modal-title').innerText = customTitle || 'Drink Breakdown';
+      document.getElementById('bd-pints').innerText = data.pints || 0;
+      document.getElementById('bd-bottles').innerText = data.bottles || 0;
+      document.getElementById('bd-wines').innerText = data.wines || 0;
+      document.getElementById('bd-cocktails').innerText = data.cocktails || 0;
+      document.getElementById('bd-shots').innerText = data.shots || 0;
       document.getElementById('breakdown-modal').classList.remove('hidden');
     }
 
@@ -1119,17 +1417,26 @@
 
     function closeAllExpandables() {
       closeHostPanel();
-      ['join-accordion-body', 'create-accordion-body'].forEach(id => {
+      ['join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
+      });
+      ['join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = '▼';
       });
     }
 
     function toggleAccordion(bodyId, iconId) {
       const body = document.getElementById(bodyId);
+      const icon = document.getElementById(iconId);
       const isHidden = body.classList.contains('hidden');
       closeAllExpandables();
-      if (isHidden) body.classList.remove('hidden');
+      if (isHidden) {
+        body.classList.remove('hidden');
+        if (icon) icon.innerText = '▲';
+        if (bodyId === 'missed-drinks-body') renderCalendar();
+      }
     }
 
     function closeHostPanel() {
@@ -1143,9 +1450,16 @@
     function handleGlobalClick(e) {
       const joinCard = document.getElementById('card-join-group');
       const createCard = document.getElementById('card-create-group');
+      const missedDrinksBody = document.getElementById('missed-drinks-body');
+      const missedDrinksBtn = e.target.closest('button')?.getAttribute('onclick')?.includes('missed-drinks-body');
+      
       let isInsideHost = activeHostCode && document.getElementById(`host-panel-${activeHostCode}`)?.contains(e.target);
 
-      if (!joinCard?.contains(e.target) && !createCard?.contains(e.target) && !isInsideHost) {
+      if (!joinCard?.contains(e.target) && 
+          !createCard?.contains(e.target) && 
+          !missedDrinksBody?.contains(e.target) && 
+          !missedDrinksBtn && 
+          !isInsideHost) {
         closeAllExpandables();
       }
     }
