@@ -4,208 +4,71 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🍺 How Many Beers</title>
-  <!-- Chart.js & Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #0f172a;
-      color: #f8fafc;
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 16px;
-    }
-    nav {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 16px;
-    }
-    nav button {
-      flex: 1;
-      padding: 10px 4px;
-      background: #1e293b;
-      color: #94a3b8;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    nav button.active {
-      background: #f59e0b;
-      color: #000;
-      border-color: #f59e0b;
-    }
-    .card {
-      background: #1e293b;
-      padding: 18px;
-      border-radius: 12px;
-      margin-bottom: 16px;
-      border: 1px solid #334155;
-    }
-
-    .accordion-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      user-select: none;
-    }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; max-width: 520px; margin: 0 auto; padding: 16px; }
+    nav { display: flex; gap: 6px; margin-bottom: 16px; }
+    nav button { flex: 1; padding: 10px 4px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; font: bold 13px inherit; cursor: pointer; }
+    nav button.active { background: #f59e0b; color: #000; border-color: #f59e0b; }
+    .card { background: #1e293b; padding: 18px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #334155; }
+    .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
     .accordion-header h3 { margin: 0; font-size: 15px; }
     .accordion-icon { font-size: 14px; color: #f59e0b; }
     .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; }
-
     .drink-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-    .drink-row {
-      background: #0f172a;
-      padding: 12px 16px;
-      border-radius: 10px;
-      border: 1px solid #334155;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    .drink-row { background: #0f172a; padding: 12px 16px; border-radius: 10px; border: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
     .drink-info { display: flex; align-items: center; gap: 12px; }
-    .drink-icon-svg {
-      width: 28px;
-      height: 28px;
-      fill: none;
-      stroke: #f59e0b;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-    .drink-title { font-size: 15px; color: #f8fafc; font-weight: 700; }
-
+    .drink-icon-svg { width: 28px; height: 28px; fill: none; stroke: #f59e0b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .drink-title { font-size: 15px; font-weight: 700; }
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
     .stat-box { background: #0f172a; padding: 14px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
     .stat-number { font-size: 26px; font-weight: 900; color: #f59e0b; margin-top: 4px; }
     .stat-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
-
-    .clickable-stat { cursor: pointer; transition: background-color 0.2s; position: relative; }
+    .clickable-stat { cursor: pointer; position: relative; }
     .clickable-stat:hover { background: #334155; }
-    .clickable-text { cursor: pointer; color: #f59e0b; text-decoration: underline; text-decoration-style: dotted; }
+    .clickable-text { cursor: pointer; color: #f59e0b; text-decoration: none; }
+    .clickable-text span { text-decoration: underline dotted; }
     .clickable-text:hover { color: #fbbf24; }
-    .click-hint { font-size: 10px; color: #64748b; font-weight: normal; margin-top: 4px; display: block; text-transform: none; }
-
+    .click-hint { font-size: 10px; color: #64748b; margin-top: 4px; display: block; text-transform: none; }
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .btn-circle {
-      width: 36px; height: 36px; border-radius: 50%; border: none;
-      font-size: 18px; font-weight: bold; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
+    .btn-circle { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .btn-minus { background: #334155; color: white; }
     .btn-plus { background: #f59e0b; color: black; }
     .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; text-align: center; }
-
     .summary-box { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px; text-align: center; margin-top: 16px; }
     .unit-text { font-size: 12px; color: #94a3b8; }
     .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
-
     .hidden { display: none !important; }
-
-    input[type="text"], input[type="email"], input[type="password"], select {
-      background: #0f172a; border: 1px solid #334155; color: white;
-      padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px;
-    }
+    input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; }
+    label { color: #94a3b8; font-size: 12px; }
     .btn-submit { background: #f59e0b; color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
     .btn-submit:disabled { opacity: 0.6; cursor: default; }
-    .btn-danger { background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
-    .btn-secondary { background: #334155; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
-    .btn-share { background: #059669; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
-
+    .btn-danger, .btn-secondary, .btn-share { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; }
+    .btn-danger { background: #ef4444; }
+    .btn-secondary { background: #334155; }
+    .btn-share { background: #059669; }
     .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
     .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
-
-    /* Modal Styling */
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      z-index: 1000;
-      display: flex; align-items: center; justify-content: center;
-      padding: 16px;
-    }
-    .modal-content {
-      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-      padding: 24px; width: 100%; max-width: 320px;
-    }
-    .breakdown-row {
-      display: flex; justify-content: space-between; padding: 10px 0;
-      border-bottom: 1px solid #334155; font-size: 14px;
-    }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-content { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; width: 100%; max-width: 320px; }
+    .breakdown-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; font-size: 14px; }
     .breakdown-row:last-child { border-bottom: none; }
-
-    /* Scrollable Calendar Component Styling */
-    .calendar-container {
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 8px;
-    }
-    .calendar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .calendar-header h4 {
-      margin: 0;
-      font-size: 13px;
-      color: #f59e0b;
-    }
-    .calendar-scroll-area {
-      max-height: 240px;
-      overflow-y: auto;
-      padding-right: 4px;
-    }
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-      text-align: center;
-    }
-    .calendar-day-header {
-      font-size: 10px;
-      font-weight: bold;
-      color: #64748b;
-      padding-bottom: 4px;
-    }
-    .calendar-day {
-      padding: 8px 0;
-      font-size: 12px;
-      border-radius: 6px;
-      background: #1e293b;
-      color: #f8fafc;
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.15s ease;
-    }
-    .calendar-day:hover:not(.disabled) {
-      background: #334155;
-    }
-    .calendar-day.selected {
-      background: #f59e0b;
-      color: #000;
-      font-weight: bold;
-    }
-    .calendar-day.today {
-      border: 1px solid #f59e0b;
-    }
-    .calendar-day.disabled {
-      opacity: 0.25;
-      cursor: not-allowed;
-      background: transparent;
-    }
-    .calendar-day.empty {
-      background: transparent;
-      cursor: default;
-    }
+    .calendar-container { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-top: 8px; }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .calendar-header h4 { margin: 0; font-size: 13px; color: #f59e0b; }
+    .calendar-scroll-area { max-height: 240px; overflow-y: auto; padding-right: 4px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+    .calendar-day-header { font-size: 10px; font-weight: bold; color: #64748b; padding-bottom: 4px; }
+    .calendar-day { padding: 8px 0; font-size: 12px; border-radius: 6px; background: #1e293b; color: #f8fafc; cursor: pointer; user-select: none; transition: background 0.15s ease; }
+    .calendar-day:hover:not(.disabled) { background: #334155; }
+    .calendar-day.selected { background: #f59e0b; color: #000; font-weight: bold; }
+    .calendar-day.today { border: 1px solid #f59e0b; }
+    .calendar-day.disabled { opacity: 0.25; cursor: not-allowed; background: transparent; }
+    .calendar-day.empty { background: transparent; cursor: default; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -213,41 +76,23 @@
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">How Many Beers</h2>
-
-    <!-- LOG IN -->
     <div id="login-form-fields">
       <h3 style="font-size: 14px; color: #94a3b8; margin-bottom: 4px;">LOG IN</h3>
-      <div style="margin-bottom: 10px;">
-        <label style="color: #94a3b8; font-size: 12px;">EMAIL</label>
-        <input type="email" id="login-email" placeholder="alex@example.com">
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label style="color: #94a3b8; font-size: 12px;">PASSWORD</label>
-        <input type="password" id="login-password" placeholder="Your password">
-      </div>
+      <div style="margin-bottom: 10px;"><label>EMAIL</label><input type="email" id="login-email" placeholder="alex@example.com"></div>
+      <div style="margin-bottom: 10px;"><label>PASSWORD</label><input type="password" id="login-password" placeholder="Your password"></div>
       <button id="login-submit-btn" class="btn-submit" onclick="loginUser()">Log In</button>
       <p id="login-error" class="hidden" style="color: #ef4444; font-size: 12px; text-align: center; margin-top: 8px;"></p>
     </div>
 
-    <!-- SIGN UP -->
     <div id="signup-accordion-body" class="accordion-content" style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px;">
       <div class="accordion-header" onclick="toggleSignupPanel()">
         <h3 style="font-size: 14px; color: #94a3b8; margin: 0;">New here? Sign up</h3>
         <span id="signup-accordion-icon" class="accordion-icon">▼</span>
       </div>
       <div id="signup-form-fields" class="hidden" style="margin-top: 12px;">
-        <div style="margin-bottom: 10px;">
-          <label style="color: #94a3b8; font-size: 12px;">YOUR DISPLAY NAME</label>
-          <input type="text" id="signup-name" placeholder="e.g. Alex">
-        </div>
-        <div style="margin-bottom: 10px;">
-          <label style="color: #94a3b8; font-size: 12px;">EMAIL</label>
-          <input type="email" id="signup-email" placeholder="alex@example.com">
-        </div>
-        <div style="margin-bottom: 10px;">
-          <label style="color: #94a3b8; font-size: 12px;">PASSWORD</label>
-          <input type="password" id="signup-password" placeholder="At least 6 characters">
-        </div>
+        <div style="margin-bottom: 10px;"><label>YOUR DISPLAY NAME</label><input type="text" id="signup-name" placeholder="e.g. Alex"></div>
+        <div style="margin-bottom: 10px;"><label>EMAIL</label><input type="email" id="signup-email" placeholder="alex@example.com"></div>
+        <div style="margin-bottom: 10px;"><label>PASSWORD</label><input type="password" id="signup-password" placeholder="At least 6 characters"></div>
         <button id="signup-submit-btn" class="btn-submit" onclick="signUpUser()">Sign Up</button>
         <p id="signup-error" class="hidden" style="color: #ef4444; font-size: 12px; text-align: center; margin-top: 8px;"></p>
       </div>
@@ -255,9 +100,7 @@
 
     <div id="login-check-email" class="hidden" style="text-align: center;">
       <p style="color: #f8fafc; font-size: 14px;">📬 Check your email</p>
-      <p style="color: #94a3b8; font-size: 13px;">
-        We sent you a verification link. Click it to confirm your account, then come back here and log in.
-      </p>
+      <p style="color: #94a3b8; font-size: 13px;">We sent you a verification link. Click it to confirm your account, then come back here and log in.</p>
       <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 8px;" onclick="resetToLoginScreen()">Back to login</button>
     </div>
   </div>
@@ -270,37 +113,21 @@
       <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
     </nav>
 
-    <!-- PAGE 1: ACCOUNT (Consolidated) -->
+    <!-- PAGE 1: ACCOUNT -->
     <div id="page-account" class="hidden">
-      
-      <!-- User Profile Stats -->
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
         <div class="member-row">
-          <div>
-            <span style="font-size: 11px; color: #94a3b8; display: block;">DISPLAY NAME</span>
-            <strong id="acc-name-display" style="font-size: 16px; color: #f59e0b;">---</strong>
-          </div>
+          <div><span style="font-size: 11px; color: #94a3b8; display: block;">DISPLAY NAME</span><strong id="acc-name-display" style="font-size: 16px; color: #f59e0b;">---</strong></div>
           <button class="btn-secondary" onclick="editProfileName()">Edit Name</button>
         </div>
         <div class="member-row">
-          <div>
-            <span style="font-size: 11px; color: #94a3b8; display: block;">EMAIL</span>
-            <strong id="acc-email-display" style="font-size: 13px; color: white;">---</strong>
-          </div>
+          <div><span style="font-size: 11px; color: #94a3b8; display: block;">EMAIL</span><strong id="acc-email-display" style="font-size: 13px; color: white;">---</strong></div>
         </div>
 
         <div class="stat-grid">
-          <div class="stat-box">
-            <div class="stat-label">Days Active</div>
-            <div id="acc-days-active" class="stat-number">1</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Groups Joined</div>
-            <div id="acc-groups-count" class="stat-number">0</div>
-          </div>
-          
-          <!-- Clickable Lifetime Pints -->
+          <div class="stat-box"><div class="stat-label">Days Active</div><div id="acc-days-active" class="stat-number">1</div></div>
+          <div class="stat-box"><div class="stat-label">Groups Joined</div><div id="acc-groups-count" class="stat-number">0</div></div>
           <div class="stat-box clickable-stat" style="grid-column: span 2;" onclick="openBreakdownModal(lifetimeTotals, 'Your Lifetime Drink Breakdown')">
             <div class="stat-label">Total Lifetime Pints Drunk</div>
             <div id="acc-total-pints" class="stat-number">0 🍺</div>
@@ -309,19 +136,21 @@
         </div>
       </div>
 
-      <!-- Consolidated Groups Section -->
-      <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">YOUR ACTIVE GROUPS</h3>
-        <div id="my-groups-list"></div>
+      <div class="card" id="card-active-groups">
+        <div class="accordion-header" onclick="toggleAccordion('groups-accordion-body', 'groups-accordion-icon')">
+          <h3>Your Active Groups</h3><span id="groups-accordion-icon" class="accordion-icon">▼</span>
+        </div>
+        <div id="groups-accordion-body" class="accordion-content hidden">
+          <div id="my-groups-list"></div>
+        </div>
       </div>
 
       <div class="card" id="card-join-group">
         <div class="accordion-header" onclick="toggleAccordion('join-accordion-body', 'join-accordion-icon')">
-          <h3>Join a Group</h3>
-          <span id="join-accordion-icon" class="accordion-icon">▼</span>
+          <h3>Join a Group</h3><span id="join-accordion-icon" class="accordion-icon">▼</span>
         </div>
         <div id="join-accordion-body" class="accordion-content hidden">
-          <label style="color: #94a3b8; font-size: 12px;">ENTER UNIQUE GROUP CODE</label>
+          <label>ENTER UNIQUE GROUP CODE</label>
           <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. 1234">
           <button class="btn-submit" onclick="joinGroup()">Join Group</button>
         </div>
@@ -329,171 +158,72 @@
 
       <div class="card" id="card-create-group">
         <div class="accordion-header" onclick="toggleAccordion('create-accordion-body', 'create-accordion-icon')">
-          <h3>Create a New Group</h3>
-          <span id="create-accordion-icon" class="accordion-icon">▼</span>
+          <h3>Create a New Group</h3><span id="create-accordion-icon" class="accordion-icon">▼</span>
         </div>
         <div id="create-accordion-body" class="accordion-content hidden">
-          <label style="color: #94a3b8; font-size: 12px;">GROUP NAME</label>
-          <input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
-          <label style="color: #94a3b8; font-size: 12px; margin-top: 8px; display: block;">UNIQUE CODE</label>
+          <label>GROUP NAME</label><input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
+          <label style="margin-top: 8px; display: block;">UNIQUE CODE</label>
           <input type="text" id="create-group-code" style="text-transform: uppercase;" placeholder="e.g. FRIDAY26">
           <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
         </div>
       </div>
 
-      <!-- Logout Button -->
-      <div style="margin-top: 24px; margin-bottom: 24px;">
-        <button class="btn-danger" style="width: 100%; padding: 12px; font-size: 14px;" onclick="logoutUser()">Log Out</button>
-      </div>
-
+      <div style="margin: 24px 0;"><button class="btn-danger" style="width: 100%; padding: 12px; font-size: 14px;" onclick="logoutUser()">Log Out</button></div>
     </div>
 
     <!-- PAGE 2: TRACKER -->
     <div id="page-tracker">
       <div class="card">
-        
-        <!-- Back to Today Button -->
         <button id="back-to-today-btn" class="btn-submit hidden" style="margin-top: 0; margin-bottom: 12px;" onclick="resetToTodayDate()">Back to Today</button>
+        <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG DRINKS FOR (<span id="today-date-label"></span>)</h3>
 
-        <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">
-          LOG DRINKS FOR (<span id="today-date-label"></span>)
-        </h3>
-
-        <div class="drink-list">
-          <div class="drink-row">
-            <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M6 3h12l-2 18H8L6 3z" /><path d="M6 6c1-1 3-1 4 0 1-1 3-1 4 0 1-1 3-1 4 0" /><path d="M6 6h12" /><circle cx="10" cy="12" r="0.5" fill="#f59e0b" /><circle cx="14" cy="15" r="0.5" fill="#f59e0b" /><circle cx="11" cy="17" r="0.5" fill="#f59e0b" /></svg>
-              <span class="drink-title">Pints</span>
-            </div>
-            <div class="counter-controls">
-              <button class="btn-circle btn-minus" onclick="adjustDrink('pints', -1)">-</button>
-              <span id="cnt-pints" class="count-val">0</span>
-              <button class="btn-circle btn-plus" onclick="adjustDrink('pints', 1)">+</button>
-            </div>
-          </div>
-          <div class="drink-row">
-            <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M10 2h4v1.5h-4z" /><path d="M11 3.5h2v4.5l2.5 3v11h-7.0v-11l2.5-3v-4.5z" /><rect x="9.5" y="13" width="5" height="5" rx="1" /></svg>
-              <span class="drink-title">Bottles/Cans</span>
-            </div>
-            <div class="counter-controls">
-              <button class="btn-circle btn-minus" onclick="adjustDrink('bottles', -1)">-</button>
-              <span id="cnt-bottles" class="count-val">0</span>
-              <button class="btn-circle btn-plus" onclick="adjustDrink('bottles', 1)">+</button>
-            </div>
-          </div>
-          <div class="drink-row">
-            <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
-              <span class="drink-title">Wines</span>
-            </div>
-            <div class="counter-controls">
-              <button class="btn-circle btn-minus" onclick="adjustDrink('wines', -1)">-</button>
-              <span id="cnt-wines" class="count-val">0</span>
-              <button class="btn-circle btn-plus" onclick="adjustDrink('wines', 1)">+</button>
-            </div>
-          </div>
-          <div class="drink-row">
-            <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M4 3h16l-8 9-8-9z"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/><path d="M15 6l3-3"/></svg>
-              <span class="drink-title">Cocktails</span>
-            </div>
-            <div class="counter-controls">
-              <button class="btn-circle btn-minus" onclick="adjustDrink('cocktails', -1)">-</button>
-              <span id="cnt-cocktails" class="count-val">0</span>
-              <button class="btn-circle btn-plus" onclick="adjustDrink('cocktails', 1)">+</button>
-            </div>
-          </div>
-          <div class="drink-row">
-            <div class="drink-info">
-              <svg class="drink-icon-svg" viewBox="0 0 24 24"><path d="M6 4h12l-1.5 16h-9L6 4z"/><line x1="6.5" y1="9" x2="17.5" y2="9"/></svg>
-              <span class="drink-title">Shots</span>
-            </div>
-            <div class="counter-controls">
-              <button class="btn-circle btn-minus" onclick="adjustDrink('shots', -1)">-</button>
-              <span id="cnt-shots" class="count-val">0</span>
-              <button class="btn-circle btn-plus" onclick="adjustDrink('shots', 1)">+</button>
-            </div>
-          </div>
-        </div>
+        <div class="drink-list" id="drink-list-container"></div>
 
         <div class="summary-box">
           <div class="unit-text">TOTAL DAILY UNITS: <strong id="total-units-val">0</strong></div>
           <div class="beer-text"><span id="total-beers-val">0</span> Beer 🍺</div>
         </div>
 
-        <!-- Log Missed Drinks Accordion -->
         <div style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px;">
           <button class="btn-secondary" style="width: 100%; padding: 10px; font-size: 12px;" onclick="event.stopPropagation(); toggleAccordion('missed-drinks-body', 'missed-drinks-icon')">
             📅 Previous Days <span id="missed-drinks-icon" class="accordion-icon" style="float: right;">▼</span>
           </button>
-          
           <div id="missed-drinks-body" class="accordion-content hidden" onclick="event.stopPropagation()">
-            <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 4px;">SELECT PREVIOUS DATE</label>
-            
-            <!-- Scrollable Calendar Component -->
+            <label style="display: block; margin-bottom: 4px;">SELECT PREVIOUS DATE</label>
             <div class="calendar-container">
               <div class="calendar-header">
                 <button class="btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="navigateCalendarMonth(-1)">◄</button>
                 <h4 id="calendar-month-year">Month Year</h4>
                 <button class="btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="navigateCalendarMonth(1)">►</button>
               </div>
-
               <div class="calendar-grid">
-                <div class="calendar-day-header">Mon</div>
-                <div class="calendar-day-header">Tue</div>
-                <div class="calendar-day-header">Wed</div>
-                <div class="calendar-day-header">Thu</div>
-                <div class="calendar-day-header">Fri</div>
-                <div class="calendar-day-header">Sat</div>
+                <div class="calendar-day-header">Mon</div><div class="calendar-day-header">Tue</div>
+                <div class="calendar-day-header">Wed</div><div class="calendar-day-header">Thu</div>
+                <div class="calendar-day-header">Fri</div><div class="calendar-day-header">Sat</div>
                 <div class="calendar-day-header">Sun</div>
               </div>
-
-              <div class="calendar-scroll-area">
-                <div id="calendar-days-grid" class="calendar-grid"></div>
-              </div>
+              <div class="calendar-scroll-area"><div id="calendar-days-grid" class="calendar-grid"></div></div>
             </div>
-
           </div>
         </div>
-
       </div>
     </div>
 
     <!-- PAGE 3: STATS -->
     <div id="page-stats" class="hidden">
       <div class="card">
-        <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP TO VIEW</label>
+        <label style="font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
-
-      <!-- Clickable Total Group Beers Card -->
       <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, 'Total Group Drink Breakdown')">
         <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
         <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
         <span class="click-hint">(Click to view breakdown)</span>
       </div>
-
-      <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3>
-        <div id="leaderboard-list"></div>
-      </div>
-
-      <!-- DAILY LEADERBOARD CARD -->
-      <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3>
-        <div id="daily-leaderboard-list"></div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3>
-        <div class="chart-container"><canvas id="freqChart"></canvas></div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3>
-        <div class="chart-container"><canvas id="weeklyChart"></canvas></div>
-      </div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="leaderboard-list"></div></div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="daily-leaderboard-list"></div></div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
     </div>
   </div>
 
@@ -501,308 +231,167 @@
   <div id="breakdown-modal" class="modal-overlay hidden" onclick="closeBreakdownModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
       <h3 id="modal-title" style="margin-top: 0; margin-bottom: 16px; color: #f59e0b; text-align: center;">Drink Breakdown</h3>
-      <div class="breakdown-row">
-        <span>Pints:</span> <strong id="bd-pints">0</strong>
-      </div>
-      <div class="breakdown-row">
-        <span>Bottles/Cans:</span> <strong id="bd-bottles">0</strong>
-      </div>
-      <div class="breakdown-row">
-        <span>Wines:</span> <strong id="bd-wines">0</strong>
-      </div>
-      <div class="breakdown-row">
-        <span>Cocktails:</span> <strong id="bd-cocktails">0</strong>
-      </div>
-      <div class="breakdown-row" style="margin-bottom: 16px;">
-        <span>Shots:</span> <strong id="bd-shots">0</strong>
-      </div>
-      <button class="btn-secondary" style="width: 100%; padding: 10px; font-size: 13px;" onclick="closeBreakdownModal()">Close</button>
+      <div id="modal-breakdown-rows"></div>
+      <button class="btn-secondary" style="width: 100%; padding: 10px; font-size: 13px; margin-top: 16px;" onclick="closeBreakdownModal()">Close</button>
     </div>
   </div>
 
   <script>
     const SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
 
-    // Helper: Calculates current effective date based on 4am cutoff
+    const $ = id => document.getElementById(id);
+
+    const DRINKS = [
+      { key: 'pints', label: 'Pints', svg: '<path d="M6 3h12l-2 18H8L6 3z"/><path d="M6 6c1-1 3-1 4 0 1-1 3-1 4 0 1-1 3-1 4 0"/><path d="M6 6h12"/><circle cx="10" cy="12" r="0.5" fill="#f59e0b"/><circle cx="14" cy="15" r="0.5" fill="#f59e0b"/><circle cx="11" cy="17" r="0.5" fill="#f59e0b"/>' },
+      { key: 'bottles', label: 'Bottles/Cans', svg: '<path d="M10 2h4v1.5h-4z"/><path d="M11 3.5h2v4.5l2.5 3v11h-7.0v-11l2.5-3v-4.5z"/><rect x="9.5" y="13" width="5" height="5" rx="1"/>' },
+      { key: 'wines', label: 'Wines', svg: '<path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/>' },
+      { key: 'cocktails', label: 'Cocktails', svg: '<path d="M4 3h16l-8 9-8-9z"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/><path d="M15 6l3-3"/>' },
+      { key: 'shots', label: 'Shots', svg: '<path d="M6 4h12l-1.5 16h-9L6 4z"/><line x1="6.5" y1="9" x2="17.5" y2="9"/>' }
+    ];
+
     function getEffectiveTodayDate() {
-      const now = new Date();
-      if (now.getHours() < 4) {
-        now.setDate(now.getDate() - 1);
-      }
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
+      const d = new Date();
+      if (d.getHours() < 4) d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
     }
 
-    // Helper: Finds Monday date for any date string
     function getMondayDate(dateStr) {
       const [y, m, d] = dateStr.split('-').map(Number);
       const date = new Date(y, m - 1, d);
       const day = date.getDay();
-      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-      return new Date(date.getFullYear(), date.getMonth(), diff);
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate() - day + (day === 0 ? -6 : 1));
     }
 
-    // State
-    let userName = '';
-    let userEmail = '';
-    let firstCreatedDate = '';
-    let activeLogDate = getEffectiveTodayDate();
+    let userName = '', userEmail = '', firstCreatedDate = '', activeLogDate = getEffectiveTodayDate();
+    let calendarViewYear = new Date().getFullYear(), calendarViewMonth = new Date().getMonth();
+    let userJoinedGroups = [], relevantEmails = [], todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+    let activeHostCode = null, realtimeChannel = null, freqChartInstance = null, weeklyChartInstance = null;
+    let lifetimeTotals = {}, groupTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
 
-    // Calendar state
-    let calendarViewYear = new Date().getFullYear();
-    let calendarViewMonth = new Date().getMonth();
+    // Render Dynamic HTML components
+    $('drink-list-container').innerHTML = DRINKS.map(d => `
+      <div class="drink-row">
+        <div class="drink-info"><svg class="drink-icon-svg" viewBox="0 0 24 24">${d.svg}</svg><span class="drink-title">${d.label}</span></div>
+        <div class="counter-controls">
+          <button class="btn-circle btn-minus" onclick="adjustDrink('${d.key}', -1)">-</button>
+          <span id="cnt-${d.key}" class="count-val">0</span>
+          <button class="btn-circle btn-plus" onclick="adjustDrink('${d.key}', 1)">+</button>
+        </div>
+      </div>
+    `).join('');
 
-    let userJoinedGroups = [];
-    let relevantEmails = [];
-    let todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-    let activeHostCode = null;
-    let realtimeChannel = null;
-    let freqChartInstance = null;
-    let weeklyChartInstance = null;
-    
-    // Aggregated totals for breakdown modals
-    let lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-    let groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-    let userBreakdownsByEmail = {}; // Map of user_email -> { pints, bottles, wines, cocktails, shots }
-
-    document.getElementById('today-date-label').innerText = activeLogDate;
-
-    let authInitialized = false;
+    $('today-date-label').innerText = activeLogDate;
 
     async function initAuth() {
       const { data: { session }, error } = await sb.auth.getSession();
-
-      if (error) {
-        console.error('[auth] getSession() failed:', error);
-      } else if (session && session.user) {
-        console.log('[auth] Existing session found for', session.user.email, '— auto-signing in.');
-        await handleAuthenticatedSession(session);
-      } else {
-        console.log('[auth] No existing session found on', window.location.origin, '— showing login screen.');
-      }
-
+      if (!error && session?.user) await handleAuthenticatedSession(session);
       authInitialized = true;
     }
 
     sb.auth.onAuthStateChange(async (event, session) => {
-      console.log('[auth] event:', event, session ? `(session for ${session.user.email})` : '(no session)');
-
-      if (event === 'SIGNED_OUT') {
-        resetToLoginScreen();
-        return;
-      }
-
-      if (authInitialized && session && session.user) {
-        await handleAuthenticatedSession(session);
-      }
+      if (event === 'SIGNED_OUT') return resetToLoginScreen();
+      if (authInitialized && session?.user) await handleAuthenticatedSession(session);
     });
 
     initAuth();
 
     function toggleSignupPanel() {
-      const body = document.getElementById('signup-form-fields');
-      const icon = document.getElementById('signup-accordion-icon');
-      const isHidden = body.classList.contains('hidden');
-      body.classList.toggle('hidden');
-      icon.innerText = isHidden ? '▲' : '▼';
+      const isHidden = $('signup-form-fields').classList.toggle('hidden');
+      $('signup-accordion-icon').innerText = isHidden ? '▼' : '▲';
     }
 
     async function loginUser() {
-      const emailInput = document.getElementById('login-email').value.trim().toLowerCase();
-      const passwordInput = document.getElementById('login-password').value;
-      const errorEl = document.getElementById('login-error');
-      errorEl.classList.add('hidden');
+      const email = $('login-email').value.trim().toLowerCase(), password = $('login-password').value, err = $('login-error');
+      err.classList.add('hidden');
+      if (!email.includes('@') || !password) return showErr(err, 'Please enter a valid email and password.');
 
-      if (!emailInput || !emailInput.includes('@')) {
-        errorEl.innerText = 'Please enter a valid email address.';
-        return errorEl.classList.remove('hidden');
-      }
-      if (!passwordInput) {
-        errorEl.innerText = 'Please enter your password.';
-        return errorEl.classList.remove('hidden');
-      }
+      const btn = $('login-submit-btn');
+      btn.disabled = true; btn.innerText = 'Logging in...';
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      btn.disabled = false; btn.innerText = 'Log In';
 
-      const submitBtn = document.getElementById('login-submit-btn');
-      submitBtn.disabled = true;
-      submitBtn.innerText = 'Logging in...';
-
-      const { error } = await sb.auth.signInWithPassword({
-        email: emailInput,
-        password: passwordInput
-      });
-
-      submitBtn.disabled = false;
-      submitBtn.innerText = 'Log In';
-
-      if (error) {
-        errorEl.innerText = error.message.includes('Email not confirmed')
-          ? 'Please verify your email first — check your inbox for the link.'
-          : 'Incorrect email or password.';
-        return errorEl.classList.remove('hidden');
-      }
+      if (error) showErr(err, error.message.includes('Email not confirmed') ? 'Please verify your email first.' : 'Incorrect email or password.');
     }
 
     async function signUpUser() {
-      const nameInput = document.getElementById('signup-name').value.trim();
-      const emailInput = document.getElementById('signup-email').value.trim().toLowerCase();
-      const passwordInput = document.getElementById('signup-password').value;
-      const errorEl = document.getElementById('signup-error');
-      errorEl.classList.add('hidden');
+      const name = $('signup-name').value.trim(), email = $('signup-email').value.trim().toLowerCase(), password = $('signup-password').value, err = $('signup-error');
+      err.classList.add('hidden');
+      if (!email.includes('@') || password.length < 6) return showErr(err, 'Valid email & 6+ char password required.');
 
-      if (!emailInput || !emailInput.includes('@')) {
-        errorEl.innerText = 'Please enter a valid email address.';
-        return errorEl.classList.remove('hidden');
-      }
-      if (!passwordInput || passwordInput.length < 6) {
-        errorEl.innerText = 'Password must be at least 6 characters.';
-        return errorEl.classList.remove('hidden');
-      }
+      if (name) sessionStorage.setItem('dt_pending_name', name);
+      const btn = $('signup-submit-btn');
+      btn.disabled = true; btn.innerText = 'Signing up...';
 
-      if (nameInput) sessionStorage.setItem('dt_pending_name', nameInput);
-
-      const submitBtn = document.getElementById('signup-submit-btn');
-      submitBtn.disabled = true;
-      submitBtn.innerText = 'Signing up...';
-
-      const redirectTo = window.location.href.split('?')[0].split('#')[0];
-      const { data, error } = await sb.auth.signUp({
-        email: emailInput,
-        password: passwordInput,
-        options: {
-          emailRedirectTo: redirectTo,
-          data: { display_name: nameInput || emailInput.split('@')[0] }
-        }
+      const { error } = await sb.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: window.location.href.split('?')[0].split('#')[0], data: { display_name: name || email.split('@')[0] } }
       });
+      btn.disabled = false; btn.innerText = 'Sign Up';
 
-      submitBtn.disabled = false;
-      submitBtn.innerText = 'Sign Up';
+      if (error) return showErr(err, error.message.includes('already registered') ? 'That email is already registered.' : error.message);
 
-      if (error) {
-        errorEl.innerText = error.message.includes('already registered') || error.message.includes('User already')
-          ? 'That email is already registered — try logging in instead.'
-          : error.message;
-        return errorEl.classList.remove('hidden');
-      }
-
-      document.getElementById('login-form-fields').classList.add('hidden');
-      document.getElementById('signup-accordion-body').classList.add('hidden');
-      document.getElementById('login-check-email').classList.remove('hidden');
+      $('login-form-fields').classList.add('hidden');
+      $('signup-accordion-body').classList.add('hidden');
+      $('login-check-email').classList.remove('hidden');
     }
 
+    function showErr(el, msg) { el.innerText = msg; el.classList.remove('hidden'); }
+
     async function handleAuthenticatedSession(session) {
-      const sessionEmail = (session.user.email || '').toLowerCase().trim();
-      if (!sessionEmail) return;
+      userEmail = (session.user.email || '').toLowerCase().trim();
+      if (!userEmail) return;
 
-      userEmail = sessionEmail;
-
-      const { data: existingUser, error: userFetchErr } = await sb.from('users')
-        .select('*')
-        .eq('email', userEmail)
-        .maybeSingle();
-
-      if (userFetchErr) {
-        console.error('Failed to load user profile', userFetchErr);
-        alert('There was a problem loading your profile. Please refresh and try again.');
-        return;
-      }
-
-      if (existingUser) {
-        userName = existingUser.display_name;
-        firstCreatedDate = existingUser.created_at ? existingUser.created_at.split('T')[0] : getEffectiveTodayDate();
+      const { data: user } = await sb.from('users').select('*').eq('email', userEmail).maybeSingle();
+      if (user) {
+        userName = user.display_name;
+        firstCreatedDate = user.created_at ? user.created_at.split('T')[0] : getEffectiveTodayDate();
       } else {
-        const pendingName = sessionStorage.getItem('dt_pending_name') || session.user.user_metadata?.display_name;
-        userName = pendingName || userEmail.split('@')[0];
+        userName = sessionStorage.getItem('dt_pending_name') || session.user.user_metadata?.display_name || userEmail.split('@')[0];
         firstCreatedDate = getEffectiveTodayDate();
-
-        const { error: upsertErr } = await sb.from('users')
-          .upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
-
-        if (upsertErr) {
-          console.error('Failed to create user profile', upsertErr);
-          alert('There was a problem setting up your profile. Please try again.');
-          return;
-        }
+        await sb.from('users').upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
       }
-
       sessionStorage.removeItem('dt_pending_name');
       await showApp();
     }
 
     async function logoutUser() {
-      if (!confirm('Are you sure you want to log out?')) return;
-      teardownRealtime();
-      await sb.auth.signOut();
+      if (confirm('Are you sure you want to log out?')) { teardownRealtime(); await sb.auth.signOut(); }
     }
 
     function resetToLoginScreen() {
-      userName = '';
-      userEmail = '';
-      userJoinedGroups = [];
-      relevantEmails = [];
-      todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-      activeHostCode = null;
-
-      document.getElementById('login-email').value = '';
-      document.getElementById('login-password').value = '';
-      document.getElementById('signup-name').value = '';
-      document.getElementById('signup-email').value = '';
-      document.getElementById('signup-password').value = '';
-      document.getElementById('login-error').classList.add('hidden');
-      document.getElementById('signup-error').classList.add('hidden');
-      document.getElementById('signup-form-fields').classList.add('hidden');
-      document.getElementById('signup-accordion-icon').innerText = '▼';
-      document.getElementById('login-form-fields').classList.remove('hidden');
-      document.getElementById('signup-accordion-body').classList.remove('hidden');
-      document.getElementById('login-check-email').classList.add('hidden');
-
-      document.getElementById('app-screen').classList.add('hidden');
-      document.getElementById('login-screen').classList.remove('hidden');
+      userName = userEmail = ''; userJoinedGroups = []; relevantEmails = []; activeHostCode = null;
+      ['login-email', 'login-password', 'signup-name', 'signup-email', 'signup-password'].forEach(id => $(id).value = '');
+      ['login-error', 'signup-error', 'signup-form-fields', 'login-check-email', 'app-screen'].forEach(id => $(id).classList.add('hidden'));
+      $('login-form-fields').classList.remove('hidden');
+      $('signup-accordion-body').classList.remove('hidden');
+      $('login-screen').classList.remove('hidden');
     }
 
     async function showApp() {
-      document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('app-screen').classList.remove('hidden');
-
+      $('login-screen').classList.add('hidden');
+      $('app-screen').classList.remove('hidden');
       activeLogDate = getEffectiveTodayDate();
-      document.getElementById('today-date-label').innerText = activeLogDate;
-
       renderCalendar();
-
       await fetchDrinkLogsForDate(activeLogDate);
       await fetchUserGroups();
-
       switchPage('tracker');
     }
 
-    function calculateUnitsAndBeers(entry) {
-      if (!entry) return { units: 0, beers: 0 };
-      const totalUnits = ((entry.pints || 0) * 2) + ((entry.bottles || 0) * 1.33) + ((entry.wines || 0) * 1.25) + ((entry.cocktails || 0) * 2) + ((entry.shots || 0) * 1);
-      return { units: Number(totalUnits.toFixed(2)), beers: Math.round(totalUnits / 2) };
+    function calculateUnitsAndBeers(e) {
+      if (!e) return { units: 0, beers: 0 };
+      const u = ((e.pints||0)*2) + ((e.bottles||0)*1.33) + ((e.wines||0)*1.25) + ((e.cocktails||0)*2) + ((e.shots||0)*1);
+      return { units: Number(u.toFixed(2)), beers: Math.round(u / 2) };
     }
 
     async function fetchDrinkLogsForDate(targetDate) {
-      document.getElementById('today-date-label').innerText = targetDate;
-
-      const { data, error } = await sb.from('drink_logs')
-        .select('*')
-        .eq('user_email', userEmail)
-        .eq('log_date', targetDate)
-        .maybeSingle();
-
-      if (error) console.error(`Failed to load drinks for ${targetDate}`, error);
-
+      $('today-date-label').innerText = targetDate;
+      const { data } = await sb.from('drink_logs').select('*').eq('user_email', userEmail).eq('log_date', targetDate).maybeSingle();
       if (data) {
-        todayDrinkEntry = { pints: data.pints || 0, bottles: data.bottles || 0, wines: data.wines || 0, cocktails: data.cocktails || 0, shots: data.shots || 0 };
+        todayDrinkEntry = { pints: data.pints||0, bottles: data.bottles||0, wines: data.wines||0, cocktails: data.cocktails||0, shots: data.shots||0 };
       } else {
-        const { error: insertErr } = await sb.from('drink_logs')
-          .upsert([{ user_email: userEmail, log_date: targetDate }], { onConflict: 'user_email,log_date' });
-        if (insertErr) console.error(`Failed to initialize log for ${targetDate}`, insertErr);
+        await sb.from('drink_logs').upsert([{ user_email: userEmail, log_date: targetDate }], { onConflict: 'user_email,log_date' });
         todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       }
       updateTrackerUI();
@@ -811,146 +400,66 @@
     async function changeActiveLogDate(newDate) {
       if (!newDate) return;
       activeLogDate = newDate;
-
-      const effectiveToday = getEffectiveTodayDate();
-      const backBtn = document.getElementById('back-to-today-btn');
-
-      if (activeLogDate !== effectiveToday) {
-        backBtn.classList.remove('hidden');
-      } else {
-        backBtn.classList.add('hidden');
-      }
-
+      $('back-to-today-btn').classList.toggle('hidden', activeLogDate === getEffectiveTodayDate());
       renderCalendar();
       await fetchDrinkLogsForDate(activeLogDate);
     }
 
-    function resetToTodayDate() {
-      const effectiveToday = getEffectiveTodayDate();
-      changeActiveLogDate(effectiveToday);
-    }
+    function resetToTodayDate() { changeActiveLogDate(getEffectiveTodayDate()); }
 
-    /* Scrollable Calendar Logic */
     function renderCalendar() {
-      const grid = document.getElementById('calendar-days-grid');
-      const headerText = document.getElementById('calendar-month-year');
+      const grid = $('calendar-days-grid'), headerText = $('calendar-month-year');
       grid.innerHTML = '';
-
-      const effectiveTodayStr = getEffectiveTodayDate();
-      const dateObj = new Date(calendarViewYear, calendarViewMonth, 1);
-      
+      const todayStr = getEffectiveTodayDate(), dateObj = new Date(calendarViewYear, calendarViewMonth, 1);
       headerText.innerText = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-      // Monday offset calculation (0 = Mon, 6 = Sun)
-      let firstDayIndex = dateObj.getDay() - 1;
-      if (firstDayIndex === -1) firstDayIndex = 6;
-
+      let offset = dateObj.getDay() - 1; if (offset === -1) offset = 6;
       const totalDays = new Date(calendarViewYear, calendarViewMonth + 1, 0).getDate();
 
-      // Render leading empty cells
-      for (let i = 0; i < firstDayIndex; i++) {
-        const emptyCell = document.createElement('div');
-        emptyCell.className = 'calendar-day empty';
-        grid.appendChild(emptyCell);
-      }
+      for (let i = 0; i < offset; i++) grid.appendChild(Object.assign(document.createElement('div'), { className: 'calendar-day empty' }));
 
-      // Render day cells
       for (let day = 1; day <= totalDays; day++) {
-        const mm = String(calendarViewMonth + 1).padStart(2, '0');
-        const dd = String(day).padStart(2, '0');
-        const dateStr = `${calendarViewYear}-${mm}-${dd}`;
-
+        const dateStr = `${calendarViewYear}-${String(calendarViewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayCell = document.createElement('div');
-        dayCell.className = 'calendar-day';
+        dayCell.className = `calendar-day${dateStr === activeLogDate ? ' selected' : ''}${dateStr === todayStr ? ' today' : ''}`;
         dayCell.innerText = day;
 
-        if (dateStr === activeLogDate) {
-          dayCell.classList.add('selected');
-        }
-        if (dateStr === effectiveTodayStr) {
-          dayCell.classList.add('today');
-        }
-
-        // Disable future dates beyond effective today
-        if (dateStr > effectiveTodayStr) {
-          dayCell.classList.add('disabled');
-        } else {
-          dayCell.onclick = (e) => {
-            e.stopPropagation();
-            changeActiveLogDate(dateStr);
-          };
-        }
+        if (dateStr > todayStr) dayCell.classList.add('disabled');
+        else dayCell.onclick = e => { e.stopPropagation(); changeActiveLogDate(dateStr); };
 
         grid.appendChild(dayCell);
       }
     }
 
-    function navigateCalendarMonth(delta) {
-      calendarViewMonth += delta;
-      if (calendarViewMonth < 0) {
-        calendarViewMonth = 11;
-        calendarViewYear--;
-      } else if (calendarViewMonth > 11) {
-        calendarViewMonth = 0;
-        calendarViewYear++;
-      }
+    function navigateCalendarMonth(d) {
+      calendarViewMonth += d;
+      if (calendarViewMonth < 0) { calendarViewMonth = 11; calendarViewYear--; }
+      else if (calendarViewMonth > 11) { calendarViewMonth = 0; calendarViewYear++; }
       renderCalendar();
     }
 
     async function adjustDrink(type, delta) {
-      const currentVal = todayDrinkEntry[type] || 0;
-      todayDrinkEntry[type] = Math.max(0, currentVal + delta);
+      todayDrinkEntry[type] = Math.max(0, (todayDrinkEntry[type] || 0) + delta);
       updateTrackerUI();
 
-      const { data, error } = await sb.rpc('increment_drink_log', {
-        p_user_email: userEmail,
-        p_log_date: activeLogDate,
-        p_type: type,
-        p_delta: delta
-      });
-
-      if (error) {
-        console.error('Failed to save drink update', error);
-        alert('Could not save that update — resyncing with the server.');
-        await fetchDrinkLogsForDate(activeLogDate);
-        return;
-      }
-
-      if (data && data[0]) {
-        todayDrinkEntry = {
-          pints: data[0].pints, bottles: data[0].bottles, wines: data[0].wines,
-          cocktails: data[0].cocktails, shots: data[0].shots
-        };
-        updateTrackerUI();
-      }
-
+      const { data, error } = await sb.rpc('increment_drink_log', { p_user_email: userEmail, p_log_date: activeLogDate, p_type: type, p_delta: delta });
+      if (error) { await fetchDrinkLogsForDate(activeLogDate); return; }
+      if (data?.[0]) { todayDrinkEntry = data[0]; updateTrackerUI(); }
       updateAccountPage();
     }
 
     function updateTrackerUI() {
-      document.getElementById('cnt-pints').innerText = todayDrinkEntry.pints || 0;
-      document.getElementById('cnt-bottles').innerText = todayDrinkEntry.bottles || 0;
-      document.getElementById('cnt-wines').innerText = todayDrinkEntry.wines || 0;
-      document.getElementById('cnt-cocktails').innerText = todayDrinkEntry.cocktails || 0;
-      document.getElementById('cnt-shots').innerText = todayDrinkEntry.shots || 0;
-
+      DRINKS.forEach(d => $(`cnt-${d.key}`).innerText = todayDrinkEntry[d.key] || 0);
       const calc = calculateUnitsAndBeers(todayDrinkEntry);
-      document.getElementById('total-units-val').innerText = calc.units;
-      document.getElementById('total-beers-val').innerText = calc.beers;
+      $('total-units-val').innerText = calc.units;
+      $('total-beers-val').innerText = calc.beers;
     }
 
     async function fetchUserGroups() {
-      const { data, error } = await sb.from('group_members')
-        .select('group_code, groups(name, host_email)')
-        .eq('user_email', userEmail);
-
-      if (error) console.error('Failed to load your groups', error);
-
+      const { data } = await sb.from('group_members').select('group_code, groups(name, host_email)').eq('user_email', userEmail);
       userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
-
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
-
       renderMyGroups();
       populateAnalyticsDropdown();
       updateAccountPage();
@@ -958,112 +467,69 @@
 
     async function fetchRelevantEmails() {
       const codes = userJoinedGroups.map(g => g.code);
-      if (codes.length === 0) {
-        relevantEmails = [userEmail];
-        return;
-      }
-
-      const { data, error } = await sb.from('group_members').select('user_email').in('group_code', codes);
-      if (error) {
-        console.error('Failed to load group members for live updates', error);
-        relevantEmails = [userEmail];
-        return;
-      }
-
-      const set = new Set(data.map(d => d.user_email.toLowerCase().trim()));
-      set.add(userEmail);
-      relevantEmails = Array.from(set);
+      if (!codes.length) return relevantEmails = [userEmail];
+      const { data } = await sb.from('group_members').select('user_email').in('group_code', codes);
+      relevantEmails = Array.from(new Set((data || []).map(d => d.user_email.toLowerCase().trim()).concat(userEmail)));
     }
 
     function renderMyGroups() {
-      const container = document.getElementById('my-groups-list');
-      container.innerHTML = '';
-
-      if (userJoinedGroups.length === 0) {
-        container.innerHTML = '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
-        return;
-      }
+      const container = $('my-groups-list');
+      container.innerHTML = userJoinedGroups.length ? '' : '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
 
       userJoinedGroups.forEach(grp => {
         const isHost = (grp.host_email === userEmail);
         const wrapper = document.createElement('div');
         wrapper.id = `group-item-${grp.code}`;
-
-        const row = document.createElement('div');
-        row.className = 'member-row';
-        row.innerHTML = `
-          <div>
-            <strong>${grp.name}</strong>
-            ${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}
-          </div>
-          <div style="display:flex; gap:6px;">
-            ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
-            <button id="manage-btn-${grp.code}" class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
-            <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
-          </div>
-        `;
-        wrapper.appendChild(row);
+        wrapper.innerHTML = `
+          <div class="member-row">
+            <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}</div>
+            <div style="display:flex; gap:6px;">
+              ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
+              <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
+              <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
+            </div>
+          </div>`;
         container.appendChild(wrapper);
-
         if (activeHostCode === grp.code) renderInlineHostPanel(grp.code);
       });
     }
 
     async function createGroup() {
-      const name = document.getElementById('create-group-name').value.trim();
-      const code = document.getElementById('create-group-code').value.trim().toUpperCase();
-
+      const name = $('create-group-name').value.trim(), code = $('create-group-code').value.trim().toUpperCase();
       if (!name || !code) return alert('Provide a group name and unique code.');
 
       const { error } = await sb.from('groups').insert([{ code, name, host_email: userEmail }]);
-      if (error) {
-        if (error.code === '23505') return alert('That group code is already taken. Try a different code.');
-        return alert(`Error creating group: ${error.message}`);
-      }
+      if (error) return alert(error.code === '23505' ? 'Group code already taken.' : error.message);
 
-      const { error: memberErr } = await sb.from('group_members')
-        .upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
-
-      if (memberErr) {
-        alert(`Group was created, but adding you as a member failed: ${memberErr.message}. Try joining with the code.`);
-      }
-
-      document.getElementById('create-group-name').value = '';
-      document.getElementById('create-group-code').value = '';
+      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
+      $('create-group-name').value = $('create-group-code').value = '';
       closeAllExpandables();
       await fetchUserGroups();
     }
 
     async function joinGroup() {
-      const code = document.getElementById('join-group-code').value.trim().toUpperCase();
+      const code = $('join-group-code').value.trim().toUpperCase();
       if (!code) return alert('Enter a valid code.');
 
-      const { data: grp, error: grpErr } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
-      if (grpErr) return alert(`Error checking group: ${grpErr.message}`);
+      const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
       if (!grp) return alert('Group code not found.');
 
-      const { error } = await sb.from('group_members')
-        .upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
-
-      if (error) return alert(`Could not join group: ${error.message}`);
-
-      document.getElementById('join-group-code').value = '';
+      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
+      $('join-group-code').value = '';
       closeAllExpandables();
       await fetchUserGroups();
     }
 
     async function leaveGroup(code) {
       if (!confirm('Leave this group?')) return;
-      const { error } = await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
-      if (error) return alert(`Could not leave group: ${error.message}`);
+      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
       if (activeHostCode === code) closeHostPanel();
       await fetchUserGroups();
     }
 
     async function deleteGroup(code) {
-      if (!confirm(`Delete group code "${code}" for everyone? This cannot be undone.`)) return;
-      const { error } = await sb.from('groups').delete().eq('code', code);
-      if (error) return alert(`Could not delete group: ${error.message}`);
+      if (!confirm(`Delete group "${code}" for everyone?`)) return;
+      await sb.from('groups').delete().eq('code', code);
       closeHostPanel();
       await fetchUserGroups();
     }
@@ -1071,366 +537,213 @@
     function toggleHostPanel(e, code) {
       if (e) e.stopPropagation();
       if (activeHostCode === code) closeHostPanel();
-      else {
-        closeAllExpandables();
-        activeHostCode = code;
-        renderInlineHostPanel(code);
-      }
+      else { closeAllExpandables(); activeHostCode = code; renderInlineHostPanel(code); }
     }
 
     async function renderInlineHostPanel(code) {
-      const wrapper = document.getElementById(`group-item-${code}`);
+      const wrapper = $(`group-item-${code}`);
       if (!wrapper) return;
-
-      const grp = userJoinedGroups.find(g => g.code === code);
-      const isHost = grp && (grp.host_email === userEmail);
-      const { data: members, error } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (error) console.error('Failed to load members', error);
+      const isHost = userJoinedGroups.find(g => g.code === code)?.host_email === userEmail;
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
 
       const panel = document.createElement('div');
       panel.id = `host-panel-${code}`;
       panel.className = 'inline-host-panel';
 
       if (isHost) {
-        let memberRows = '';
-        if (members) {
-          members.forEach(m => {
-            if (m.user_email.toLowerCase().trim() !== userEmail) {
-              memberRows += `
-                <div class="member-row" style="padding: 6px 0;">
-                  <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: #94a3b8;">(${m.user_email})</span></span>
-                  <button class="btn-danger" onclick="removeMember('${code}', '${m.user_email}')">Remove</button>
-                </div>`;
-            }
-          });
-        }
+        const rows = (members||[]).filter(m => m.user_email.toLowerCase().trim() !== userEmail).map(m => `
+          <div class="member-row" style="padding: 6px 0;">
+            <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: #94a3b8;">(${m.user_email})</span></span>
+            <button class="btn-danger" onclick="removeMember('${code}', '${m.user_email}')">Remove</button>
+          </div>
+        `).join('');
 
         panel.innerHTML = `
           <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
-          <div style="margin-bottom: 8px;">
-            <span style="color: #94a3b8; font-size: 11px;">GROUP CODE: </span>
-            <strong style="color: #f59e0b; font-size: 13px;">${code}</strong>
-          </div>
-          <label style="color: #94a3b8; font-size: 11px;">MEMBERS</label>
-          <div>${memberRows || '<span style="color:#94a3b8; font-size:12px; display:block; margin-top:4px;">No other members.</span>'}</div>
+          <div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 11px;">GROUP CODE: </span><strong style="color: #f59e0b; font-size: 13px;">${code}</strong></div>
+          <label>MEMBERS</label>
+          <div>${rows || '<span style="color:#94a3b8; font-size:12px; display:block; margin-top:4px;">No other members.</span>'}</div>
           <div style="margin-top: 12px; border-top: 1px solid #334155; padding-top: 8px;">
             <button class="btn-danger" style="width: 100%; padding: 6px; font-size: 12px;" onclick="deleteGroup('${code}')">Delete Group for Everyone</button>
-          </div>
-        `;
+          </div>`;
       } else {
-        panel.innerHTML = `
-          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">GROUP INFO</h4>
-          <div>
-            <span style="color: #94a3b8; font-size: 12px;">GROUP CODE: </span>
-            <strong style="color: #f59e0b; font-size: 14px;">${code}</strong>
-          </div>
-        `;
+        panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">GROUP INFO</h4><div><span style="color: #94a3b8; font-size: 12px;">GROUP CODE: </span><strong style="color: #f59e0b; font-size: 14px;">${code}</strong></div>`;
       }
-
       wrapper.appendChild(panel);
     }
 
     async function removeMember(code, email) {
-      const { error } = await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
-      if (error) return alert(`Could not remove member: ${error.message}`);
+      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
       renderInlineHostPanel(code);
     }
 
     function teardownRealtime() {
-      if (realtimeChannel) {
-        sb.removeChannel(realtimeChannel);
-        realtimeChannel = null;
-      }
+      if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
     }
 
     function rebuildRealtimeSubscriptions() {
       teardownRealtime();
-
       const groupCodes = userJoinedGroups.map(g => g.code);
-      if (groupCodes.length === 0) return;
-
-      const codeList = groupCodes.join(',');
-      const emailList = relevantEmails.join(',');
+      if (!groupCodes.length) return;
 
       realtimeChannel = sb.channel('db-changes')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'group_members', filter: `group_code=in.(${codeList})` },
-          () => fetchUserGroups()
-        )
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'drink_logs', filter: `user_email=in.(${emailList})` },
-          () => {
-            const statsPage = document.getElementById('page-stats');
-            if (statsPage && !statsPage.classList.contains('hidden')) renderAnalytics();
-          }
-        )
-        .subscribe();
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members', filter: `group_code=in.(${groupCodes.join(',')})` }, () => fetchUserGroups())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs', filter: `user_email=in.(${relevantEmails.join(',')})` }, () => {
+          if (!$('page-stats').classList.contains('hidden')) renderAnalytics();
+        }).subscribe();
     }
 
     function populateAnalyticsDropdown() {
-      const select = document.getElementById('analytics-group-select');
-      const cur = select.value;
-      select.innerHTML = '';
-
-      if (userJoinedGroups.length === 0) {
-        select.innerHTML = '<option value="">No active groups joined</option>';
-        return;
-      }
-
-      userJoinedGroups.forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g.code;
-        opt.innerText = g.name;
-        select.appendChild(opt);
-      });
-
+      const select = $('analytics-group-select'), cur = select.value;
+      select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
       if (cur) select.value = cur;
     }
 
     async function renderAnalytics() {
-      const effectiveToday = getEffectiveTodayDate();
-      const code = document.getElementById('analytics-group-select').value;
-      const leaderboardEl = document.getElementById('leaderboard-list');
-      const dailyLeaderboardEl = document.getElementById('daily-leaderboard-list');
-      
-      leaderboardEl.innerHTML = '';
-      dailyLeaderboardEl.innerHTML = '';
+      const todayStr = getEffectiveTodayDate(), code = $('analytics-group-select').value;
+      const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
+      lb.innerHTML = dlb.innerHTML = '';
 
-      if (!code) {
-        document.getElementById('group-total-beers').innerText = '0 🍺';
-        dailyLeaderboardEl.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>';
-        return;
-      }
+      if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>'; return; }
 
-      const { data: members, error: membersErr } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (membersErr) { console.error('Failed to load members for stats', membersErr); return; }
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
       if (!members) return;
 
-      const emails = members.map(m => m.user_email);
-      const { data: logs, error: logsErr } = await sb.from('drink_logs').select('*').in('user_email', emails);
-      if (logsErr) console.error('Failed to load drink logs for stats', logsErr);
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
 
       let totalGroupBeers = 0;
       groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       userBreakdownsByEmail = {};
 
       const userTotals = members.map(m => {
-        const mEmail = m.user_email.toLowerCase().trim();
-        const userLogs = logs ? logs.filter(l => l.user_email.toLowerCase().trim() === mEmail) : [];
+        const email = m.user_email.toLowerCase().trim();
+        const userLogs = (logs || []).filter(l => l.user_email.toLowerCase().trim() === email);
         let beers = 0;
-
         const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
 
         userLogs.forEach(l => {
           beers += calculateUnitsAndBeers(l).beers;
-          uBreakdown.pints += (l.pints || 0);
-          uBreakdown.bottles += (l.bottles || 0);
-          uBreakdown.wines += (l.wines || 0);
-          uBreakdown.cocktails += (l.cocktails || 0);
-          uBreakdown.shots += (l.shots || 0);
-
-          groupTotalsBreakdown.pints += (l.pints || 0);
-          groupTotalsBreakdown.bottles += (l.bottles || 0);
-          groupTotalsBreakdown.wines += (l.wines || 0);
-          groupTotalsBreakdown.cocktails += (l.cocktails || 0);
-          groupTotalsBreakdown.shots += (l.shots || 0);
+          DRINKS.forEach(d => {
+            const val = l[d.key] || 0;
+            uBreakdown[d.key] += val;
+            groupTotalsBreakdown[d.key] += val;
+          });
         });
 
-        userBreakdownsByEmail[mEmail] = uBreakdown;
+        userBreakdownsByEmail[email] = uBreakdown;
         totalGroupBeers += beers;
-        return { name: m.user_name, email: mEmail, beers };
+        return { name: m.user_name, email, beers };
+      }).sort((a, b) => b.beers - a.beers);
+
+      userTotals.forEach(i => {
+        lb.innerHTML += `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
       });
 
-      userTotals.sort((a, b) => b.beers - a.beers);
-
-      // Render Lifetime Leaderboard with Clickable Beer Numbers
-      userTotals.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'member-row';
-        row.innerHTML = `
-          <span>${item.name} ${item.email === userEmail ? '(You)' : ''}</span>
-          <strong class="clickable-text" onclick="openUserBreakdownModal('${item.email}', '${item.name}')">${item.beers} 🍺</strong>
-        `;
-        leaderboardEl.appendChild(row);
-      });
-
-      // Daily Leaderboard calculations
       const dailyTotals = members.map(m => {
-        const mEmail = m.user_email.toLowerCase().trim();
-        const todayLog = logs ? logs.find(l => l.user_email.toLowerCase().trim() === mEmail && l.log_date === effectiveToday) : null;
-        const beers = todayLog ? calculateUnitsAndBeers(todayLog).beers : 0;
-        return { name: m.user_name, email: mEmail, beers };
-      }).filter(item => item.beers > 0);
+        const email = m.user_email.toLowerCase().trim();
+        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
+        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
+      }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
 
-      dailyTotals.sort((a, b) => b.beers - a.beers);
+      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
 
-      if (dailyTotals.length === 0) {
-        dailyLeaderboardEl.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
-      } else {
-        dailyTotals.forEach(item => {
-          const row = document.createElement('div');
-          row.className = 'member-row';
-          row.innerHTML = `<span>${item.name} ${item.email === userEmail ? '(You)' : ''}</span><strong>${item.beers} 🍺</strong>`;
-          dailyLeaderboardEl.appendChild(row);
-        });
-      }
-
-      document.getElementById('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
+      $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
       renderCharts(logs || []);
     }
 
-    function openUserBreakdownModal(email, displayName) {
-      const breakdown = userBreakdownsByEmail[email.toLowerCase().trim()] || { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-      const title = `${displayName}'s Drink Breakdown`;
-      openBreakdownModal(breakdown, title);
+    function openUserBreakdownModal(email, name) {
+      openBreakdownModal(userBreakdownsByEmail[email.toLowerCase().trim()], `${name}'s Drink Breakdown`);
     }
 
     function renderCharts(logs) {
-      const canvas1 = document.getElementById('freqChart');
-      const canvas2 = document.getElementById('weeklyChart');
-      if (!canvas1 || !canvas2) return;
+      const c1 = $('freqChart'), c2 = $('weeklyChart');
+      if (!c1 || !c2) return;
 
-      const freqMap = {};
-      const weeklyMap = {};
-
+      const freqMap = {}, weeklyMap = {};
       logs.forEach(l => {
         const beers = calculateUnitsAndBeers(l).beers;
         if (beers > 0) {
           freqMap[beers] = (freqMap[beers] || 0) + 1;
-
-          // Compute Monday "week commencing" date key
-          const monday = getMondayDate(l.log_date);
-          const yyyy = monday.getFullYear();
-          const mm = String(monday.getMonth() + 1).padStart(2, '0');
-          const dd = String(monday.getDate()).padStart(2, '0');
-          const mondayKey = `${yyyy}-${mm}-${dd}`; // Key for chronological sorting
-
-          const monthName = monday.toLocaleString('default', { month: 'short' });
-          const label = `w/c ${monthName} ${monday.getDate()}`;
-
-          if (!weeklyMap[mondayKey]) {
-            weeklyMap[mondayKey] = { label, beers: 0 };
-          }
-          weeklyMap[mondayKey].beers += beers;
+          const mon = getMondayDate(l.log_date), key = mon.toISOString().split('T')[0];
+          const label = `w/c ${mon.toLocaleString('default', { month: 'short' })} ${mon.getDate()}`;
+          if (!weeklyMap[key]) weeklyMap[key] = { label, beers: 0 };
+          weeklyMap[key].beers += beers;
         }
       });
 
-      // Frequency Chart
-      const sortedAmounts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
+      const sortedAmts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
       if (freqChartInstance) freqChartInstance.destroy();
-      freqChartInstance = new Chart(canvas1.getContext('2d'), {
+      freqChartInstance = new Chart(c1.getContext('2d'), {
         type: 'bar',
-        data: { labels: sortedAmounts.map(amt => `${amt} Beer${amt > 1 ? 's' : ''}`), datasets: [{ data: sortedAmounts.map(amt => freqMap[amt]), backgroundColor: '#f59e0b', borderRadius: 6 }] },
+        data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#f59e0b', borderRadius: 6 }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
 
-      // Chronological Weekly Line Chart
       const sortedWeeks = Object.keys(weeklyMap).sort();
-      const weeklyLabels = sortedWeeks.map(k => weeklyMap[k].label);
-      const weeklyData = sortedWeeks.map(k => weeklyMap[k].beers);
-
       if (weeklyChartInstance) weeklyChartInstance.destroy();
-      weeklyChartInstance = new Chart(canvas2.getContext('2d'), {
+      weeklyChartInstance = new Chart(c2.getContext('2d'), {
         type: 'line',
         data: {
-          labels: weeklyLabels,
-          datasets: [{
-            data: weeklyData,
-            borderColor: '#f59e0b',
-            backgroundColor: 'rgba(245, 158, 11, 0.2)',
-            fill: true,
-            tension: 0.3
-          }]
+          labels: sortedWeeks.map(k => weeklyMap[k].label),
+          datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.3 }]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
     }
 
     function updateAccountPage() {
-      document.getElementById('acc-name-display').innerText = userName;
-      document.getElementById('acc-email-display').innerText = userEmail;
+      $('acc-name-display').innerText = userName;
+      $('acc-email-display').innerText = userEmail;
+      $('acc-days-active').innerText = Math.max(1, Math.ceil(Math.abs(new Date() - new Date(firstCreatedDate)) / 86400000));
+      $('acc-groups-count').innerText = userJoinedGroups.length;
 
-      const startDate = new Date(firstCreatedDate);
-      const diffDays = Math.max(1, Math.ceil(Math.abs(new Date() - startDate) / (1000 * 60 * 60 * 24)));
-      document.getElementById('acc-days-active').innerText = diffDays;
-      document.getElementById('acc-groups-count').innerText = userJoinedGroups.length;
-
-      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data, error }) => {
-        if (error) { console.error('Failed to load lifetime stats', error); return; }
-        
-        let lifetimeBeers = 0;
-        lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-        
-        if (data) {
-          data.forEach(entry => {
-            lifetimeBeers += calculateUnitsAndBeers(entry).beers;
-            lifetimeTotals.pints += (entry.pints || 0);
-            lifetimeTotals.bottles += (entry.bottles || 0);
-            lifetimeTotals.wines += (entry.wines || 0);
-            lifetimeTotals.cocktails += (entry.cocktails || 0);
-            lifetimeTotals.shots += (entry.shots || 0);
-          });
-        }
-        document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
+      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data }) => {
+        let beers = 0; lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+        (data || []).forEach(e => {
+          beers += calculateUnitsAndBeers(e).beers;
+          DRINKS.forEach(d => lifetimeTotals[d.key] += (e[d.key] || 0));
+        });
+        $('acc-total-pints').innerText = `${beers} 🍺`;
       });
     }
 
-    // Modal Control Functions (Reusable across Account and Stats)
-    function openBreakdownModal(dataObj, customTitle) {
-      const data = dataObj || { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-      document.getElementById('modal-title').innerText = customTitle || 'Drink Breakdown';
-      document.getElementById('bd-pints').innerText = data.pints || 0;
-      document.getElementById('bd-bottles').innerText = data.bottles || 0;
-      document.getElementById('bd-wines').innerText = data.wines || 0;
-      document.getElementById('bd-cocktails').innerText = data.cocktails || 0;
-      document.getElementById('bd-shots').innerText = data.shots || 0;
-      document.getElementById('breakdown-modal').classList.remove('hidden');
+    function openBreakdownModal(dataObj, title) {
+      const data = dataObj || {};
+      $('modal-title').innerText = title || 'Drink Breakdown';
+      $('modal-breakdown-rows').innerHTML = DRINKS.map(d => `<div class="breakdown-row"><span>${d.label}:</span> <strong>${data[d.key] || 0}</strong></div>`).join('');
+      $('breakdown-modal').classList.remove('hidden');
     }
 
     function closeBreakdownModal(e) {
       if (e) e.stopPropagation();
-      document.getElementById('breakdown-modal').classList.add('hidden');
+      $('breakdown-modal').classList.add('hidden');
     }
 
     async function editProfileName() {
       const newName = prompt("Enter new display name:", userName);
-      if (newName && newName.trim()) {
+      if (newName?.trim()) {
         userName = newName.trim();
-
-        const { error: userErr } = await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
-        const { error: memberErr } = await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
-
-        if (userErr || memberErr) {
-          alert('Some profile updates failed to save. Please try again.');
-        }
-
+        await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
+        await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
         fetchUserGroups();
       }
     }
 
     function shareGroup(e, code) {
       if (e) e.stopPropagation();
-      const shareUrl = `${window.location.href.split('?')[0]}?join=${code}`;
-      if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url: shareUrl });
-      else navigator.clipboard.writeText(shareUrl).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
+      const url = `${window.location.href.split('?')[0]}?join=${code}`;
+      if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url });
+      else navigator.clipboard.writeText(url).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
     }
 
     function closeAllExpandables() {
       closeHostPanel();
-      ['join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-      });
-      ['join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = '▼';
-      });
+      ['groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => $(id)?.classList.add('hidden'));
+      ['groups-accordion-icon', 'join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => { if ($(id)) $(id).innerText = '▼'; });
     }
 
     function toggleAccordion(bodyId, iconId) {
-      const body = document.getElementById(bodyId);
-      const icon = document.getElementById(iconId);
-      const isHidden = body.classList.contains('hidden');
+      const body = $(bodyId), icon = $(iconId), isHidden = body.classList.contains('hidden');
       closeAllExpandables();
       if (isHidden) {
         body.classList.remove('hidden');
@@ -1440,42 +753,24 @@
     }
 
     function closeHostPanel() {
-      if (activeHostCode) {
-        const p = document.getElementById(`host-panel-${activeHostCode}`);
-        if (p) p.remove();
-        activeHostCode = null;
-      }
+      if (activeHostCode) { $(`host-panel-${activeHostCode}`)?.remove(); activeHostCode = null; }
     }
 
     function handleGlobalClick(e) {
-      const joinCard = document.getElementById('card-join-group');
-      const createCard = document.getElementById('card-create-group');
-      const missedDrinksBody = document.getElementById('missed-drinks-body');
-      const missedDrinksBtn = e.target.closest('button')?.getAttribute('onclick')?.includes('missed-drinks-body');
-      
-      let isInsideHost = activeHostCode && document.getElementById(`host-panel-${activeHostCode}`)?.contains(e.target);
-
-      if (!joinCard?.contains(e.target) && 
-          !createCard?.contains(e.target) && 
-          !missedDrinksBody?.contains(e.target) && 
-          !missedDrinksBtn && 
-          !isInsideHost) {
-        closeAllExpandables();
-      }
+      const isInsideCard = ['card-active-groups', 'card-join-group', 'card-create-group', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
+      const isMissedBtn = e.target.closest('button')?.getAttribute('onclick')?.includes('missed-drinks-body');
+      const isInsideHost = activeHostCode && $(`host-panel-${activeHostCode}`)?.contains(e.target);
+      if (!isInsideCard && !isMissedBtn && !isInsideHost) closeAllExpandables();
     }
 
-    function switchPage(page) {
+    function switchPage(p) {
       closeAllExpandables();
-      ['account', 'tracker', 'stats'].forEach(p => {
-        document.getElementById(`page-${p}`).classList.add('hidden');
-        document.getElementById(`nav-${p}`).classList.remove('active');
+      ['account', 'tracker', 'stats'].forEach(page => {
+        $(`page-${page}`).classList.toggle('hidden', page !== p);
+        $(`nav-${page}`).classList.toggle('active', page === p);
       });
-
-      document.getElementById(`page-${page}`).classList.remove('hidden');
-      document.getElementById(`nav-${page}`).classList.add('active');
-
-      if (page === 'account') updateAccountPage();
-      if (page === 'stats') renderAnalytics();
+      if (p === 'account') updateAccountPage();
+      if (p === 'stats') renderAnalytics();
     }
   </script>
 </body>
