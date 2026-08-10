@@ -69,6 +69,11 @@
     .calendar-day.today { border: 1px solid #f59e0b; }
     .calendar-day.disabled { opacity: 0.25; cursor: not-allowed; background: transparent; }
     .calendar-day.empty { background: transparent; cursor: default; }
+    
+    /* Centered Select Dropdown for Analytics */
+    .centered-select-container { text-align: center; }
+    .centered-select-container label { display: block; text-align: center; margin-bottom: 4px; }
+    .centered-select-container select { text-align: center; text-align-last: center; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -129,7 +134,7 @@
           <div class="stat-box"><div class="stat-label">Days Active</div><div id="acc-days-active" class="stat-number">1</div></div>
           <div class="stat-box"><div class="stat-label">Groups Joined</div><div id="acc-groups-count" class="stat-number">0</div></div>
           <div class="stat-box clickable-stat" style="grid-column: span 2;" onclick="openBreakdownModal(lifetimeTotals, 'Your Lifetime Drink Breakdown')">
-            <div class="stat-label">Total Lifetime Pints Drunk</div>
+            <div class="stat-label">Total Lifetime Drinks</div>
             <div id="acc-total-pints" class="stat-number">0 🍺</div>
             <span class="click-hint">(Click to view breakdown)</span>
           </div>
@@ -211,7 +216,7 @@
 
     <!-- PAGE 3: STATS -->
     <div id="page-stats" class="hidden">
-      <div class="card">
+      <div class="card centered-select-container">
         <label style="font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
