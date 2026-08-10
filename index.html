@@ -85,6 +85,10 @@
     .stat-number { font-size: 26px; font-weight: 900; color: #f59e0b; margin-top: 4px; }
     .stat-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
 
+    .clickable-stat { cursor: pointer; transition: background-color 0.2s; position: relative; }
+    .clickable-stat:hover { background: #334155; }
+    .click-hint { font-size: 10px; color: #64748b; font-weight: normal; margin-top: 4px; display: block; text-transform: none; }
+
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
     .btn-circle {
       width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -115,6 +119,24 @@
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
     .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .modal-content {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 24px; width: 100%; max-width: 320px;
+    }
+    .breakdown-row {
+      display: flex; justify-content: space-between; padding: 10px 0;
+      border-bottom: 1px solid #334155; font-size: 14px;
+    }
+    .breakdown-row:last-child { border-bottom: none; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -175,13 +197,14 @@
   <div id="app-screen" class="hidden">
     <nav>
       <button id="nav-account" onclick="switchPage('account')">Account</button>
-      <button id="nav-groups" onclick="switchPage('groups')">Groups</button>
       <button id="nav-tracker" class="active" onclick="switchPage('tracker')">Tracker</button>
       <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
     </nav>
 
-    <!-- PAGE 1: ACCOUNT -->
+    <!-- PAGE 1: ACCOUNT (Consolidated) -->
     <div id="page-account" class="hidden">
+      
+      <!-- User Profile Stats -->
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
         <div class="member-row">
@@ -207,20 +230,17 @@
             <div class="stat-label">Groups Joined</div>
             <div id="acc-groups-count" class="stat-number">0</div>
           </div>
-          <div class="stat-box" style="grid-column: span 2;">
-            <div class="stat-label">Total Lifetime Pints Drunk</div>
+          
+          <!-- Clickable Lifetime Pints -->
+          <div class="stat-box clickable-stat" style="grid-column: span 2;" onclick="openBreakdownModal()">
+            <div class="stat-label">Total Lifetime Beers Drunk</div>
             <div id="acc-total-pints" class="stat-number">0 🍺</div>
+            <span class="click-hint">(Click to see breakdown)</span>
           </div>
         </div>
-
-        <div style="margin-top: 18px;">
-          <button class="btn-danger" style="width: 100%; padding: 10px; font-size: 13px;" onclick="logoutUser()">Log Out</button>
-        </div>
       </div>
-    </div>
 
-    <!-- PAGE 2: GROUPS -->
-    <div id="page-groups" class="hidden">
+      <!-- Consolidated Groups Section -->
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">YOUR ACTIVE GROUPS</h3>
         <div id="my-groups-list"></div>
@@ -251,9 +271,15 @@
           <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
         </div>
       </div>
+
+      <!-- Logout Button (At bottom of Account page) -->
+      <div style="margin-top: 24px; margin-bottom: 24px;">
+        <button class="btn-danger" style="width: 100%; padding: 12px; font-size: 14px;" onclick="logoutUser()">Log Out</button>
+      </div>
+
     </div>
 
-    <!-- PAGE 3: TRACKER -->
+    <!-- PAGE 2: TRACKER -->
     <div id="page-tracker">
       <div class="card">
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG TODAY'S DRINKS (<span id="today-date-label"></span>)</h3>
@@ -322,7 +348,7 @@
       </div>
     </div>
 
-    <!-- PAGE 4: STATS -->
+    <!-- PAGE 3: STATS -->
     <div id="page-stats" class="hidden">
       <div class="card">
         <label style="color: #94a3b8; font-size: 12px; font-weight: bold;">SELECT GROUP TO VIEW</label>
@@ -357,6 +383,29 @@
     </div>
   </div>
 
+  <!-- BREAKDOWN MODAL -->
+  <div id="breakdown-modal" class="modal-overlay hidden" onclick="closeBreakdownModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h3 style="margin-top: 0; margin-bottom: 16px; color: #f59e0b; text-align: center;">Lifetime Drink Breakdown</h3>
+      <div class="breakdown-row">
+        <span>Pints:</span> <strong id="bd-pints">0</strong>
+      </div>
+      <div class="breakdown-row">
+        <span>Bottles/Cans:</span> <strong id="bd-bottles">0</strong>
+      </div>
+      <div class="breakdown-row">
+        <span>Wines:</span> <strong id="bd-wines">0</strong>
+      </div>
+      <div class="breakdown-row">
+        <span>Cocktails:</span> <strong id="bd-cocktails">0</strong>
+      </div>
+      <div class="breakdown-row" style="margin-bottom: 16px;">
+        <span>Shots:</span> <strong id="bd-shots">0</strong>
+      </div>
+      <button class="btn-secondary" style="width: 100%; padding: 10px; font-size: 13px;" onclick="closeBreakdownModal()">Close</button>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
@@ -377,6 +426,9 @@
     let realtimeChannel = null;
     let freqChartInstance = null;
     let weeklyChartInstance = null;
+    
+    // Stores aggregated totals for the modal
+    let lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
 
     document.getElementById('today-date-label').innerText = todayDate;
 
@@ -1009,10 +1061,37 @@
 
       sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data, error }) => {
         if (error) { console.error('Failed to load lifetime stats', error); return; }
+        
         let lifetimeBeers = 0;
-        if (data) data.forEach(entry => lifetimeBeers += calculateUnitsAndBeers(entry).beers);
+        lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+        
+        if (data) {
+          data.forEach(entry => {
+            lifetimeBeers += calculateUnitsAndBeers(entry).beers;
+            lifetimeTotals.pints += (entry.pints || 0);
+            lifetimeTotals.bottles += (entry.bottles || 0);
+            lifetimeTotals.wines += (entry.wines || 0);
+            lifetimeTotals.cocktails += (entry.cocktails || 0);
+            lifetimeTotals.shots += (entry.shots || 0);
+          });
+        }
         document.getElementById('acc-total-pints').innerText = `${lifetimeBeers} 🍺`;
       });
+    }
+
+    // Modal Control Functions
+    function openBreakdownModal() {
+      document.getElementById('bd-pints').innerText = lifetimeTotals.pints;
+      document.getElementById('bd-bottles').innerText = lifetimeTotals.bottles;
+      document.getElementById('bd-wines').innerText = lifetimeTotals.wines;
+      document.getElementById('bd-cocktails').innerText = lifetimeTotals.cocktails;
+      document.getElementById('bd-shots').innerText = lifetimeTotals.shots;
+      document.getElementById('breakdown-modal').classList.remove('hidden');
+    }
+
+    function closeBreakdownModal(e) {
+      if (e) e.stopPropagation();
+      document.getElementById('breakdown-modal').classList.add('hidden');
     }
 
     async function editProfileName() {
@@ -1073,7 +1152,7 @@
 
     function switchPage(page) {
       closeAllExpandables();
-      ['account', 'groups', 'tracker', 'stats'].forEach(p => {
+      ['account', 'tracker', 'stats'].forEach(p => {
         document.getElementById(`page-${p}`).classList.add('hidden');
         document.getElementById(`nav-${p}`).classList.remove('active');
       });
