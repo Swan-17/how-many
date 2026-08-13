@@ -532,6 +532,26 @@
     async function fetchUserGroups() {
       const { data } = await sb.from('group_members').select('group_code, groups(name, host_email)').eq('user_email', userEmail);
       userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
+      
+      if (userJoinedGroups.length > 0) {
+        const codes = userJoinedGroups.map(g => g.code);
+        const { data: allMembers } = await sb.from('group_members').select('group_code, user_email').in('group_code', codes);
+        const allMemberEmails = Array.from(new Set((allMembers || []).map(m => m.user_email.toLowerCase().trim())));
+        const { data: allLogs } = await sb.from('drink_logs').select('*').in('user_email', allMemberEmails);
+
+        userJoinedGroups = userJoinedGroups.map(grp => {
+          const grpMembers = (allMembers || []).filter(m => m.group_code === grp.code);
+          const memEmails = grpMembers.map(m => m.user_email.toLowerCase().trim());
+          const grpLogs = (allLogs || []).filter(l => memEmails.includes(l.user_email.toLowerCase().trim()));
+          
+          let totalBeers = 0;
+          grpLogs.forEach(l => {
+            totalBeers += calculateUnitsAndBeers(l).beers;
+          });
+          return { ...grp, totalBeers };
+        }).sort((a, b) => b.totalBeers - a.totalBeers);
+      }
+
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
       renderMyGroups();
@@ -682,7 +702,11 @@
     function populateAnalyticsDropdown() {
       const select = $('analytics-group-select'), cur = select.value;
       select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
-      if (cur) select.value = cur;
+      if (cur && userJoinedGroups.some(g => g.code === cur)) {
+        select.value = cur;
+      } else if (userJoinedGroups.length > 0) {
+        select.value = userJoinedGroups[0].code;
+      }
     }
 
     async function renderAnalytics() {
@@ -1070,7 +1094,10 @@
       });
 
       if (p === 'account') updateAccountPage();
-      if (p === 'stats') renderAnalytics();
+      if (p === 'stats') {
+        populateAnalyticsDropdown();
+        renderAnalytics();
+      }
       if (p === 'admin') renderAdminPage();
     }
   </script>
