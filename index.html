@@ -120,8 +120,8 @@
   <div id="app-screen" class="hidden">
     <nav>
       <button id="nav-account" onclick="switchPage('account')">Account</button>
-      <button id="nav-tracker" onclick="switchPage('tracker')">Tracker</button>
-      <button id="nav-stats" class="active" onclick="switchPage('stats')">Stats</button>
+      <button id="nav-tracker" class="active" onclick="switchPage('tracker')">Tracker</button>
+      <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
       <button id="nav-admin" class="admin-tab hidden" onclick="switchPage('admin')">Admin 🛡️</button>
     </nav>
 
@@ -191,7 +191,7 @@
     </div>
 
     <!-- PAGE 2: TRACKER -->
-    <div id="page-tracker" class="hidden">
+    <div id="page-tracker">
       <div class="card">
         <button id="back-to-today-btn" class="btn-submit hidden" style="margin-top: 0; margin-bottom: 12px;" onclick="resetToTodayDate()">Back to Today</button>
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG DRINKS FOR (<span id="today-date-label"></span>)</h3>
@@ -229,7 +229,7 @@
     </div>
 
     <!-- PAGE 3: STATS -->
-    <div id="page-stats">
+    <div id="page-stats" class="hidden">
       <div class="card centered-select-container">
         <label style="font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
@@ -446,7 +446,7 @@
       renderCalendar();
       await fetchDrinkLogsForDate(activeLogDate);
       await fetchUserGroups();
-      switchPage('stats');
+      switchPage('tracker');
     }
 
     function calculateUnitsAndBeers(e) {
@@ -535,7 +535,7 @@
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
       renderMyGroups();
-      await populateAnalyticsDropdownAndSelectMaxGroup();
+      populateAnalyticsDropdown();
       updateAccountPage();
     }
 
@@ -679,38 +679,10 @@
         }).subscribe();
     }
 
-    async function populateAnalyticsDropdownAndSelectMaxGroup() {
-      const select = $('analytics-group-select');
-      if (!userJoinedGroups.length) {
-        select.innerHTML = '<option value="">No active groups joined</option>';
-        return;
-      }
-
-      let maxBeers = -1;
-      let maxGroupCode = userJoinedGroups[0].code;
-
-      for (const grp of userJoinedGroups) {
-        const { data: rawMembers } = await sb.from('group_members').select('user_email').eq('group_code', grp.code);
-        if (rawMembers && rawMembers.length > 0) {
-          // Deduplicate member emails to prevent duplicate calculations/listings
-          const emails = Array.from(new Set(rawMembers.map(m => m.user_email.toLowerCase().trim())));
-          const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
-          let groupBeers = 0;
-          if (logs) {
-            logs.forEach(l => {
-              groupBeers += calculateUnitsAndBeers(l).beers;
-            });
-          }
-          if (groupBeers > maxBeers) {
-            maxBeers = groupBeers;
-            maxGroupCode = grp.code;
-          }
-        }
-      }
-
-      select.innerHTML = userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('');
-      select.value = maxGroupCode;
-      renderAnalytics();
+    function populateAnalyticsDropdown() {
+      const select = $('analytics-group-select'), cur = select.value;
+      select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
+      if (cur) select.value = cur;
     }
 
     async function renderAnalytics() {
@@ -720,18 +692,8 @@
 
       if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>'; return; }
 
-      const { data: rawMembers } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!rawMembers) return;
-
-      // FIX: Deduplicate members by email to prevent duplicate rows showing up in the leaderboard
-      const uniqueMembersMap = new Map();
-      rawMembers.forEach(m => {
-        const email = m.user_email.toLowerCase().trim();
-        if (!uniqueMembersMap.has(email)) {
-          uniqueMembersMap.set(email, m);
-        }
-      });
-      const members = Array.from(uniqueMembersMap.values());
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      if (!members) return;
 
       const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
 
@@ -893,6 +855,7 @@
       const allGroups = groupsRes.data || [];
       const allMembers = membersRes.data || [];
 
+      // 1. All Users (>= 1 Drink Logged)
       const activeUsersData = [];
 
       allUsers.forEach(u => {
@@ -943,9 +906,10 @@
         uContainer.innerHTML = uHtml;
       }
 
+      // 2. Group Level Data (Filter out groups with < 2 total beers)
       const groupsData = allGroups.map(g => {
         const gMembers = allMembers.filter(m => m.group_code === g.code);
-        const memberEmails = Array.from(new Set(gMembers.map(m => m.user_email.toLowerCase().trim())));
+        const memberEmails = gMembers.map(m => m.user_email.toLowerCase().trim());
         const gLogs = allLogs.filter(l => memberEmails.includes(l.user_email.toLowerCase().trim()));
 
         let totalGroupBeers = 0;
@@ -955,11 +919,11 @@
           code: g.code,
           name: g.name,
           host: g.host_email,
-          memberCount: memberEmails.length,
+          memberCount: gMembers.length,
           totalBeers: totalGroupBeers
         };
       })
-      .filter(g => g.totalBeers >= 2)
+      .filter(g => g.totalBeers >= 2) // Filter for 2 or more beers
       .sort((a, b) => b.totalBeers - a.totalBeers);
 
       if (!groupsData.length) {
@@ -999,15 +963,8 @@
       const lb = $('admin-leaderboard-list'), dlb = $('admin-daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
 
-      const { data: rawMembers } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!rawMembers) return;
-
-      const uniqueMembersMap = new Map();
-      rawMembers.forEach(m => {
-        const email = m.user_email.toLowerCase().trim();
-        if (!uniqueMembersMap.has(email)) uniqueMembersMap.set(email, m);
-      });
-      const members = Array.from(uniqueMembersMap.values());
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      if (!members) return;
 
       const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
 
