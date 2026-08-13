@@ -311,8 +311,19 @@
 
     function getEffectiveTodayDate() {
       const d = new Date();
-      if (d.getHours() < 4) d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
+      const localHours = d.getHours();
+      const localMinutes = d.getMinutes();
+      const totalMinutes = localHours * 60 + localMinutes;
+      const cutoffMinutes = 6 * 60 + 30; // 6:30 AM cutoff
+      
+      if (totalMinutes < cutoffMinutes) {
+        d.setDate(d.getDate() - 1);
+      }
+      
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
     function getMondayDate(dateStr) {
@@ -675,7 +686,7 @@
     }
 
     async function renderAnalytics() {
-      const todayStr = getEffectiveTodayDate(), code = $('analytics-group-select').value;
+      const targetDailyDate = activeLogDate, code = $('analytics-group-select').value;
       const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
 
@@ -715,11 +726,11 @@
 
       const dailyTotals = members.map(m => {
         const email = m.user_email.toLowerCase().trim();
-        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
-        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
+        const targetLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === targetDailyDate);
+        return { name: m.user_name, email, beers: targetLog ? calculateUnitsAndBeers(targetLog).beers : 0 };
       }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
 
-      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged for this session yet.</span>';
 
       $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
       renderCharts(logs || [], 'freqChart', 'weeklyChart');
@@ -944,7 +955,7 @@
     }
 
     async function inspectGroupAsAdmin(code, name) {
-      const todayStr = getEffectiveTodayDate();
+      const targetDailyDate = activeLogDate;
       const view = $('admin-group-inspection-view');
       view.classList.remove('hidden');
       $('admin-inspected-group-title').innerText = `📊 ${name} (${code})`;
@@ -986,11 +997,11 @@
 
       const dailyTotals = members.map(m => {
         const email = m.user_email.toLowerCase().trim();
-        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
-        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
+        const targetLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === targetDailyDate);
+        return { name: m.user_name, email, beers: targetLog ? calculateUnitsAndBeers(targetLog).beers : 0 };
       }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
 
-      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged for this session yet.</span>';
 
       $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
       renderCharts(logs || [], 'adminFreqChart', 'adminWeeklyChart');
