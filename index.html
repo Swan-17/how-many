@@ -12,6 +12,7 @@
     nav { display: flex; gap: 6px; margin-bottom: 16px; }
     nav button { flex: 1; padding: 10px 4px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; font: bold 13px inherit; cursor: pointer; }
     nav button.active { background: #f59e0b; color: #000; border-color: #f59e0b; }
+    nav button.admin-tab.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
     .card { background: #1e293b; padding: 18px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #334155; }
     .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
     .accordion-header h3 { margin: 0; font-size: 15px; }
@@ -45,10 +46,12 @@
     label { color: #94a3b8; font-size: 12px; }
     .btn-submit { background: #f59e0b; color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
     .btn-submit:disabled { opacity: 0.6; cursor: default; }
-    .btn-danger, .btn-secondary, .btn-share { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; }
+    .btn-danger, .btn-secondary, .btn-share, .btn-admin { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; }
     .btn-danger { background: #ef4444; }
     .btn-secondary { background: #334155; }
     .btn-share { background: #059669; }
+    .btn-admin { background: #8b5cf6; color: white; }
+    .btn-admin:hover { background: #7c3aed; }
     .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
     .member-row:last-child { border-bottom: none; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
@@ -70,10 +73,13 @@
     .calendar-day.disabled { opacity: 0.25; cursor: not-allowed; background: transparent; }
     .calendar-day.empty { background: transparent; cursor: default; }
     
-    /* Centered Select Dropdown for Analytics */
     .centered-select-container { text-align: center; }
     .centered-select-container label { display: block; text-align: center; margin-bottom: 4px; }
     .centered-select-container select { text-align: center; text-align-last: center; }
+
+    .admin-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    .admin-table th, .admin-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #334155; }
+    .admin-table th { color: #8b5cf6; font-size: 11px; text-transform: uppercase; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -116,6 +122,7 @@
       <button id="nav-account" onclick="switchPage('account')">Account</button>
       <button id="nav-tracker" class="active" onclick="switchPage('tracker')">Tracker</button>
       <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
+      <button id="nav-admin" class="admin-tab hidden" onclick="switchPage('admin')">Admin 🛡️</button>
     </nav>
 
     <!-- PAGE 1: ACCOUNT -->
@@ -139,6 +146,13 @@
             <span class="click-hint">(Click to view breakdown)</span>
           </div>
         </div>
+      </div>
+
+      <!-- ADMIN REVEAL BUTTON (Visible ONLY on Account Page to Admin) -->
+      <div id="admin-trigger-card" class="card hidden" style="border: 1px solid #8b5cf6;">
+        <h3 style="margin-top: 0; font-size: 14px; color: #8b5cf6;">ADMIN CONTROLS</h3>
+        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Reveal the Admin Dashboard tab to view system-wide analytics.</p>
+        <button class="btn-admin" style="width: 100%; padding: 10px; font-size: 13px;" onclick="revealAndOpenAdminTab()">Open Admin Dashboard 🛡️</button>
       </div>
 
       <div class="card" id="card-active-groups">
@@ -230,6 +244,44 @@
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
     </div>
+
+    <!-- PAGE 4: ADMIN (Hidden tab) -->
+    <div id="page-admin" class="hidden">
+      <div class="card" style="border-color: #8b5cf6;">
+        <h3 style="margin-top: 0; font-size: 16px; color: #8b5cf6; text-align: center;">🛡️ SYSTEM ADMIN DASHBOARD</h3>
+        <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0;">System-wide access to all users and group data.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">ALL USERS</h3>
+        <div id="admin-users-table-container">
+          <span style="color: #94a3b8; font-size: 12px;">Loading user analysis...</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">GROUP-LEVEL OVERVIEW</h3>
+        <div id="admin-groups-table-container">
+          <span style="color: #94a3b8; font-size: 12px;">Loading group data...</span>
+        </div>
+      </div>
+
+      <div id="admin-group-inspection-view" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 id="admin-inspected-group-title" style="margin: 0; font-size: 16px; color: #8b5cf6;">Group Details</h3>
+          <button class="btn-secondary" onclick="closeAdminGroupInspection()">Close Group View</button>
+        </div>
+        <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(adminGroupTotalsBreakdown, 'Total Group Drink Breakdown')">
+          <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
+          <p id="admin-group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
+          <span class="click-hint">(Click to view breakdown)</span>
+        </div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="admin-leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="admin-daily-leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminFreqChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="adminWeeklyChart"></canvas></div></div>
+      </div>
+    </div>
   </div>
 
   <!-- BREAKDOWN MODAL -->
@@ -242,6 +294,7 @@
   </div>
 
   <script>
+    const ADMIN_EMAIL = 'matthew.swan@miqdigital.com';
     const SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
@@ -272,10 +325,11 @@
     let userName = '', userEmail = '', firstCreatedDate = '', activeLogDate = getEffectiveTodayDate();
     let calendarViewYear = new Date().getFullYear(), calendarViewMonth = new Date().getMonth();
     let userJoinedGroups = [], relevantEmails = [], todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-    let activeHostCode = null, realtimeChannel = null, freqChartInstance = null, weeklyChartInstance = null;
-    let lifetimeTotals = {}, groupTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
+    let activeHostCode = null, realtimeChannel = null;
+    let freqChartInstance = null, weeklyChartInstance = null;
+    let adminFreqChartInstance = null, adminWeeklyChartInstance = null;
+    let lifetimeTotals = {}, groupTotalsBreakdown = {}, adminGroupTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
 
-    // Render Dynamic HTML components
     $('drink-list-container').innerHTML = DRINKS.map(d => `
       <div class="drink-row">
         <div class="drink-info"><svg class="drink-icon-svg" viewBox="0 0 24 24">${d.svg}</svg><span class="drink-title">${d.label}</span></div>
@@ -543,21 +597,30 @@
       await fetchUserGroups();
     }
 
+    /* HOST CONTROL MANAGE PANEL LOGIC */
     function toggleHostPanel(e, code) {
       if (e) e.stopPropagation();
-      if (activeHostCode === code) closeHostPanel();
-      else { closeAllExpandables(); activeHostCode = code; renderInlineHostPanel(code); }
+      if (activeHostCode === code) {
+        closeHostPanel();
+      } else {
+        closeHostPanel();
+        activeHostCode = code;
+        renderInlineHostPanel(code);
+      }
     }
 
     async function renderInlineHostPanel(code) {
       const wrapper = $(`group-item-${code}`);
       if (!wrapper) return;
-      const isHost = userJoinedGroups.find(g => g.code === code)?.host_email === userEmail;
+
+      const grp = userJoinedGroups.find(g => g.code === code);
+      const isHost = (grp?.host_email === userEmail);
       const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
 
       const panel = document.createElement('div');
       panel.id = `host-panel-${code}`;
       panel.className = 'inline-host-panel';
+      panel.onclick = (e) => e.stopPropagation();
 
       if (isHost) {
         const rows = (members||[]).filter(m => m.user_email.toLowerCase().trim() !== userEmail).map(m => `
@@ -583,6 +646,8 @@
 
     async function removeMember(code, email) {
       await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
+      const panel = $(`host-panel-${code}`);
+      if (panel) panel.remove();
       renderInlineHostPanel(code);
     }
 
@@ -599,6 +664,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members', filter: `group_code=in.(${groupCodes.join(',')})` }, () => fetchUserGroups())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs', filter: `user_email=in.(${relevantEmails.join(',')})` }, () => {
           if (!$('page-stats').classList.contains('hidden')) renderAnalytics();
+          if (!$('page-admin').classList.contains('hidden')) renderAdminPage();
         }).subscribe();
     }
 
@@ -622,7 +688,6 @@
 
       let totalGroupBeers = 0;
       groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-      userBreakdownsByEmail = {};
 
       const userTotals = members.map(m => {
         const email = m.user_email.toLowerCase().trim();
@@ -657,15 +722,15 @@
       dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
 
       $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || []);
+      renderCharts(logs || [], 'freqChart', 'weeklyChart');
     }
 
     function openUserBreakdownModal(email, name) {
       openBreakdownModal(userBreakdownsByEmail[email.toLowerCase().trim()], `${name}'s Drink Breakdown`);
     }
 
-    function renderCharts(logs) {
-      const c1 = $('freqChart'), c2 = $('weeklyChart');
+    function renderCharts(logs, freqCanvasId, weeklyCanvasId) {
+      const c1 = $(freqCanvasId), c2 = $(weeklyCanvasId);
       if (!c1 || !c2) return;
 
       const freqMap = {}, weeklyMap = {};
@@ -681,23 +746,44 @@
       });
 
       const sortedAmts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
-      if (freqChartInstance) freqChartInstance.destroy();
-      freqChartInstance = new Chart(c1.getContext('2d'), {
-        type: 'bar',
-        data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#f59e0b', borderRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-      });
+      if (freqCanvasId === 'freqChart') {
+        if (freqChartInstance) freqChartInstance.destroy();
+        freqChartInstance = new Chart(c1.getContext('2d'), {
+          type: 'bar',
+          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#f59e0b', borderRadius: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      } else if (freqCanvasId === 'adminFreqChart') {
+        if (adminFreqChartInstance) adminFreqChartInstance.destroy();
+        adminFreqChartInstance = new Chart(c1.getContext('2d'), {
+          type: 'bar',
+          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#8b5cf6', borderRadius: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      }
 
       const sortedWeeks = Object.keys(weeklyMap).sort();
-      if (weeklyChartInstance) weeklyChartInstance.destroy();
-      weeklyChartInstance = new Chart(c2.getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: sortedWeeks.map(k => weeklyMap[k].label),
-          datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.3 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-      });
+      if (weeklyCanvasId === 'weeklyChart') {
+        if (weeklyChartInstance) weeklyChartInstance.destroy();
+        weeklyChartInstance = new Chart(c2.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: sortedWeeks.map(k => weeklyMap[k].label),
+            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.3 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      } else if (weeklyCanvasId === 'adminWeeklyChart') {
+        if (adminWeeklyChartInstance) adminWeeklyChartInstance.destroy();
+        adminWeeklyChartInstance = new Chart(c2.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: sortedWeeks.map(k => weeklyMap[k].label),
+            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)', fill: true, tension: 0.3 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      }
     }
 
     function updateAccountPage() {
@@ -705,6 +791,9 @@
       $('acc-email-display').innerText = userEmail;
       $('acc-days-active').innerText = Math.max(1, Math.ceil(Math.abs(new Date() - new Date(firstCreatedDate)) / 86400000));
       $('acc-groups-count').innerText = userJoinedGroups.length;
+
+      const isAdmin = (userEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim());
+      $('admin-trigger-card').classList.toggle('hidden', !isAdmin);
 
       sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data }) => {
         let beers = 0; lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -714,6 +803,11 @@
         });
         $('acc-total-pints').innerText = `${beers} 🍺`;
       });
+    }
+
+    function revealAndOpenAdminTab() {
+      $('nav-admin').classList.remove('hidden');
+      switchPage('admin');
     }
 
     function openBreakdownModal(dataObj, title) {
@@ -726,6 +820,186 @@
     function closeBreakdownModal(e) {
       if (e) e.stopPropagation();
       $('breakdown-modal').classList.add('hidden');
+    }
+
+    /* ADMIN TAB PAGE RENDER LOGIC */
+    async function renderAdminPage() {
+      if (userEmail.toLowerCase().trim() !== ADMIN_EMAIL.toLowerCase().trim()) return;
+
+      const uContainer = $('admin-users-table-container');
+      const gContainer = $('admin-groups-table-container');
+
+      uContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">Loading user data...</span>';
+      gContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">Loading group data...</span>';
+
+      const [usersRes, logsRes, groupsRes, membersRes] = await Promise.all([
+        sb.from('users').select('*'),
+        sb.from('drink_logs').select('*'),
+        sb.from('groups').select('*'),
+        sb.from('group_members').select('*')
+      ]);
+
+      const allUsers = usersRes.data || [];
+      const allLogs = logsRes.data || [];
+      const allGroups = groupsRes.data || [];
+      const allMembers = membersRes.data || [];
+
+      // 1. All Users (>= 1 Drink Logged)
+      const activeUsersData = [];
+
+      allUsers.forEach(u => {
+        const uEmail = u.email.toLowerCase().trim();
+        const uLogs = allLogs.filter(l => l.user_email.toLowerCase().trim() === uEmail);
+        let totalBeers = 0;
+        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+        uLogs.forEach(l => {
+          totalBeers += calculateUnitsAndBeers(l).beers;
+          DRINKS.forEach(d => uBreakdown[d.key] += (l[d.key] || 0));
+        });
+
+        if (totalBeers > 0 || uLogs.some(l => (l.pints || l.bottles || l.wines || l.cocktails || l.shots))) {
+          userBreakdownsByEmail[uEmail] = uBreakdown;
+          activeUsersData.push({
+            name: u.display_name || 'N/A',
+            email: uEmail,
+            totalBeers: totalBeers
+          });
+        }
+      });
+
+      activeUsersData.sort((a, b) => b.totalBeers - a.totalBeers);
+
+      if (!activeUsersData.length) {
+        uContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No users have logged any drinks yet.</span>';
+      } else {
+        let uHtml = `
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Beers</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>`;
+        activeUsersData.forEach(u => {
+          uHtml += `
+            <tr>
+              <td><strong>${u.name}</strong><br><span style="font-size:10px; color:#94a3b8;">${u.email}</span></td>
+              <td><strong style="color:#f59e0b;">${u.totalBeers} 🍺</strong></td>
+              <td><button class="btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="openUserBreakdownModal('${u.email}', '${u.name}')">View</button></td>
+            </tr>`;
+        });
+        uHtml += '</tbody></table>';
+        uContainer.innerHTML = uHtml;
+      }
+
+      // 2. Group Level Data (Filter out groups with < 2 total beers)
+      const groupsData = allGroups.map(g => {
+        const gMembers = allMembers.filter(m => m.group_code === g.code);
+        const memberEmails = gMembers.map(m => m.user_email.toLowerCase().trim());
+        const gLogs = allLogs.filter(l => memberEmails.includes(l.user_email.toLowerCase().trim()));
+
+        let totalGroupBeers = 0;
+        gLogs.forEach(l => { totalGroupBeers += calculateUnitsAndBeers(l).beers; });
+
+        return {
+          code: g.code,
+          name: g.name,
+          host: g.host_email,
+          memberCount: gMembers.length,
+          totalBeers: totalGroupBeers
+        };
+      })
+      .filter(g => g.totalBeers >= 2) // Filter for 2 or more beers
+      .sort((a, b) => b.totalBeers - a.totalBeers);
+
+      if (!groupsData.length) {
+        gContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No groups with 2 or more beers.</span>';
+      } else {
+        let gHtml = `
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th>Members</th>
+                <th>Total</th>
+                <th>Inspect</th>
+              </tr>
+            </thead>
+            <tbody>`;
+        groupsData.forEach(g => {
+          gHtml += `
+            <tr>
+              <td><strong>${g.name}</strong><br><code style="color:#f59e0b; font-size:10px;">${g.code}</code></td>
+              <td>${g.memberCount}</td>
+              <td><strong style="color:#f59e0b;">${g.totalBeers} 🍺</strong></td>
+              <td><button class="btn-admin" style="padding: 3px 6px; font-size: 10px;" onclick="inspectGroupAsAdmin('${g.code}', '${g.name.replace(/'/g, "\\'")}')">View</button></td>
+            </tr>`;
+        });
+        gHtml += '</tbody></table>';
+        gContainer.innerHTML = gHtml;
+      }
+    }
+
+    async function inspectGroupAsAdmin(code, name) {
+      const todayStr = getEffectiveTodayDate();
+      const view = $('admin-group-inspection-view');
+      view.classList.remove('hidden');
+      $('admin-inspected-group-title').innerText = `📊 ${name} (${code})`;
+
+      const lb = $('admin-leaderboard-list'), dlb = $('admin-daily-leaderboard-list');
+      lb.innerHTML = dlb.innerHTML = '';
+
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      if (!members) return;
+
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
+
+      let totalGroupBeers = 0;
+      adminGroupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+      const userTotals = members.map(m => {
+        const email = m.user_email.toLowerCase().trim();
+        const userLogs = (logs || []).filter(l => l.user_email.toLowerCase().trim() === email);
+        let beers = 0;
+        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+        userLogs.forEach(l => {
+          beers += calculateUnitsAndBeers(l).beers;
+          DRINKS.forEach(d => {
+            const val = l[d.key] || 0;
+            uBreakdown[d.key] += val;
+            adminGroupTotalsBreakdown[d.key] += val;
+          });
+        });
+
+        userBreakdownsByEmail[email] = uBreakdown;
+        totalGroupBeers += beers;
+        return { name: m.user_name, email, beers };
+      }).sort((a, b) => b.beers - a.beers);
+
+      userTotals.forEach(i => {
+        lb.innerHTML += `<div class="member-row"><span>${i.name}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
+      });
+
+      const dailyTotals = members.map(m => {
+        const email = m.user_email.toLowerCase().trim();
+        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
+        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
+      }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
+
+      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+
+      $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
+      renderCharts(logs || [], 'adminFreqChart', 'adminWeeklyChart');
+
+      view.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closeAdminGroupInspection() {
+      $('admin-group-inspection-view').classList.add('hidden');
     }
 
     async function editProfileName() {
@@ -774,12 +1048,19 @@
 
     function switchPage(p) {
       closeAllExpandables();
-      ['account', 'tracker', 'stats'].forEach(page => {
-        $(`page-${page}`).classList.toggle('hidden', page !== p);
-        $(`nav-${page}`).classList.toggle('active', page === p);
+
+      if (p !== 'admin') {
+        $('nav-admin')?.classList.add('hidden');
+      }
+
+      ['account', 'tracker', 'stats', 'admin'].forEach(page => {
+        $(`page-${page}`)?.classList.toggle('hidden', page !== p);
+        $(`nav-${page}`)?.classList.toggle('active', page === p);
       });
+
       if (p === 'account') updateAccountPage();
       if (p === 'stats') renderAnalytics();
+      if (p === 'admin') renderAdminPage();
     }
   </script>
 </body>
