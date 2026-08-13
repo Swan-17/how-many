@@ -120,8 +120,8 @@
   <div id="app-screen" class="hidden">
     <nav>
       <button id="nav-account" onclick="switchPage('account')">Account</button>
-      <button id="nav-tracker" class="active" onclick="switchPage('tracker')">Tracker</button>
-      <button id="nav-stats" onclick="switchPage('stats')">Stats</button>
+      <button id="nav-tracker" onclick="switchPage('tracker')">Tracker</button>
+      <button id="nav-stats" class="active" onclick="switchPage('stats')">Stats</button>
       <button id="nav-admin" class="admin-tab hidden" onclick="switchPage('admin')">Admin 🛡️</button>
     </nav>
 
@@ -191,7 +191,7 @@
     </div>
 
     <!-- PAGE 2: TRACKER -->
-    <div id="page-tracker">
+    <div id="page-tracker" class="hidden">
       <div class="card">
         <button id="back-to-today-btn" class="btn-submit hidden" style="margin-top: 0; margin-bottom: 12px;" onclick="resetToTodayDate()">Back to Today</button>
         <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG DRINKS FOR (<span id="today-date-label"></span>)</h3>
@@ -229,7 +229,7 @@
     </div>
 
     <!-- PAGE 3: STATS -->
-    <div id="page-stats" class="hidden">
+    <div id="page-stats">
       <div class="card centered-select-container">
         <label style="font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
@@ -446,7 +446,7 @@
       renderCalendar();
       await fetchDrinkLogsForDate(activeLogDate);
       await fetchUserGroups();
-      switchPage('tracker');
+      switchPage('stats');
     }
 
     function calculateUnitsAndBeers(e) {
@@ -535,7 +535,7 @@
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
       renderMyGroups();
-      populateAnalyticsDropdown();
+      await populateAnalyticsDropdownAndSelectMaxGroup();
       updateAccountPage();
     }
 
@@ -679,10 +679,38 @@
         }).subscribe();
     }
 
-    function populateAnalyticsDropdown() {
-      const select = $('analytics-group-select'), cur = select.value;
-      select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
-      if (cur) select.value = cur;
+    async function populateAnalyticsDropdownAndSelectMaxGroup() {
+      const select = $('analytics-group-select');
+      if (!userJoinedGroups.length) {
+        select.innerHTML = '<option value="">No active groups joined</option>';
+        return;
+      }
+
+      // Calculate lifetime beers for each joined group to find the max
+      let maxBeers = -1;
+      let maxGroupCode = userJoinedGroups[0].code;
+
+      for (const grp of userJoinedGroups) {
+        const { data: members } = await sb.from('group_members').select('user_email').eq('group_code', grp.code);
+        if (members && members.length > 0) {
+          const emails = members.map(m => m.user_email.toLowerCase().trim());
+          const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
+          let groupBeers = 0;
+          if (logs) {
+            logs.forEach(l => {
+              groupBeers += calculateUnitsAndBeers(l).beers;
+            });
+          }
+          if (groupBeers > maxBeers) {
+            maxBeers = groupBeers;
+            maxGroupCode = grp.code;
+          }
+        }
+      }
+
+      select.innerHTML = userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('');
+      select.value = maxGroupCode;
+      renderAnalytics();
     }
 
     async function renderAnalytics() {
