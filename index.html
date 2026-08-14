@@ -512,297 +512,384 @@
     }
 
     function updateTrackerUI() {
-      DRINKS.forEach(d => $(`cnt-${d.key}`).innerText = todayDrinkEntry[d.key] || 0);
-      const calc = calculateUnitsAndBeers(todayDrinkEntry);
-      $('total-units-val').innerText = calc.units;
-      $('total-beers-val').innerText = calc.beers;
+      DRINKS.forEach(d => {
+        const el = $(`cnt-${d.key}`);
+        if (el) el.innerText = todayDrinkEntry[d.key] || 0;
+      });
+      const res = calculateUnitsAndBeers(todayDrinkEntry);
+      const unitsEl = $('total-units-val');
+      const beersEl = $('total-beers-val');
+      if (unitsEl) unitsEl.innerText = res.units;
+      if (beersEl) beersEl.innerText = res.beers;
     }
 
     async function fetchUserGroups() {
-      const { data } = await sb.from('group_members').select('group_code, groups(name, host_email)').eq('user_email', userEmail);
-      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
-      await fetchRelevantEmails();
-      rebuildRealtimeSubscriptions();
-      renderMyGroups();
-      populateAnalyticsDropdown();
+      const { data: mems } = await sb.from('group_members').select('group_code, groups(name, code, host_email)').eq('user_email', userEmail);
+      let rawGroups = (mems || []).map(m => m.groups).filter(Boolean);
+
+      // Load saved group order from localStorage if available
+      const savedOrderStr = localStorage.getItem('group_order_' + userEmail);
+      if (savedOrderStr) {
+        try {
+          const orderCodes = JSON.parse(savedOrderStr);
+          rawGroups.sort((a, b) => {
+            const idxA = orderCodes.indexOf(a.code);
+            const idxB = orderCodes.indexOf(b.code);
+            if (idxA === -1 && idxB === -1) return 0;
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+          });
+        } catch(e) {}
+      }
+
+      userJoinedGroups = rawGroups;
       updateAccountPage();
+      renderMyGroupsList();
+      populateAnalyticsGroupSelect();
     }
 
-    async function fetchRelevantEmails() {
+    function saveGroupOrder() {
       const codes = userJoinedGroups.map(g => g.code);
-      if (!codes.length) return relevantEmails = [userEmail];
-      const { data } = await sb.from('group_members').select('user_email').in('group_code', codes);
-      relevantEmails = Array.from(new Set((data || []).map(d => d.user_email.toLowerCase().trim()).concat(userEmail)));
+      localStorage.setItem('group_order_' + userEmail, JSON.stringify(codes));
     }
 
-    function renderMyGroups() {
-      const container = $('my-groups-list');
-      container.innerHTML = userJoinedGroups.length ? '' : '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
-
-      userJoinedGroups.forEach(grp => {
-        const isHost = (grp.host_email === userEmail);
-        const wrapper = document.createElement('div');
-        wrapper.id = `group-item-${grp.code}`;
-        wrapper.innerHTML = `
-          <div class="member-row">
-            <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}</div>
-            <div style="display:flex; gap:6px;">
-              ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
-              <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
-              <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
-            </div>
-          </div>`;
-        container.appendChild(wrapper);
-        if (activeHostCode === grp.code) renderInlineHostPanel(grp.code);
-      });
+    async function moveGroupOrder(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= userJoinedGroups.length) return;
+      const temp = userJoinedGroups[index];
+      userJoinedGroups[index] = userJoinedGroups[newIndex];
+      userJoinedGroups[newIndex] = temp;
+      saveGroupOrder();
+      renderMyGroupsList();
+      populateAnalyticsGroupSelect();
     }
 
-    async function createGroup() {
-      const name = $('create-group-name').value.trim(), code = $('create-group-code').value.trim().toUpperCase();
-      if (!name || !code) return alert('Provide a group name and unique code.');
+    function renderMyGroupsList() {
+      const listEl = $('my-groups-list');
+      if (!listEl) return;
+      if (userJoinedGroups.length === 0) {
+        listEl.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">You haven\'t joined any groups yet.</span>';
+        return;
+      }
+      listEl.innerHTML = userJoinedGroups.map((g, idx) => `
+        <div class="member-row">
+          <div>
+            <strong style="color: #f59e0b; font-size: 14px; display: block;">${g.name}</strong>
+            <span style="font-size: 11px; color: #94a3b8;">Code: ${g.code}</span>
+          </div>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" ${idx === 0 ? 'disabled style="opacity: 0.4;"' : ''} onclick="moveGroupOrder(${idx}, -1)">▲</button>
+            <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" ${idx === userJoinedGroups.length - 1 ? 'disabled style="opacity: 0.4;"' : ''} onclick="moveGroupOrder(${idx}, 1)">▼</button>
+            <button class="btn-danger" style="padding: 4px 8px; font-size: 11px; margin-left: 4px;" onclick="leaveGroup('${g.code}')">Leave</button>
+          </div>
+        </div>
+      `).join('');
+    }
 
-      const { error } = await sb.from('groups').insert([{ code, name, host_email: userEmail }]);
-      if (error) return alert(error.code === '23505' ? 'Group code already taken.' : error.message);
+    function populateAnalyticsGroupSelect() {
+      const selectEl = $('analytics-group-select');
+      if (!selectEl) return;
+      selectEl.innerHTML = userJoinedGroups.map(g => `<option value="${g.code}">${g.name} (${g.code})</option>`).join('');
+      if (userJoinedGroups.length > 0) {
+        selectEl.value = userJoinedGroups[0].code;
+      }
+      renderAnalytics();
+    }
 
-      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
-      $('create-group-name').value = $('create-group-code').value = '';
-      closeAllExpandables();
-      await fetchUserGroups();
+    async function updateAccountPage() {
+      if ($('acc-name-display')) $('acc-name-display').innerText = userName;
+      if ($('acc-email-display')) $('acc-email-display').innerText = userEmail;
+      if ($('acc-groups-count')) $('acc-groups-count').innerText = userJoinedGroups.length;
+
+      const adminCard = $('admin-trigger-card');
+      if (adminCard) {
+        if (userEmail === ADMIN_EMAIL) adminCard.classList.remove('hidden');
+        else adminCard.classList.add('hidden');
+      }
+
+      const { data: logs } = await sb.from('drink_logs').select('*').eq('user_email', userEmail);
+      if (logs) {
+        let totalP = 0, totalB = 0, totalW = 0, totalC = 0, totalS = 0;
+        const uniqueDates = new Set();
+        logs.forEach(l => {
+          uniqueDates.add(l.log_date);
+          totalP += l.pints || 0;
+          totalB += l.bottles || 0;
+          totalW += l.wines || 0;
+          totalC += l.cocktails || 0;
+          totalS += l.shots || 0;
+        });
+        lifetimeTotals = { pints: totalP, bottles: totalB, wines: totalW, cocktails: totalC, shots: totalS };
+        const res = calculateUnitsAndBeers(lifetimeTotals);
+        if ($('acc-total-pints')) $('acc-total-pints').innerText = `${res.beers} 🍺`;
+        if ($('acc-days-active')) $('acc-days-active').innerText = uniqueDates.size || 1;
+      }
     }
 
     async function joinGroup() {
-      const code = $('join-group-code').value.trim().toUpperCase();
-      if (!code) return alert('Enter a valid code.');
+      const codeInput = $('join-group-code');
+      const code = codeInput.value.trim().toUpperCase();
+      if (!code) return alert('Please enter a group code.');
+      const { data: group } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
+      if (!group) return alert('Group not found with that code.');
 
-      const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
-      if (!grp) return alert('Group code not found.');
+      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail }], { onConflict: 'group_code,user_email' });
+      codeInput.value = '';
+      alert(`Successfully joined ${group.name}!`);
+      await fetchUserGroups();
+    }
 
-      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
-      $('join-group-code').value = '';
-      closeAllExpandables();
+    async function createGroup() {
+      const nameInput = $('create-group-name');
+      const codeInput = $('create-group-code');
+      const name = nameInput.value.trim();
+      const code = codeInput.value.trim().toUpperCase();
+      if (!name || !code) return alert('Please enter both group name and unique code.');
+
+      const { error } = await sb.from('groups').insert([{ name, code, host_email: userEmail }]);
+      if (error) return alert('Error creating group (code might already be taken).');
+
+      await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail }], { onConflict: 'group_code,user_email' });
+      nameInput.value = '';
+      codeInput.value = '';
+      alert(`Group "${name}" created successfully!`);
       await fetchUserGroups();
     }
 
     async function leaveGroup(code) {
-      if (!confirm('Leave this group?')) return;
+      if (!confirm('Are you sure you want to leave this group?')) return;
       await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
-      if (activeHostCode === code) closeHostPanel();
       await fetchUserGroups();
     }
 
-    async function deleteGroup(code) {
-      if (!confirm(`Delete group "${code}" for everyone?`)) return;
-      await sb.from('groups').delete().eq('code', code);
-      closeHostPanel();
-      await fetchUserGroups();
+    async function editProfileName() {
+      const newName = prompt('Enter your new display name:', userName);
+      if (!newName || !newName.trim()) return;
+      userName = newName.trim();
+      await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
+      updateAccountPage();
     }
 
-    /* HOST CONTROL MANAGE PANEL LOGIC */
-    function toggleHostPanel(e, code) {
-      if (e) e.stopPropagation();
-      if (activeHostCode === code) {
-        closeHostPanel();
-      } else {
-        closeHostPanel();
-        activeHostCode = code;
-        renderInlineHostPanel(code);
+    function switchPage(page) {
+      ['account', 'tracker', 'stats', 'admin'].forEach(p => {
+        const pageEl = $(`page-${p}`);
+        const navEl = $(`nav-${p}`);
+        if (pageEl) pageEl.classList.toggle('hidden', p !== page);
+        if (navEl) navEl.classList.toggle('active', p === page);
+      });
+      if (page === 'stats') {
+        renderAnalytics();
       }
-    }
-
-    async function renderInlineHostPanel(code) {
-      const wrapper = $(`group-item-${code}`);
-      if (!wrapper) return;
-
-      const grp = userJoinedGroups.find(g => g.code === code);
-      const isHost = (grp?.host_email === userEmail);
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
-
-      const panel = document.createElement('div');
-      panel.id = `host-panel-${code}`;
-      panel.className = 'inline-host-panel';
-      panel.onclick = (e) => e.stopPropagation();
-
-      if (isHost) {
-        const rows = (members||[]).filter(m => m.user_email.toLowerCase().trim() !== userEmail).map(m => `
-          <div class="member-row" style="padding: 6px 0;">
-            <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: #94a3b8;">(${m.user_email})</span></span>
-            <button class="btn-danger" onclick="removeMember('${code}', '${m.user_email}')">Remove</button>
-          </div>
-        `).join('');
-
-        panel.innerHTML = `
-          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
-          <div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 11px;">GROUP CODE: </span><strong style="color: #f59e0b; font-size: 13px;">${code}</strong></div>
-          <label>MEMBERS</label>
-          <div>${rows || '<span style="color:#94a3b8; font-size:12px; display:block; margin-top:4px;">No other members.</span>'}</div>
-          <div style="margin-top: 12px; border-top: 1px solid #334155; padding-top: 8px;">
-            <button class="btn-danger" style="width: 100%; padding: 6px; font-size: 12px;" onclick="deleteGroup('${code}')">Delete Group for Everyone</button>
-          </div>`;
-      } else {
-        panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">GROUP INFO</h4><div><span style="color: #94a3b8; font-size: 12px;">GROUP CODE: </span><strong style="color: #f59e0b; font-size: 14px;">${code}</strong></div>`;
+      if (page === 'admin') {
+        renderAdminDashboard();
       }
-      wrapper.appendChild(panel);
-    }
-
-    async function removeMember(code, email) {
-      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', email);
-      const panel = $(`host-panel-${code}`);
-      if (panel) panel.remove();
-      renderInlineHostPanel(code);
-    }
-
-    function teardownRealtime() {
-      if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
-    }
-
-    function rebuildRealtimeSubscriptions() {
-      teardownRealtime();
-      const groupCodes = userJoinedGroups.map(g => g.code);
-      if (!groupCodes.length) return;
-
-      realtimeChannel = sb.channel('db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members', filter: `group_code=in.(${groupCodes.join(',')})` }, () => fetchUserGroups())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'drink_logs', filter: `user_email=in.(${relevantEmails.join(',')})` }, () => {
-          if (!$('page-stats').classList.contains('hidden')) renderAnalytics();
-          if (!$('page-admin').classList.contains('hidden')) renderAdminPage();
-        }).subscribe();
-    }
-
-    function populateAnalyticsDropdown() {
-      const select = $('analytics-group-select'), cur = select.value;
-      select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
-      if (cur) select.value = cur;
     }
 
     async function renderAnalytics() {
-      const todayStr = getEffectiveTodayDate(), code = $('analytics-group-select').value;
-      const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
-      lb.innerHTML = dlb.innerHTML = '';
+      const selectEl = $('analytics-group-select');
+      const groupCode = selectEl ? selectEl.value : (userJoinedGroups[0]?.code);
+      if (!groupCode) {
+        if ($('group-total-beers')) $('group-total-beers').innerText = '0 🍺';
+        if ($('leaderboard-list')) $('leaderboard-list').innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No group selected.</span>';
+        if ($('daily-leaderboard-list')) $('daily-leaderboard-list').innerHTML = '';
+        return;
+      }
 
-      if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>'; return; }
-
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!members) return;
-
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
-
-      let totalGroupBeers = 0;
-      groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-      const userTotals = members.map(m => {
-        const email = m.user_email.toLowerCase().trim();
-        const userLogs = (logs || []).filter(l => l.user_email.toLowerCase().trim() === email);
-        let beers = 0;
-        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-        userLogs.forEach(l => {
-          beers += calculateUnitsAndBeers(l).beers;
-          DRINKS.forEach(d => {
-            const val = l[d.key] || 0;
-            uBreakdown[d.key] += val;
-            groupTotalsBreakdown[d.key] += val;
-          });
-        });
-
-        userBreakdownsByEmail[email] = uBreakdown;
-        totalGroupBeers += beers;
-        return { name: m.user_name, email, beers };
-      }).sort((a, b) => b.beers - a.beers);
-
-      userTotals.forEach(i => {
-        lb.innerHTML += `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
+      const { data: members } = await sb.from('group_members').select('user_email, users(display_name)').eq('group_code', groupCode);
+      const emails = (members || []).map(m => m.user_email);
+      const nameMap = {};
+      (members || []).forEach(m => {
+        if (m.users) nameMap[m.user_email] = m.users.display_name;
       });
 
-      const dailyTotals = members.map(m => {
-        const email = m.user_email.toLowerCase().trim();
-        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
-        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
-      }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
+      if (emails.length === 0) {
+        if ($('group-total-beers')) $('group-total-beers').innerText = '0 🍺';
+        if ($('leaderboard-list')) $('leaderboard-list').innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No members in this group.</span>';
+        return;
+      }
 
-      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
+      
+      let totalP = 0, totalB = 0, totalW = 0, totalC = 0, totalS = 0;
+      const userLifetime = {};
+      const userDaily = {};
+      const todayStr = getEffectiveTodayDate();
+      userBreakdownsByEmail = {};
 
-      $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || [], 'freqChart', 'weeklyChart');
-    }
+      emails.forEach(e => {
+        userLifetime[e] = 0;
+        userDaily[e] = 0;
+        userBreakdownsByEmail[e] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      });
 
-    function openUserBreakdownModal(email, name) {
-      openBreakdownModal(userBreakdownsByEmail[email.toLowerCase().trim()], `${name}'s Drink Breakdown`);
-    }
+      (logs || []).forEach(l => {
+        const e = l.user_email;
+        if (!userLifetime.hasOwnProperty(e)) return;
+        const p = l.pints || 0, b = l.bottles || 0, w = l.wines || 0, c = l.cocktails || 0, s = l.shots || 0;
+        const entryUnits = ((p)*2) + ((b)*1.33) + ((w)*1.5) + ((c)*2) + ((s)*1);
+        const entryBeers = Math.round(entryUnits / 2);
 
-    function renderCharts(logs, freqCanvasId, weeklyCanvasId) {
-      const c1 = $(freqCanvasId), c2 = $(weeklyCanvasId);
-      if (!c1 || !c2) return;
-
-      const freqMap = {}, weeklyMap = {};
-      logs.forEach(l => {
-        const beers = calculateUnitsAndBeers(l).beers;
-        if (beers > 0) {
-          freqMap[beers] = (freqMap[beers] || 0) + 1;
-          const mon = getMondayDate(l.log_date), key = mon.toISOString().split('T')[0];
-          const label = `w/c ${mon.toLocaleString('default', { month: 'short' })} ${mon.getDate()}`;
-          if (!weeklyMap[key]) weeklyMap[key] = { label, beers: 0 };
-          weeklyMap[key].beers += beers;
+        userLifetime[e] += entryBeers;
+        if (l.log_date === todayStr) {
+          userDaily[e] += entryBeers;
         }
+
+        totalP += p; totalB += b; totalW += w; totalC += c; totalS += s;
+        userBreakdownsByEmail[e].pints += p;
+        userBreakdownsByEmail[e].bottles += b;
+        userBreakdownsByEmail[e].wines += w;
+        userBreakdownsByEmail[e].cocktails += c;
+        userBreakdownsByEmail[e].shots += s;
       });
 
-      const sortedAmts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
+      groupTotalsBreakdown = { pints: totalP, bottles: totalB, wines: totalW, cocktails: totalC, shots: totalS };
+      const groupRes = calculateUnitsAndBeers(groupTotalsBreakdown);
+      if ($('group-total-beers')) $('group-total-beers').innerText = `${groupRes.beers} 🍺`;
+
+      // Lifetime leaderboard
+      const sortedLife = emails.map(e => ({ email: e, name: nameMap[e] || e.split('@')[0], beers: userLifetime[e] })).sort((a, b) => b.beers - a.beers);
+      if ($('leaderboard-list')) {
+        $('leaderboard-list').innerHTML = sortedLife.map((item, idx) => `
+          <div class="member-row clickable-stat" onclick="openBreakdownModal(userBreakdownsByEmail['${item.email}'], '${item.name}\'s Drink Breakdown')">
+            <div><strong>#${idx + 1} ${item.name}</strong><span class="click-hint" style="margin:0;">Click for breakdown</span></div>
+            <strong style="color: #f59e0b; font-size: 16px;">${item.beers} 🍺</strong>
+          </div>
+        `).join('');
+      }
+
+      // Daily leaderboard
+      const sortedDaily = emails.map(e => ({ email: e, name: nameMap[e] || e.split('@')[0], beers: userDaily[e] })).sort((a, b) => b.beers - a.beers);
+      if ($('daily-leaderboard-list')) {
+        $('daily-leaderboard-list').innerHTML = sortedDaily.map((item, idx) => `
+          <div class="member-row">
+            <div><strong>#${idx + 1} ${item.name}</strong></div>
+            <strong style="color: #f59e0b; font-size: 16px;">${item.beers} 🍺</strong>
+          </div>
+        `).join('');
+      }
+
+      renderCharts(logs, emails, nameMap, 'freqChart', 'weeklyChart');
+    }
+
+    function renderCharts(logs, emails, nameMap, freqCanvasId, weeklyCanvasId) {
+      // Daily frequency chart
+      const today = new Date();
+      const labels = [];
+      const dateStrs = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        labels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
+        dateStrs.push(d.toISOString().split('T')[0]);
+      }
+
+      const datasets = emails.map((e, idx) => {
+        const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+        const color = colors[idx % colors.length];
+        const data = dateStrs.map(ds => {
+          const l = (logs || []).find(item => item.user_email === e && item.log_date === ds);
+          if (!l) return 0;
+          const u = ((l.pints||0)*2) + ((l.bottles||0)*1.33) + ((l.wines||0)*1.5) + ((l.cocktails||0)*2) + ((l.shots||0)*1);
+          return Math.round(u / 2);
+        });
+        return { label: nameMap[e] || e.split('@')[0], data, borderColor: color, backgroundColor: color, tension: 0.1 };
+      });
+
       if (freqCanvasId === 'freqChart') {
         if (freqChartInstance) freqChartInstance.destroy();
-        freqChartInstance = new Chart(c1.getContext('2d'), {
-          type: 'bar',
-          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#f59e0b', borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        const ctx = $(freqCanvasId).getContext('2d');
+        freqChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
         });
-      } else if (freqCanvasId === 'adminFreqChart') {
+      } else {
         if (adminFreqChartInstance) adminFreqChartInstance.destroy();
-        adminFreqChartInstance = new Chart(c1.getContext('2d'), {
-          type: 'bar',
-          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#8b5cf6', borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        const ctx = $(freqCanvasId).getContext('2d');
+        adminFreqChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
         });
       }
 
-      const sortedWeeks = Object.keys(weeklyMap).sort();
+      // Weekly chart
+      const weekLabels = ['4w ago', '3w ago', '2w ago', 'This Week'];
+      const weekDatasets = emails.map((e, idx) => {
+        const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+        const color = colors[idx % colors.length];
+        const weeklyTotals = [0, 0, 0, 0];
+        
+        const now = new Date();
+        const currentMonday = getMondayDate(now.toISOString().split('T')[0]);
+
+        (logs || []).filter(l => l.user_email === e).forEach(l => {
+          const lDate = new Date(l.log_date);
+          const lMonday = getMondayDate(l.log_date);
+          const diffWeeks = Math.round((currentMonday - lMonday) / (7 * 24 * 60 * 60 * 1000));
+          if (diffWeeks >= 0 && diffWeeks < 4) {
+            const idxVal = 3 - diffWeeks;
+            const u = ((l.pints||0)*2) + ((l.bottles||0)*1.33) + ((l.wines||0)*1.5) + ((l.cocktails||0)*2) + ((l.shots||0)*1);
+            weeklyTotals[idxVal] += Math.round(u / 2);
+          }
+        });
+
+        return { label: nameMap[e] || e.split('@')[0], data: weeklyTotals, backgroundColor: color };
+      });
+
       if (weeklyCanvasId === 'weeklyChart') {
         if (weeklyChartInstance) weeklyChartInstance.destroy();
-        weeklyChartInstance = new Chart(c2.getContext('2d'), {
-          type: 'line',
-          data: {
-            labels: sortedWeeks.map(k => weeklyMap[k].label),
-            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.3 }]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        const ctx = $(weeklyCanvasId).getContext('2d');
+        weeklyChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: { labels: weekLabels, datasets: weekDatasets },
+          options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
         });
-      } else if (weeklyCanvasId === 'adminWeeklyChart') {
+      } else {
         if (adminWeeklyChartInstance) adminWeeklyChartInstance.destroy();
-        adminWeeklyChartInstance = new Chart(c2.getContext('2d'), {
-          type: 'line',
-          data: {
-            labels: sortedWeeks.map(k => weeklyMap[k].label),
-            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)', fill: true, tension: 0.3 }]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        const ctx = $(weeklyCanvasId).getContext('2d');
+        adminWeeklyChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: { labels: weekLabels, datasets: weekDatasets },
+          options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
         });
       }
     }
 
-    function updateAccountPage() {
-      $('acc-name-display').innerText = userName;
-      $('acc-email-display').innerText = userEmail;
-      $('acc-days-active').innerText = Math.max(1, Math.ceil(Math.abs(new Date() - new Date(firstCreatedDate)) / 86400000));
-      $('acc-groups-count').innerText = userJoinedGroups.length;
+    function openBreakdownModal(breakdownObj, titleText) {
+      if (!breakdownObj) return;
+      $('modal-title').innerText = titleText;
+      const rowsEl = $('modal-breakdown-rows');
+      rowsEl.innerHTML = DRINKS.map(d => {
+        const val = breakdownObj[d.key] || 0;
+        return `<div class="breakdown-row"><span>${d.label}</span><strong>${val}</strong></div>`;
+      }).join('');
+      $('breakdown-modal').classList.remove('hidden');
+    }
 
-      const isAdmin = (userEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim());
-      $('admin-trigger-card').classList.toggle('hidden', !isAdmin);
+    function closeBreakdownModal(e) {
+      if (!e || e.target === $('breakdown-modal') || e.target.tagName === 'BUTTON') {
+        $('breakdown-modal').classList.add('hidden');
+      }
+    }
 
-      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data }) => {
-        let beers = 0; lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-        (data || []).forEach(e => {
-          beers += calculateUnitsAndBeers(e).beers;
-          DRINKS.forEach(d => lifetimeTotals[d.key] += (e[d.key] || 0));
-        });
-        $('acc-total-pints').innerText = `${beers} 🍺`;
+    function toggleAccordion(bodyId, iconId) {
+      const b = $(bodyId), i = $(iconId);
+      if (!b) return;
+      const isHidden = b.classList.toggle('hidden');
+      if (i) i.innerText = isHidden ? '▼' : '▲';
+    }
+
+    function closeAllExpandables() {
+      ['missed-drinks-body'].forEach(id => {
+        const el = $(id);
+        if (el) el.classList.add('hidden');
       });
+    }
+
+    function handleGlobalClick(e) {
+      // Global click handler if needed
     }
 
     function revealAndOpenAdminTab() {
@@ -810,257 +897,128 @@
       switchPage('admin');
     }
 
-    function openBreakdownModal(dataObj, title) {
-      const data = dataObj || {};
-      $('modal-title').innerText = title || 'Drink Breakdown';
-      $('modal-breakdown-rows').innerHTML = DRINKS.map(d => `<div class="breakdown-row"><span>${d.label}:</span> <strong>${data[d.key] || 0}</strong></div>`).join('');
-      $('breakdown-modal').classList.remove('hidden');
-    }
-
-    function closeBreakdownModal(e) {
-      if (e) e.stopPropagation();
-      $('breakdown-modal').classList.add('hidden');
-    }
-
-    /* ADMIN TAB PAGE RENDER LOGIC */
-    async function renderAdminPage() {
-      if (userEmail.toLowerCase().trim() !== ADMIN_EMAIL.toLowerCase().trim()) return;
-
-      const uContainer = $('admin-users-table-container');
-      const gContainer = $('admin-groups-table-container');
-
-      uContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">Loading user data...</span>';
-      gContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">Loading group data...</span>';
-
-      const [usersRes, logsRes, groupsRes, membersRes] = await Promise.all([
-        sb.from('users').select('*'),
-        sb.from('drink_logs').select('*'),
-        sb.from('groups').select('*'),
-        sb.from('group_members').select('*')
-      ]);
-
-      const allUsers = usersRes.data || [];
-      const allLogs = logsRes.data || [];
-      const allGroups = groupsRes.data || [];
-      const allMembers = membersRes.data || [];
-
-      // 1. All Users (>= 1 Drink Logged)
-      const activeUsersData = [];
-
-      allUsers.forEach(u => {
-        const uEmail = u.email.toLowerCase().trim();
-        const uLogs = allLogs.filter(l => l.user_email.toLowerCase().trim() === uEmail);
-        let totalBeers = 0;
-        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-        uLogs.forEach(l => {
-          totalBeers += calculateUnitsAndBeers(l).beers;
-          DRINKS.forEach(d => uBreakdown[d.key] += (l[d.key] || 0));
-        });
-
-        if (totalBeers > 0 || uLogs.some(l => (l.pints || l.bottles || l.wines || l.cocktails || l.shots))) {
-          userBreakdownsByEmail[uEmail] = uBreakdown;
-          activeUsersData.push({
-            name: u.display_name || 'N/A',
-            email: uEmail,
-            totalBeers: totalBeers
-          });
+    async function renderAdminDashboard() {
+      // Render admin users table
+      const { data: users } = await sb.from('users').select('*');
+      const usersContainer = $('admin-users-table-container');
+      if (usersContainer) {
+        if (!users || users.length === 0) {
+          usersContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No users found.</span>';
+        } else {
+          usersContainer.innerHTML = `
+            <table class="admin-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Joined</th></tr></thead>
+              <tbody>
+                ${users.map(u => `<tr><td>${u.display_name || '---'}</td><td>${u.email}</td><td>${(u.created_at || '').split('T')[0]}</td></tr>`).join('')}
+              </tbody>
+            </table>
+          `;
         }
-      });
-
-      activeUsersData.sort((a, b) => b.totalBeers - a.totalBeers);
-
-      if (!activeUsersData.length) {
-        uContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No users have logged any drinks yet.</span>';
-      } else {
-        let uHtml = `
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Beers</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>`;
-        activeUsersData.forEach(u => {
-          uHtml += `
-            <tr>
-              <td><strong>${u.name}</strong><br><span style="font-size:10px; color:#94a3b8;">${u.email}</span></td>
-              <td><strong style="color:#f59e0b;">${u.totalBeers} 🍺</strong></td>
-              <td><button class="btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="openUserBreakdownModal('${u.email}', '${u.name}')">View</button></td>
-            </tr>`;
-        });
-        uHtml += '</tbody></table>';
-        uContainer.innerHTML = uHtml;
       }
 
-      // 2. Group Level Data (Filter out groups with < 2 total beers)
-      const groupsData = allGroups.map(g => {
-        const gMembers = allMembers.filter(m => m.group_code === g.code);
-        const memberEmails = gMembers.map(m => m.user_email.toLowerCase().trim());
-        const gLogs = allLogs.filter(l => memberEmails.includes(l.user_email.toLowerCase().trim()));
-
-        let totalGroupBeers = 0;
-        gLogs.forEach(l => { totalGroupBeers += calculateUnitsAndBeers(l).beers; });
-
-        return {
-          code: g.code,
-          name: g.name,
-          host: g.host_email,
-          memberCount: gMembers.length,
-          totalBeers: totalGroupBeers
-        };
-      })
-      .filter(g => g.totalBeers >= 2) // Filter for 2 or more beers
-      .sort((a, b) => b.totalBeers - a.totalBeers);
-
-      if (!groupsData.length) {
-        gContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No groups with 2 or more beers.</span>';
-      } else {
-        let gHtml = `
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Group</th>
-                <th>Members</th>
-                <th>Total</th>
-                <th>Inspect</th>
-              </tr>
-            </thead>
-            <tbody>`;
-        groupsData.forEach(g => {
-          gHtml += `
-            <tr>
-              <td><strong>${g.name}</strong><br><code style="color:#f59e0b; font-size:10px;">${g.code}</code></td>
-              <td>${g.memberCount}</td>
-              <td><strong style="color:#f59e0b;">${g.totalBeers} 🍺</strong></td>
-              <td><button class="btn-admin" style="padding: 3px 6px; font-size: 10px;" onclick="inspectGroupAsAdmin('${g.code}', '${g.name.replace(/'/g, "\\'")}')">View</button></td>
-            </tr>`;
-        });
-        gHtml += '</tbody></table>';
-        gContainer.innerHTML = gHtml;
+      // Render admin groups table
+      const { data: groups } = await sb.from('groups').select('*');
+      const groupsContainer = $('admin-groups-table-container');
+      if (groupsContainer) {
+        if (!groups || groups.length === 0) {
+          groupsContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No groups found.</span>';
+        } else {
+          groupsContainer.innerHTML = `
+            <table class="admin-table">
+              <thead><tr><th>Group Name</th><th>Code</th><th>Host</th><th>Action</th></tr></thead>
+              <tbody>
+                ${groups.map(g => `<tr><td>${g.name}</td><td>${g.code}</td><td>${g.host_email}</td><td><button class="btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="inspectAdminGroup('${g.code}', '${g.name}')">Inspect</button></td></tr>`).join('')}
+              </tbody>
+            </table>
+          `;
+        }
       }
     }
 
-    async function inspectGroupAsAdmin(code, name) {
-      const todayStr = getEffectiveTodayDate();
-      const view = $('admin-group-inspection-view');
-      view.classList.remove('hidden');
-      $('admin-inspected-group-title').innerText = `📊 ${name} (${code})`;
+    async function inspectAdminGroup(groupCode, groupName) {
+      $('admin-inspected-group-title').innerText = `Group: ${groupName} (${groupCode})`;
+      $('admin-group-inspection-view').classList.remove('hidden');
 
-      const lb = $('admin-leaderboard-list'), dlb = $('admin-daily-leaderboard-list');
-      lb.innerHTML = dlb.innerHTML = '';
-
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!members) return;
-
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
-
-      let totalGroupBeers = 0;
-      adminGroupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-      const userTotals = members.map(m => {
-        const email = m.user_email.toLowerCase().trim();
-        const userLogs = (logs || []).filter(l => l.user_email.toLowerCase().trim() === email);
-        let beers = 0;
-        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-        userLogs.forEach(l => {
-          beers += calculateUnitsAndBeers(l).beers;
-          DRINKS.forEach(d => {
-            const val = l[d.key] || 0;
-            uBreakdown[d.key] += val;
-            adminGroupTotalsBreakdown[d.key] += val;
-          });
-        });
-
-        userBreakdownsByEmail[email] = uBreakdown;
-        totalGroupBeers += beers;
-        return { name: m.user_name, email, beers };
-      }).sort((a, b) => b.beers - a.beers);
-
-      userTotals.forEach(i => {
-        lb.innerHTML += `<div class="member-row"><span>${i.name}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
+      const { data: members } = await sb.from('group_members').select('user_email, users(display_name)').eq('group_code', groupCode);
+      const emails = (members || []).map(m => m.user_email);
+      const nameMap = {};
+      (members || []).forEach(m => {
+        if (m.users) nameMap[m.user_email] = m.users.display_name;
       });
 
-      const dailyTotals = members.map(m => {
-        const email = m.user_email.toLowerCase().trim();
-        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
-        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
-      }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
+      if (emails.length === 0) {
+        if ($('admin-group-total-beers')) $('admin-group-total-beers').innerText = '0 🍺';
+        if ($('admin-leaderboard-list')) $('admin-leaderboard-list').innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No members.</span>';
+        return;
+      }
 
-      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', emails);
+      let totalP = 0, totalB = 0, totalW = 0, totalC = 0, totalS = 0;
+      const userLifetime = {};
+      const userDaily = {};
+      const todayStr = getEffectiveTodayDate();
+      const adminUserBreakdowns = {};
 
-      $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || [], 'adminFreqChart', 'adminWeeklyChart');
+      emails.forEach(e => {
+        userLifetime[e] = 0;
+        userDaily[e] = 0;
+        adminUserBreakdowns[e] = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      });
 
-      view.scrollIntoView({ behavior: 'smooth' });
+      (logs || []).forEach(l => {
+        const e = l.user_email;
+        if (!userLifetime.hasOwnProperty(e)) return;
+        const p = l.pints || 0, b = l.bottles || 0, w = l.wines || 0, c = l.cocktails || 0, s = l.shots || 0;
+        const entryUnits = ((p)*2) + ((b)*1.33) + ((w)*1.5) + ((c)*2) + ((s)*1);
+        const entryBeers = Math.round(entryUnits / 2);
+
+        userLifetime[e] += entryBeers;
+        if (l.log_date === todayStr) userDaily[e] += entryBeers;
+
+        totalP += p; totalB += b; totalW += w; totalC += c; totalS += s;
+        adminUserBreakdowns[e].pints += p;
+        adminUserBreakdowns[e].bottles += b;
+        adminUserBreakdowns[e].wines += w;
+        adminUserBreakdowns[e].cocktails += c;
+        adminUserBreakdowns[e].shots += s;
+      });
+
+      adminGroupTotalsBreakdown = { pints: totalP, bottles: totalB, wines: totalW, cocktails: totalC, shots: totalS };
+      const groupRes = calculateUnitsAndBeers(adminGroupTotalsBreakdown);
+      if ($('admin-group-total-beers')) $('admin-group-total-beers').innerText = `${groupRes.beers} 🍺`;
+
+      const sortedLife = emails.map(e => ({ email: e, name: nameMap[e] || e.split('@')[0], beers: userLifetime[e] })).sort((a, b) => b.beers - a.beers);
+      if ($('admin-leaderboard-list')) {
+        $('admin-leaderboard-list').innerHTML = sortedLife.map((item, idx) => `
+          <div class="member-row clickable-stat" onclick="openBreakdownModal(adminUserBreakdowns['${item.email}'], '${item.name}\'s Drink Breakdown')">
+            <div><strong>#${idx + 1} ${item.name}</strong><span class="click-hint" style="margin:0;">Click for breakdown</span></div>
+            <strong style="color: #f59e0b; font-size: 16px;">${item.beers} 🍺</strong>
+          </div>
+        `).join('');
+      }
+
+      const sortedDaily = emails.map(e => ({ email: e, name: nameMap[e] || e.split('@')[0], beers: userDaily[e] })).sort((a, b) => b.beers - a.beers);
+      if ($('admin-daily-leaderboard-list')) {
+        $('admin-daily-leaderboard-list').innerHTML = sortedDaily.map((item, idx) => `
+          <div class="member-row">
+            <div><strong>#${idx + 1} ${item.name}</strong></div>
+            <strong style="color: #f59e0b; font-size: 16px;">${item.beers} 🍺</strong>
+          </div>
+        `).join('');
+      }
+
+      renderCharts(logs, emails, nameMap, 'adminFreqChart', 'adminWeeklyChart');
     }
 
     function closeAdminGroupInspection() {
       $('admin-group-inspection-view').classList.add('hidden');
     }
 
-    async function editProfileName() {
-      const newName = prompt("Enter new display name:", userName);
-      if (newName?.trim()) {
-        userName = newName.trim();
-        await sb.from('users').update({ display_name: userName }).eq('email', userEmail);
-        await sb.from('group_members').update({ user_name: userName }).eq('user_email', userEmail);
-        fetchUserGroups();
+    function teardownRealtime() {
+      if (realtimeChannel) {
+        sb.removeChannel(realtimeChannel);
+        realtimeChannel = null;
       }
-    }
-
-    function shareGroup(e, code) {
-      if (e) e.stopPropagation();
-      const url = `${window.location.href.split('?')[0]}?join=${code}`;
-      if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url });
-      else navigator.clipboard.writeText(url).then(() => alert(`Link copied to clipboard!\nCode: ${code}`));
-    }
-
-    function closeAllExpandables() {
-      closeHostPanel();
-      ['groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => $(id)?.classList.add('hidden'));
-      ['groups-accordion-icon', 'join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => { if ($(id)) $(id).innerText = '▼'; });
-    }
-
-    function toggleAccordion(bodyId, iconId) {
-      const body = $(bodyId), icon = $(iconId), isHidden = body.classList.contains('hidden');
-      closeAllExpandables();
-      if (isHidden) {
-        body.classList.remove('hidden');
-        if (icon) icon.innerText = '▲';
-        if (bodyId === 'missed-drinks-body') renderCalendar();
-      }
-    }
-
-    function closeHostPanel() {
-      if (activeHostCode) { $(`host-panel-${activeHostCode}`)?.remove(); activeHostCode = null; }
-    }
-
-    function handleGlobalClick(e) {
-      const isInsideCard = ['card-active-groups', 'card-join-group', 'card-create-group', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
-      const isMissedBtn = e.target.closest('button')?.getAttribute('onclick')?.includes('missed-drinks-body');
-      const isInsideHost = activeHostCode && $(`host-panel-${activeHostCode}`)?.contains(e.target);
-      if (!isInsideCard && !isMissedBtn && !isInsideHost) closeAllExpandables();
-    }
-
-    function switchPage(p) {
-      closeAllExpandables();
-
-      if (p !== 'admin') {
-        $('nav-admin')?.classList.add('hidden');
-      }
-
-      ['account', 'tracker', 'stats', 'admin'].forEach(page => {
-        $(`page-${page}`)?.classList.toggle('hidden', page !== p);
-        $(`nav-${page}`)?.classList.toggle('active', page === p);
-      });
-
-      if (p === 'account') updateAccountPage();
-      if (p === 'stats') renderAnalytics();
-      if (p === 'admin') renderAdminPage();
     }
   </script>
 </body>
