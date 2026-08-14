@@ -54,6 +54,13 @@
     .btn-admin:hover { background: #7c3aed; }
     .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
     .member-row:last-child { border-bottom: none; }
+    .group-drag-item { border-bottom: 1px solid #334155; }
+    .group-drag-item:last-child { border-bottom: none; }
+    .group-drag-row { display: flex; align-items: center; gap: 4px; }
+    .drag-handle { cursor: grab; color: #64748b; font-size: 20px; line-height: 1; padding: 10px 8px 10px 0; touch-action: none; user-select: none; }
+    .drag-handle:active { cursor: grabbing; color: #f59e0b; }
+    .group-drag-item.dragging { opacity: 0.95; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-radius: 10px; background: #0f172a; border-bottom: none; }
+    .group-drag-placeholder { border: 2px dashed #f59e0b; border-radius: 10px; margin: 4px 0; opacity: 0.5; box-sizing: border-box; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
     .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -438,7 +445,24 @@
       renderCalendar();
       await fetchDrinkLogsForDate(activeLogDate);
       await fetchUserGroups();
-      switchPage('tracker');
+
+      const isAdmin = (userEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim());
+      let restorePage = loadLastPage();
+      if (restorePage === 'admin') {
+        if (isAdmin) $('nav-admin')?.classList.remove('hidden');
+        else restorePage = 'tracker';
+      }
+      if (!['account', 'tracker', 'stats', 'admin'].includes(restorePage)) restorePage = 'tracker';
+
+      switchPage(restorePage);
+    }
+
+    function saveLastPage(p) {
+      try { localStorage.setItem('dt_last_page', p); } catch (e) {}
+    }
+
+    function loadLastPage() {
+      try { return localStorage.getItem('dt_last_page') || 'tracker'; } catch (e) { return 'tracker'; }
     }
 
     function calculateUnitsAndBeers(e) {
@@ -524,6 +548,7 @@
     async function fetchUserGroups() {
       const { data } = await sb.from('group_members').select('group_code, groups(name, host_email)').eq('user_email', userEmail);
       userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
+      applySavedGroupOrder();
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
       renderMyGroups();
@@ -546,18 +571,143 @@
         const isHost = (grp.host_email === userEmail);
         const wrapper = document.createElement('div');
         wrapper.id = `group-item-${grp.code}`;
+        wrapper.className = 'group-drag-item';
+        wrapper.dataset.code = grp.code;
         wrapper.innerHTML = `
-          <div class="member-row">
-            <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}</div>
-            <div style="display:flex; gap:6px;">
-              ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
-              <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
-              <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
+          <div class="group-drag-row">
+            <span class="drag-handle" title="Drag to reorder">⠿</span>
+            <div class="member-row" style="flex:1; border-bottom:none;">
+              <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}</div>
+              <div style="display:flex; gap:6px;">
+                ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
+                <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
+                <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
+              </div>
             </div>
           </div>`;
         container.appendChild(wrapper);
         if (activeHostCode === grp.code) renderInlineHostPanel(grp.code);
+
+        const handle = wrapper.querySelector('.drag-handle');
+        handle.addEventListener('pointerdown', e => startGroupDrag(e, grp.code));
       });
+    }
+
+    /* DRAG-TO-REORDER GROUPS (account page) — works with mouse and touch via Pointer Events */
+    let groupDragState = null;
+
+    function startGroupDrag(e, code) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const container = $('my-groups-list');
+      const item = $(`group-item-${code}`);
+      if (!item || !container) return;
+
+      const handle = e.currentTarget;
+      const itemRect = item.getBoundingClientRect();
+
+      const placeholder = document.createElement('div');
+      placeholder.className = 'group-drag-placeholder';
+      placeholder.style.height = `${itemRect.height}px`;
+      container.insertBefore(placeholder, item.nextSibling);
+
+      groupDragState = { code, handle, pointerId: e.pointerId, offsetY: e.clientY - itemRect.top, placeholder };
+
+      item.classList.add('dragging');
+      item.style.position = 'fixed';
+      item.style.left = `${itemRect.left}px`;
+      item.style.top = `${itemRect.top}px`;
+      item.style.width = `${itemRect.width}px`;
+      item.style.zIndex = '1000';
+      item.style.pointerEvents = 'none';
+
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      handle.addEventListener('pointermove', onGroupDragMove);
+      handle.addEventListener('pointerup', endGroupDrag);
+      handle.addEventListener('pointercancel', endGroupDrag);
+    }
+
+    function onGroupDragMove(e) {
+      if (!groupDragState) return;
+      const item = $(`group-item-${groupDragState.code}`);
+      const container = $('my-groups-list');
+      if (!item || !container) return;
+
+      item.style.top = `${e.clientY - groupDragState.offsetY}px`;
+
+      const siblings = Array.from(container.children).filter(el => el !== item && el !== groupDragState.placeholder);
+      let placed = false;
+      for (const sib of siblings) {
+        const rect = sib.getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) {
+          container.insertBefore(groupDragState.placeholder, sib);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) container.appendChild(groupDragState.placeholder);
+    }
+
+    function endGroupDrag(e) {
+      if (!groupDragState) return;
+      const { handle, code, placeholder, pointerId } = groupDragState;
+      const item = $(`group-item-${code}`);
+      const container = $('my-groups-list');
+
+      if (item && container) {
+        container.insertBefore(item, placeholder);
+        item.classList.remove('dragging');
+        item.style.position = '';
+        item.style.left = '';
+        item.style.top = '';
+        item.style.width = '';
+        item.style.zIndex = '';
+        item.style.pointerEvents = '';
+      }
+      placeholder.remove();
+
+      handle.removeEventListener('pointermove', onGroupDragMove);
+      handle.removeEventListener('pointerup', endGroupDrag);
+      handle.removeEventListener('pointercancel', endGroupDrag);
+      try { handle.releasePointerCapture(pointerId); } catch (err) {}
+
+      if (container) {
+        const newOrder = Array.from(container.children).map(el => el.dataset && el.dataset.code).filter(Boolean);
+        applyGroupOrder(newOrder);
+      }
+
+      groupDragState = null;
+    }
+
+    function groupOrderStorageKey() {
+      return `dt_group_order_${userEmail}`;
+    }
+
+    function saveGroupOrder() {
+      try { localStorage.setItem(groupOrderStorageKey(), JSON.stringify(userJoinedGroups.map(g => g.code))); } catch (e) {}
+    }
+
+    function loadGroupOrder() {
+      try { return JSON.parse(localStorage.getItem(groupOrderStorageKey())) || []; } catch (e) { return []; }
+    }
+
+    function applySavedGroupOrder() {
+      const saved = loadGroupOrder();
+      if (!saved.length) return;
+      userJoinedGroups.sort((a, b) => {
+        let ia = saved.indexOf(a.code); if (ia === -1) ia = Infinity;
+        let ib = saved.indexOf(b.code); if (ib === -1) ib = Infinity;
+        return ia - ib;
+      });
+    }
+
+    function applyGroupOrder(codes) {
+      if (!codes || !codes.length) return;
+      userJoinedGroups.sort((a, b) => codes.indexOf(a.code) - codes.indexOf(b.code));
+      saveGroupOrder();
+      populateAnalyticsDropdown(true);
     }
 
     async function createGroup() {
@@ -671,10 +821,14 @@
         }).subscribe();
     }
 
-    function populateAnalyticsDropdown() {
+    function populateAnalyticsDropdown(forceTopSelection) {
       const select = $('analytics-group-select'), cur = select.value;
       select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
-      if (cur) select.value = cur;
+      // The first <option> (top of the user's group order) is selected by default.
+      // Preserve an existing manual selection unless we're explicitly forcing the top group (e.g. after a drag reorder).
+      if (!forceTopSelection && cur && userJoinedGroups.some(g => g.code === cur)) {
+        select.value = cur;
+      }
     }
 
     async function renderAnalytics() {
@@ -1064,6 +1218,8 @@
       if (p === 'account') updateAccountPage();
       if (p === 'stats') renderAnalytics();
       if (p === 'admin') renderAdminPage();
+
+      saveLastPage(p);
     }
   </script>
 </body>
