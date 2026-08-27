@@ -140,6 +140,7 @@
         <div class="stat-grid">
           <div class="stat-box"><div class="stat-label">Days Active</div><div id="acc-days-active" class="stat-number">1</div></div>
           <div class="stat-box"><div class="stat-label">Groups Joined</div><div id="acc-groups-count" class="stat-number">0</div></div>
+          <div class="stat-box" style="grid-column: span 2;"><div class="stat-label">Avg Daily Beers</div><div id="acc-avg-daily" class="stat-number">0.00 🍺</div></div>
           <div class="stat-box clickable-stat" style="grid-column: span 2;" onclick="openBreakdownModal(lifetimeTotals, 'Your Lifetime Drink Breakdown')">
             <div class="stat-label">Total Lifetime Drinks</div>
             <div id="acc-total-pints" class="stat-number">0 🍺</div>
@@ -231,16 +232,17 @@
     <!-- PAGE 3: STATS -->
     <div id="page-stats" class="hidden">
       <div class="card centered-select-container">
-        <label style="font-weight: bold;">SELECT GROUP TO VIEW</label>
+        <label style="font-weight: bold;">SELECT VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
-      <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, 'Total Group Drink Breakdown')">
-        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
+      <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, 'Total Drink Breakdown')">
+        <h3 id="group-total-label" style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL BEERS</h3>
         <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
         <span class="click-hint">(Click to view breakdown)</span>
       </div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="leaderboard-list"></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="daily-leaderboard-list"></div></div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="dayOfWeekChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
     </div>
@@ -278,6 +280,7 @@
         </div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="admin-leaderboard-list"></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="admin-daily-leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminDayOfWeekChart"></canvas></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminFreqChart"></canvas></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="adminWeeklyChart"></canvas></div></div>
       </div>
@@ -329,8 +332,8 @@
     let calendarViewYear = new Date().getFullYear(), calendarViewMonth = new Date().getMonth();
     let userJoinedGroups = [], relevantEmails = [], todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null, realtimeChannel = null;
-    let freqChartInstance = null, weeklyChartInstance = null;
-    let adminFreqChartInstance = null, adminWeeklyChartInstance = null;
+    let freqChartInstance = null, weeklyChartInstance = null, dayOfWeekChartInstance = null;
+    let adminFreqChartInstance = null, adminWeeklyChartInstance = null, adminDayOfWeekChartInstance = null;
     let lifetimeTotals = {}, groupTotalsBreakdown = {}, adminGroupTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
 
     $('drink-list-container').innerHTML = DRINKS.map(d => `
@@ -673,7 +676,9 @@
 
     function populateAnalyticsDropdown() {
       const select = $('analytics-group-select'), cur = select.value;
-      select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
+      const options = ['<option value="PERSONAL">👤 Personal (My Stats)</option>'];
+      userJoinedGroups.forEach(g => options.push(`<option value="${g.code}">${g.name}</option>`));
+      select.innerHTML = options.join('');
       if (cur) select.value = cur;
     }
 
@@ -681,6 +686,33 @@
       const todayStr = getEffectiveTodayDate(), code = $('analytics-group-select').value;
       const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
+
+      if (code === 'PERSONAL') {
+        $('group-total-label').innerText = 'TOTAL PERSONAL BEERS';
+        const { data: userLogs } = await sb.from('drink_logs').select('*').eq('user_email', userEmail);
+        
+        let personalBeers = 0;
+        groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+        (userLogs || []).forEach(l => {
+          personalBeers += calculateUnitsAndBeers(l).beers;
+          DRINKS.forEach(d => groupTotalsBreakdown[d.key] += (l[d.key] || 0));
+        });
+
+        $('group-total-beers').innerText = `${personalBeers} 🍺`;
+        lb.innerHTML = `<div class="member-row"><span>${userName} (You)</span><strong class="clickable-text" onclick="openBreakdownModal(groupTotalsBreakdown, '${userName}\\'s Drink Breakdown')"><span>${personalBeers}</span> 🍺</strong></div>`;
+
+        const todayLog = (userLogs || []).find(l => l.log_date === todayStr);
+        const todayBeers = todayLog ? calculateUnitsAndBeers(todayLog).beers : 0;
+        dlb.innerHTML = todayBeers > 0 
+          ? `<div class="member-row"><span>${userName} (You)</span><strong>${todayBeers} 🍺</strong></div>` 
+          : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+
+        renderCharts(userLogs || [], 'freqChart', 'weeklyChart', 'dayOfWeekChart');
+        return;
+      }
+
+      $('group-total-label').innerText = 'TOTAL GROUP BEERS';
 
       if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>'; return; }
 
@@ -725,18 +757,21 @@
       dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
 
       $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || [], 'freqChart', 'weeklyChart');
+      renderCharts(logs || [], 'freqChart', 'weeklyChart', 'dayOfWeekChart');
     }
 
     function openUserBreakdownModal(email, name) {
       openBreakdownModal(userBreakdownsByEmail[email.toLowerCase().trim()], `${name}'s Drink Breakdown`);
     }
 
-    function renderCharts(logs, freqCanvasId, weeklyCanvasId) {
-      const c1 = $(freqCanvasId), c2 = $(weeklyCanvasId);
+    function renderCharts(logs, freqCanvasId, weeklyCanvasId, dowCanvasId) {
+      const c1 = $(freqCanvasId), c2 = $(weeklyCanvasId), c3 = $(dowCanvasId);
       if (!c1 || !c2) return;
 
       const freqMap = {}, weeklyMap = {};
+      const dowMap = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+      const dowKeys = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
       logs.forEach(l => {
         const beers = calculateUnitsAndBeers(l).beers;
         if (beers > 0) {
@@ -745,6 +780,10 @@
           const label = `w/c ${mon.toLocaleString('default', { month: 'short' })} ${mon.getDate()}`;
           if (!weeklyMap[key]) weeklyMap[key] = { label, beers: 0 };
           weeklyMap[key].beers += beers;
+
+          const [y, m, d] = l.log_date.split('-').map(Number);
+          const dayName = dowKeys[new Date(y, m - 1, d).getDay()];
+          dowMap[dayName] += beers;
         }
       });
 
@@ -787,12 +826,33 @@
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
       }
+
+      if (c3) {
+        const dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const dowData = dowLabels.map(d => dowMap[d]);
+        if (dowCanvasId === 'dayOfWeekChart') {
+          if (dayOfWeekChartInstance) dayOfWeekChartInstance.destroy();
+          dayOfWeekChartInstance = new Chart(c3.getContext('2d'), {
+            type: 'bar',
+            data: { labels: dowLabels, datasets: [{ data: dowData, backgroundColor: '#f59e0b', borderRadius: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          });
+        } else if (dowCanvasId === 'adminDayOfWeekChart') {
+          if (adminDayOfWeekChartInstance) adminDayOfWeekChartInstance.destroy();
+          adminDayOfWeekChartInstance = new Chart(c3.getContext('2d'), {
+            type: 'bar',
+            data: { labels: dowLabels, datasets: [{ data: dowData, backgroundColor: '#8b5cf6', borderRadius: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          });
+        }
+      }
     }
 
     function updateAccountPage() {
       $('acc-name-display').innerText = userName;
       $('acc-email-display').innerText = userEmail;
-      $('acc-days-active').innerText = Math.max(1, Math.ceil(Math.abs(new Date() - new Date(firstCreatedDate)) / 86400000));
+      const daysActive = Math.max(1, Math.ceil(Math.abs(new Date() - new Date(firstCreatedDate)) / 86400000));
+      $('acc-days-active').innerText = daysActive;
       $('acc-groups-count').innerText = userJoinedGroups.length;
 
       const isAdmin = (userEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim());
@@ -805,6 +865,7 @@
           DRINKS.forEach(d => lifetimeTotals[d.key] += (e[d.key] || 0));
         });
         $('acc-total-pints').innerText = `${beers} 🍺`;
+        $('acc-avg-daily').innerText = `${(beers / daysActive).toFixed(2)} 🍺`;
       });
     }
 
@@ -996,7 +1057,7 @@
       dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
 
       $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || [], 'adminFreqChart', 'adminWeeklyChart');
+      renderCharts(logs || [], 'adminFreqChart', 'adminWeeklyChart', 'adminDayOfWeekChart');
 
       view.scrollIntoView({ behavior: 'smooth' });
     }
