@@ -239,16 +239,18 @@
     <!-- PAGE 3: STATS -->
     <div id="page-stats" class="hidden">
       <div class="card centered-select-container">
-        <label style="font-weight: bold;">SELECT GROUP TO VIEW</label>
+        <label style="font-weight: bold;">VIEW STATS FOR</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
-      <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, 'Total Group Drink Breakdown')">
-        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
+      <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, modalBreakdownTitle)">
+        <h3 id="group-total-label" style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
         <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
         <span class="click-hint">(Click to view breakdown)</span>
       </div>
-      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="leaderboard-list"></div></div>
-      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="daily-leaderboard-list"></div></div>
+      <div id="leaderboards-container">
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="daily-leaderboard-list"></div></div>
+      </div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="dowChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
@@ -342,6 +344,7 @@
     let freqChartInstance = null, dowChartInstance = null, weeklyChartInstance = null;
     let adminFreqChartInstance = null, adminDowChartInstance = null, adminWeeklyChartInstance = null;
     let lifetimeTotals = {}, groupTotalsBreakdown = {}, adminGroupTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
+    let modalBreakdownTitle = 'Total Group Drink Breakdown';
 
     $('drink-list-container').innerHTML = DRINKS.map(d => `
       <div class="drink-row">
@@ -824,16 +827,46 @@
 
     function populateAnalyticsDropdown(forceTopSelection) {
       const select = $('analytics-group-select'), cur = select.value;
-      select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
-      if (!forceTopSelection && cur && userJoinedGroups.some(g => g.code === cur)) {
+      let html = `<option value="my_stats">My Stats</option>`;
+      if (userJoinedGroups.length > 0) {
+        html += userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('');
+      }
+      select.innerHTML = html;
+      if (!forceTopSelection && cur && (cur === 'my_stats' || userJoinedGroups.some(g => g.code === cur))) {
         select.value = cur;
+      } else {
+        select.value = 'my_stats';
       }
     }
 
     async function renderAnalytics() {
       const todayStr = getEffectiveTodayDate(), code = $('analytics-group-select').value;
+      const lbContainer = $('leaderboards-container');
       const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
+
+      if (code === 'my_stats') {
+        lbContainer.classList.add('hidden');
+        $('group-total-label').innerText = 'TOTAL YOUR BEERS';
+        modalBreakdownTitle = 'Your Drink Breakdown';
+
+        const { data: logs } = await sb.from('drink_logs').select('*').eq('user_email', userEmail);
+        let totalBeers = 0;
+        groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+        (logs || []).forEach(l => {
+          totalBeers += calculateUnitsAndBeers(l).beers;
+          DRINKS.forEach(d => groupTotalsBreakdown[d.key] += (l[d.key] || 0));
+        });
+
+        $('group-total-beers').innerText = `${totalBeers} 🍺`;
+        renderCharts(logs || [], 'freqChart', 'dowChart', 'weeklyChart');
+        return;
+      }
+
+      lbContainer.classList.remove('hidden');
+      $('group-total-label').innerText = 'TOTAL GROUP BEERS';
+      modalBreakdownTitle = 'Total Group Drink Breakdown';
 
       if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>'; return; }
 
