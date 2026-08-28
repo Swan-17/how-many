@@ -54,6 +54,13 @@
     .btn-admin:hover { background: #7c3aed; }
     .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
     .member-row:last-child { border-bottom: none; }
+    .group-drag-item { border-bottom: 1px solid #334155; }
+    .group-drag-item:last-child { border-bottom: none; }
+    .group-drag-row { display: flex; align-items: center; gap: 4px; }
+    .drag-handle { cursor: grab; color: #64748b; font-size: 20px; line-height: 1; padding: 10px 8px 10px 0; touch-action: none; user-select: none; }
+    .drag-handle:active { cursor: grabbing; color: #f59e0b; }
+    .group-drag-item.dragging { opacity: 0.95; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-radius: 10px; background: #0f172a; border-bottom: none; }
+    .group-drag-placeholder { border: 2px dashed #f59e0b; border-radius: 10px; margin: 4px 0; opacity: 0.5; box-sizing: border-box; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
     .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -140,8 +147,8 @@
         <div class="stat-grid">
           <div class="stat-box"><div class="stat-label">Days Active</div><div id="acc-days-active" class="stat-number">1</div></div>
           <div class="stat-box"><div class="stat-label">Groups Joined</div><div id="acc-groups-count" class="stat-number">0</div></div>
-          <div class="stat-box" style="grid-column: span 2;"><div class="stat-label">Avg Daily Beers</div><div id="acc-avg-daily" class="stat-number">0.00 🍺</div></div>
-          <div class="stat-box clickable-stat" style="grid-column: span 2;" onclick="openBreakdownModal(lifetimeTotals, 'Your Lifetime Drink Breakdown')">
+          <div class="stat-box"><div class="stat-label">Avg Beers / Day</div><div id="acc-avg-beers" class="stat-number">0 🍺</div></div>
+          <div class="stat-box clickable-stat" onclick="openBreakdownModal(lifetimeTotals, 'Your Lifetime Drink Breakdown')">
             <div class="stat-label">Total Lifetime Drinks</div>
             <div id="acc-total-pints" class="stat-number">0 🍺</div>
             <span class="click-hint">(Click to view breakdown)</span>
@@ -232,18 +239,18 @@
     <!-- PAGE 3: STATS -->
     <div id="page-stats" class="hidden">
       <div class="card centered-select-container">
-        <label style="font-weight: bold;">SELECT VIEW</label>
+        <label style="font-weight: bold;">SELECT GROUP TO VIEW</label>
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
-      <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, 'Total Drink Breakdown')">
-        <h3 id="group-total-label" style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL BEERS</h3>
+      <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, 'Total Group Drink Breakdown')">
+        <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
         <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
         <span class="click-hint">(Click to view breakdown)</span>
       </div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="leaderboard-list"></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="daily-leaderboard-list"></div></div>
-      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="dayOfWeekChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="dowChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
     </div>
 
@@ -280,8 +287,8 @@
         </div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="admin-leaderboard-list"></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="admin-daily-leaderboard-list"></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminDayOfWeekChart"></canvas></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminFreqChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminDowChart"></canvas></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="adminWeeklyChart"></canvas></div></div>
       </div>
     </div>
@@ -332,8 +339,8 @@
     let calendarViewYear = new Date().getFullYear(), calendarViewMonth = new Date().getMonth();
     let userJoinedGroups = [], relevantEmails = [], todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null, realtimeChannel = null;
-    let freqChartInstance = null, weeklyChartInstance = null, dayOfWeekChartInstance = null;
-    let adminFreqChartInstance = null, adminWeeklyChartInstance = null, adminDayOfWeekChartInstance = null;
+    let freqChartInstance = null, dowChartInstance = null, weeklyChartInstance = null;
+    let adminFreqChartInstance = null, adminDowChartInstance = null, adminWeeklyChartInstance = null;
     let lifetimeTotals = {}, groupTotalsBreakdown = {}, adminGroupTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
 
     $('drink-list-container').innerHTML = DRINKS.map(d => `
@@ -441,7 +448,24 @@
       renderCalendar();
       await fetchDrinkLogsForDate(activeLogDate);
       await fetchUserGroups();
-      switchPage('tracker');
+
+      const isAdmin = (userEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim());
+      let restorePage = loadLastPage();
+      if (restorePage === 'admin') {
+        if (isAdmin) $('nav-admin')?.classList.remove('hidden');
+        else restorePage = 'tracker';
+      }
+      if (!['account', 'tracker', 'stats', 'admin'].includes(restorePage)) restorePage = 'tracker';
+
+      switchPage(restorePage);
+    }
+
+    function saveLastPage(p) {
+      try { localStorage.setItem('dt_last_page', p); } catch (e) {}
+    }
+
+    function loadLastPage() {
+      try { return localStorage.getItem('dt_last_page') || 'tracker'; } catch (e) { return 'tracker'; }
     }
 
     function calculateUnitsAndBeers(e) {
@@ -527,6 +551,7 @@
     async function fetchUserGroups() {
       const { data } = await sb.from('group_members').select('group_code, groups(name, host_email)').eq('user_email', userEmail);
       userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
+      applySavedGroupOrder();
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
       renderMyGroups();
@@ -549,18 +574,142 @@
         const isHost = (grp.host_email === userEmail);
         const wrapper = document.createElement('div');
         wrapper.id = `group-item-${grp.code}`;
+        wrapper.className = 'group-drag-item';
+        wrapper.dataset.code = grp.code;
         wrapper.innerHTML = `
-          <div class="member-row">
-            <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}</div>
-            <div style="display:flex; gap:6px;">
-              ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
-              <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
-              <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
+          <div class="group-drag-row">
+            <span class="drag-handle" title="Drag to reorder">⠿</span>
+            <div class="member-row" style="flex:1; border-bottom:none;">
+              <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}</div>
+              <div style="display:flex; gap:6px;">
+                ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
+                <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
+                <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
+              </div>
             </div>
           </div>`;
         container.appendChild(wrapper);
         if (activeHostCode === grp.code) renderInlineHostPanel(grp.code);
+
+        const handle = wrapper.querySelector('.drag-handle');
+        handle.addEventListener('pointerdown', e => startGroupDrag(e, grp.code));
       });
+    }
+
+    let groupDragState = null;
+
+    function startGroupDrag(e, code) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const container = $('my-groups-list');
+      const item = $(`group-item-${code}`);
+      if (!item || !container) return;
+
+      const handle = e.currentTarget;
+      const itemRect = item.getBoundingClientRect();
+
+      const placeholder = document.createElement('div');
+      placeholder.className = 'group-drag-placeholder';
+      placeholder.style.height = `${itemRect.height}px`;
+      container.insertBefore(placeholder, item.nextSibling);
+
+      groupDragState = { code, handle, pointerId: e.pointerId, offsetY: e.clientY - itemRect.top, placeholder };
+
+      item.classList.add('dragging');
+      item.style.position = 'fixed';
+      item.style.left = `${itemRect.left}px`;
+      item.style.top = `${itemRect.top}px`;
+      item.style.width = `${itemRect.width}px`;
+      item.style.zIndex = '1000';
+      item.style.pointerEvents = 'none';
+
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      handle.addEventListener('pointermove', onGroupDragMove);
+      handle.addEventListener('pointerup', endGroupDrag);
+      handle.addEventListener('pointercancel', endGroupDrag);
+    }
+
+    function onGroupDragMove(e) {
+      if (!groupDragState) return;
+      const item = $(`group-item-${groupDragState.code}`);
+      const container = $('my-groups-list');
+      if (!item || !container) return;
+
+      item.style.top = `${e.clientY - groupDragState.offsetY}px`;
+
+      const siblings = Array.from(container.children).filter(el => el !== item && el !== groupDragState.placeholder);
+      let placed = false;
+      for (const sib of siblings) {
+        const rect = sib.getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) {
+          container.insertBefore(groupDragState.placeholder, sib);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) container.appendChild(groupDragState.placeholder);
+    }
+
+    function endGroupDrag(e) {
+      if (!groupDragState) return;
+      const { handle, code, placeholder, pointerId } = groupDragState;
+      const item = $(`group-item-${code}`);
+      const container = $('my-groups-list');
+
+      if (item && container) {
+        container.insertBefore(item, placeholder);
+        item.classList.remove('dragging');
+        item.style.position = '';
+        item.style.left = '';
+        item.style.top = '';
+        item.style.width = '';
+        item.style.zIndex = '';
+        item.style.pointerEvents = '';
+      }
+      placeholder.remove();
+
+      handle.removeEventListener('pointermove', onGroupDragMove);
+      handle.removeEventListener('pointerup', endGroupDrag);
+      handle.removeEventListener('pointercancel', endGroupDrag);
+      try { handle.releasePointerCapture(pointerId); } catch (err) {}
+
+      if (container) {
+        const newOrder = Array.from(container.children).map(el => el.dataset && el.dataset.code).filter(Boolean);
+        applyGroupOrder(newOrder);
+      }
+
+      groupDragState = null;
+    }
+
+    function groupOrderStorageKey() {
+      return `dt_group_order_${userEmail}`;
+    }
+
+    function saveGroupOrder() {
+      try { localStorage.setItem(groupOrderStorageKey(), JSON.stringify(userJoinedGroups.map(g => g.code))); } catch (e) {}
+    }
+
+    function loadGroupOrder() {
+      try { return JSON.parse(localStorage.getItem(groupOrderStorageKey())) || []; } catch (e) { return []; }
+    }
+
+    function applySavedGroupOrder() {
+      const saved = loadGroupOrder();
+      if (!saved.length) return;
+      userJoinedGroups.sort((a, b) => {
+        let ia = saved.indexOf(a.code); if (ia === -1) ia = Infinity;
+        let ib = saved.indexOf(b.code); if (ib === -1) ib = Infinity;
+        return ia - ib;
+      });
+    }
+
+    function applyGroupOrder(codes) {
+      if (!codes || !codes.length) return;
+      userJoinedGroups.sort((a, b) => codes.indexOf(a.code) - codes.indexOf(b.code));
+      saveGroupOrder();
+      populateAnalyticsDropdown(true);
     }
 
     async function createGroup() {
@@ -603,7 +752,6 @@
       await fetchUserGroups();
     }
 
-    /* HOST CONTROL MANAGE PANEL LOGIC */
     function toggleHostPanel(e, code) {
       if (e) e.stopPropagation();
       if (activeHostCode === code) {
@@ -674,45 +822,18 @@
         }).subscribe();
     }
 
-    function populateAnalyticsDropdown() {
+    function populateAnalyticsDropdown(forceTopSelection) {
       const select = $('analytics-group-select'), cur = select.value;
-      const options = ['<option value="PERSONAL">👤 Personal (My Stats)</option>'];
-      userJoinedGroups.forEach(g => options.push(`<option value="${g.code}">${g.name}</option>`));
-      select.innerHTML = options.join('');
-      if (cur) select.value = cur;
+      select.innerHTML = userJoinedGroups.length ? userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('') : '<option value="">No active groups joined</option>';
+      if (!forceTopSelection && cur && userJoinedGroups.some(g => g.code === cur)) {
+        select.value = cur;
+      }
     }
 
     async function renderAnalytics() {
       const todayStr = getEffectiveTodayDate(), code = $('analytics-group-select').value;
       const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
-
-      if (code === 'PERSONAL') {
-        $('group-total-label').innerText = 'TOTAL PERSONAL BEERS';
-        const { data: userLogs } = await sb.from('drink_logs').select('*').eq('user_email', userEmail);
-        
-        let personalBeers = 0;
-        groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-        (userLogs || []).forEach(l => {
-          personalBeers += calculateUnitsAndBeers(l).beers;
-          DRINKS.forEach(d => groupTotalsBreakdown[d.key] += (l[d.key] || 0));
-        });
-
-        $('group-total-beers').innerText = `${personalBeers} 🍺`;
-        lb.innerHTML = `<div class="member-row"><span>${userName} (You)</span><strong class="clickable-text" onclick="openBreakdownModal(groupTotalsBreakdown, '${userName}\\'s Drink Breakdown')"><span>${personalBeers}</span> 🍺</strong></div>`;
-
-        const todayLog = (userLogs || []).find(l => l.log_date === todayStr);
-        const todayBeers = todayLog ? calculateUnitsAndBeers(todayLog).beers : 0;
-        dlb.innerHTML = todayBeers > 0 
-          ? `<div class="member-row"><span>${userName} (You)</span><strong>${todayBeers} 🍺</strong></div>` 
-          : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
-
-        renderCharts(userLogs || [], 'freqChart', 'weeklyChart', 'dayOfWeekChart');
-        return;
-      }
-
-      $('group-total-label').innerText = 'TOTAL GROUP BEERS';
 
       if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>'; return; }
 
@@ -757,49 +878,70 @@
       dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
 
       $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || [], 'freqChart', 'weeklyChart', 'dayOfWeekChart');
+      renderCharts(logs || [], 'freqChart', 'dowChart', 'weeklyChart');
     }
 
     function openUserBreakdownModal(email, name) {
       openBreakdownModal(userBreakdownsByEmail[email.toLowerCase().trim()], `${name}'s Drink Breakdown`);
     }
 
-    function renderCharts(logs, freqCanvasId, weeklyCanvasId, dowCanvasId) {
-      const c1 = $(freqCanvasId), c2 = $(weeklyCanvasId), c3 = $(dowCanvasId);
-      if (!c1 || !c2) return;
+    function renderCharts(logs, freqCanvasId, dowCanvasId, weeklyCanvasId) {
+      const c1 = $(freqCanvasId), c2 = $(dowCanvasId), c3 = $(weeklyCanvasId);
+      if (!c1 || !c2 || !c3) return;
 
-      const freqMap = {}, weeklyMap = {};
-      const dowMap = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
-      const dowKeys = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const freqMap = {}, dowMap = [0, 0, 0, 0, 0, 0, 0], weeklyMap = {};
+      const dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
       logs.forEach(l => {
         const beers = calculateUnitsAndBeers(l).beers;
         if (beers > 0) {
           freqMap[beers] = (freqMap[beers] || 0) + 1;
+
+          const [y, m, d] = l.log_date.split('-').map(Number);
+          const dateObj = new Date(y, m - 1, d);
+          const jsDay = dateObj.getDay();
+          const dowIndex = (jsDay === 0) ? 6 : jsDay - 1;
+          dowMap[dowIndex] += beers;
+
           const mon = getMondayDate(l.log_date), key = mon.toISOString().split('T')[0];
           const label = `w/c ${mon.toLocaleString('default', { month: 'short' })} ${mon.getDate()}`;
           if (!weeklyMap[key]) weeklyMap[key] = { label, beers: 0 };
           weeklyMap[key].beers += beers;
-
-          const [y, m, d] = l.log_date.split('-').map(Number);
-          const dayName = dowKeys[new Date(y, m - 1, d).getDay()];
-          dowMap[dayName] += beers;
         }
       });
 
       const sortedAmts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
+      const accentColor = freqCanvasId.startsWith('admin') ? '#8b5cf6' : '#f59e0b';
+      const accentBg = freqCanvasId.startsWith('admin') ? 'rgba(139, 92, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)';
+
       if (freqCanvasId === 'freqChart') {
         if (freqChartInstance) freqChartInstance.destroy();
         freqChartInstance = new Chart(c1.getContext('2d'), {
           type: 'bar',
-          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#f59e0b', borderRadius: 6 }] },
+          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: accentColor, borderRadius: 6 }] },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
       } else if (freqCanvasId === 'adminFreqChart') {
         if (adminFreqChartInstance) adminFreqChartInstance.destroy();
         adminFreqChartInstance = new Chart(c1.getContext('2d'), {
           type: 'bar',
-          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: '#8b5cf6', borderRadius: 6 }] },
+          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: accentColor, borderRadius: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      }
+
+      if (dowCanvasId === 'dowChart') {
+        if (dowChartInstance) dowChartInstance.destroy();
+        dowChartInstance = new Chart(c2.getContext('2d'), {
+          type: 'bar',
+          data: { labels: dowLabels, datasets: [{ data: dowMap, backgroundColor: accentColor, borderRadius: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      } else if (dowCanvasId === 'adminDowChart') {
+        if (adminDowChartInstance) adminDowChartInstance.destroy();
+        adminDowChartInstance = new Chart(c2.getContext('2d'), {
+          type: 'bar',
+          data: { labels: dowLabels, datasets: [{ data: dowMap, backgroundColor: accentColor, borderRadius: 6 }] },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
       }
@@ -807,44 +949,24 @@
       const sortedWeeks = Object.keys(weeklyMap).sort();
       if (weeklyCanvasId === 'weeklyChart') {
         if (weeklyChartInstance) weeklyChartInstance.destroy();
-        weeklyChartInstance = new Chart(c2.getContext('2d'), {
+        weeklyChartInstance = new Chart(c3.getContext('2d'), {
           type: 'line',
           data: {
             labels: sortedWeeks.map(k => weeklyMap[k].label),
-            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.3 }]
+            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: accentColor, backgroundColor: accentBg, fill: true, tension: 0.3 }]
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
       } else if (weeklyCanvasId === 'adminWeeklyChart') {
         if (adminWeeklyChartInstance) adminWeeklyChartInstance.destroy();
-        adminWeeklyChartInstance = new Chart(c2.getContext('2d'), {
+        adminWeeklyChartInstance = new Chart(c3.getContext('2d'), {
           type: 'line',
           data: {
             labels: sortedWeeks.map(k => weeklyMap[k].label),
-            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)', fill: true, tension: 0.3 }]
+            datasets: [{ data: sortedWeeks.map(k => weeklyMap[k].beers), borderColor: accentColor, backgroundColor: accentBg, fill: true, tension: 0.3 }]
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
-      }
-
-      if (c3) {
-        const dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const dowData = dowLabels.map(d => dowMap[d]);
-        if (dowCanvasId === 'dayOfWeekChart') {
-          if (dayOfWeekChartInstance) dayOfWeekChartInstance.destroy();
-          dayOfWeekChartInstance = new Chart(c3.getContext('2d'), {
-            type: 'bar',
-            data: { labels: dowLabels, datasets: [{ data: dowData, backgroundColor: '#f59e0b', borderRadius: 6 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-          });
-        } else if (dowCanvasId === 'adminDayOfWeekChart') {
-          if (adminDayOfWeekChartInstance) adminDayOfWeekChartInstance.destroy();
-          adminDayOfWeekChartInstance = new Chart(c3.getContext('2d'), {
-            type: 'bar',
-            data: { labels: dowLabels, datasets: [{ data: dowData, backgroundColor: '#8b5cf6', borderRadius: 6 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-          });
-        }
       }
     }
 
@@ -865,7 +987,8 @@
           DRINKS.forEach(d => lifetimeTotals[d.key] += (e[d.key] || 0));
         });
         $('acc-total-pints').innerText = `${beers} 🍺`;
-        $('acc-avg-daily').innerText = `${(beers / daysActive).toFixed(2)} 🍺`;
+        const avgBeers = daysActive > 0 ? (beers / daysActive).toFixed(1) : '0';
+        $('acc-avg-beers').innerText = `${avgBeers} 🍺`;
       });
     }
 
@@ -886,7 +1009,6 @@
       $('breakdown-modal').classList.add('hidden');
     }
 
-    /* ADMIN TAB PAGE RENDER LOGIC */
     async function renderAdminPage() {
       if (userEmail.toLowerCase().trim() !== ADMIN_EMAIL.toLowerCase().trim()) return;
 
@@ -908,7 +1030,6 @@
       const allGroups = groupsRes.data || [];
       const allMembers = membersRes.data || [];
 
-      // 1. All Users (>= 1 Drink Logged)
       const activeUsersData = [];
 
       allUsers.forEach(u => {
@@ -959,7 +1080,6 @@
         uContainer.innerHTML = uHtml;
       }
 
-      // 2. Group Level Data (Filter out groups with < 2 total beers)
       const groupsData = allGroups.map(g => {
         const gMembers = allMembers.filter(m => m.group_code === g.code);
         const memberEmails = gMembers.map(m => m.user_email.toLowerCase().trim());
@@ -976,7 +1096,7 @@
           totalBeers: totalGroupBeers
         };
       })
-      .filter(g => g.totalBeers >= 2) // Filter for 2 or more beers
+      .filter(g => g.totalBeers >= 2)
       .sort((a, b) => b.totalBeers - a.totalBeers);
 
       if (!groupsData.length) {
@@ -1057,7 +1177,7 @@
       dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
 
       $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || [], 'adminFreqChart', 'adminWeeklyChart', 'adminDayOfWeekChart');
+      renderCharts(logs || [], 'adminFreqChart', 'adminDowChart', 'adminWeeklyChart');
 
       view.scrollIntoView({ behavior: 'smooth' });
     }
@@ -1125,6 +1245,8 @@
       if (p === 'account') updateAccountPage();
       if (p === 'stats') renderAnalytics();
       if (p === 'admin') renderAdminPage();
+
+      saveLastPage(p);
     }
   </script>
 </body>
