@@ -254,6 +254,20 @@
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="dowChart"></canvas></div></div>
       <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
+      
+      <!-- NEW STATS ADDED AT THE BOTTOM -->
+      <div class="card">
+        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">ACHIEVEMENTS & HIGHLIGHTS</h3>
+        <div class="member-row">
+          <div><span style="font-size: 11px; color: #94a3b8; display: block;">PERSONAL RECORD (BEST DAY)</span><strong id="stat-pr-day" style="font-size: 15px; color: #f59e0b;">0 Beers</strong></div>
+        </div>
+        <div class="member-row">
+          <div><span style="font-size: 11px; color: #94a3b8; display: block;">FAVORITE GO-TO DRINK</span><strong id="stat-favorite-drink" style="font-size: 15px; color: #f59e0b;">None yet</strong></div>
+        </div>
+        <div class="member-row" style="border-bottom: none;">
+          <div><span style="font-size: 11px; color: #94a3b8; display: block;">LONGEST STREAK</span><strong id="stat-active-streak" style="font-size: 15px; color: #f59e0b;">0 Days</strong></div>
+        </div>
+      </div>
     </div>
 
     <!-- PAGE 4: ADMIN (Hidden tab) -->
@@ -854,10 +868,92 @@
         let totalBeers = 0;
         groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
 
+        let maxSingleDayBeers = 0;
+        const drinkTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+        const activeDatesSet = new Set();
+
         (logs || []).forEach(l => {
-          totalBeers += calculateUnitsAndBeers(l).beers;
-          DRINKS.forEach(d => groupTotalsBreakdown[d.key] += (l[d.key] || 0));
+          const dayBeers = calculateUnitsAndBeers(l).beers;
+          totalBeers += dayBeers;
+          if (dayBeers > maxSingleDayBeers) maxSingleDayBeers = dayBeers;
+
+          if (dayBeers > 0) activeDatesSet.add(l.log_date);
+
+          DRINKS.forEach(d => {
+            const val = l[d.key] || 0;
+            groupTotalsBreakdown[d.key] += val;
+            drinkTotals[d.key] += val;
+          });
         });
+
+        // Calculate current & longest streak
+        let currentStreak = 0;
+        let longestStreak = 0;
+        let tempStreak = 0;
+        const checkDate = new Date();
+        if (checkDate.getHours() < 4) checkDate.setDate(checkDate.getDate() - 1);
+        
+        for (let i = 0; i < 365; i++) {
+          const y = checkDate.getFullYear();
+          const m = String(checkDate.getMonth() + 1).padStart(2, '0');
+          const d = String(checkDate.getDate()).padStart(2, '0');
+          const dateStr = `${y}-${m}-${d}`;
+          
+          const logEntry = (logs || []).find(l => l.log_date === dateStr);
+          const beersOnDay = logEntry ? calculateUnitsAndBeers(logEntry).beers : 0;
+
+          if (beersOnDay > 0) {
+            tempStreak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+          } else {
+            if (i === 0) {
+              checkDate.setDate(checkDate.getDate() - 1);
+              continue;
+            }
+            break;
+          }
+        }
+        currentStreak = tempStreak;
+
+        let maxStreak = 0, runStreak = 0;
+        const sortedLogs = [...(logs || [])].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+        let prevDateObj = null;
+
+        sortedLogs.forEach(l => {
+          const beers = calculateUnitsAndBeers(l).beers;
+          if (beers > 0) {
+            const [y, m, d] = l.log_date.split('-').map(Number);
+            const currDateObj = new Date(y, m - 1, d);
+            if (prevDateObj) {
+              const diffTime = currDateObj - prevDateObj;
+              const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+              if (diffDays === 1) {
+                runStreak++;
+              } else if (diffDays > 1) {
+                runStreak = 1;
+              }
+            } else {
+              runStreak = 1;
+            }
+            prevDateObj = currDateObj;
+            if (runStreak > maxStreak) maxStreak = runStreak;
+          }
+        });
+        longestStreak = Math.max(currentStreak, maxStreak);
+
+        // Favorite Drink calculation
+        let favDrinkName = 'None yet';
+        let maxDrinkCount = 0;
+        DRINKS.forEach(d => {
+          if (drinkTotals[d.key] > maxDrinkCount) {
+            maxDrinkCount = drinkTotals[d.key];
+            favDrinkName = d.label;
+          }
+        });
+
+        $('stat-pr-day').innerText = `${maxSingleDayBeers} Beers`;
+        $('stat-favorite-drink').innerText = favDrinkName;
+        $('stat-active-streak').innerText = `${longestStreak} Days`;
 
         $('group-total-beers').innerText = `${totalBeers} 🍺`;
         renderCharts(logs || [], 'freqChart', 'dowChart', 'weeklyChart');
@@ -877,6 +973,60 @@
 
       let totalGroupBeers = 0;
       groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+      const userLogsForBottom = (logs || []).filter(l => l.user_email.toLowerCase().trim() === userEmail);
+      let userTotalBeers = 0, userMaxDay = 0;
+      const userDrinkTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      userLogsForBottom.forEach(l => {
+        const b = calculateUnitsAndBeers(l).beers;
+        userTotalBeers += b;
+        if (b > userMaxDay) userMaxDay = b;
+        DRINKS.forEach(d => userDrinkTotals[d.key] += (l[d.key] || 0));
+      });
+
+      let userFavDrink = 'None yet', maxDC = 0;
+      DRINKS.forEach(d => {
+        if (userDrinkTotals[d.key] > maxDC) { maxDC = userDrinkTotals[d.key]; userFavDrink = d.label; }
+      });
+
+      let userStreak = 0;
+      let userLongestStreak = 0;
+      let userTempStreak = 0;
+      const checkDate = new Date();
+      if (checkDate.getHours() < 4) checkDate.setDate(checkDate.getDate() - 1);
+      for (let i = 0; i < 365; i++) {
+        const y = checkDate.getFullYear(), m = String(checkDate.getMonth() + 1).padStart(2, '0'), d = String(checkDate.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+        const logEntry = userLogsForBottom.find(l => l.log_date === dateStr);
+        const beersOnDay = logEntry ? calculateUnitsAndBeers(logEntry).beers : 0;
+        if (beersOnDay > 0) { userTempStreak++; checkDate.setDate(checkDate.getDate() - 1); }
+        else { if (i === 0) { checkDate.setDate(checkDate.getDate() - 1); continue; } break; }
+      }
+      userStreak = userTempStreak;
+
+      let uMaxStreak = 0, uRunStreak = 0;
+      const sortedUserLogs = [...userLogsForBottom].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+      let uPrevDateObj = null;
+      sortedUserLogs.forEach(l => {
+        const beers = calculateUnitsAndBeers(l).beers;
+        if (beers > 0) {
+          const [y, m, d] = l.log_date.split('-').map(Number);
+          const currDateObj = new Date(y, m - 1, d);
+          if (uPrevDateObj) {
+            const diffTime = currDateObj - uPrevDateObj;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays === 1) { uRunStreak++; }
+            else if (diffDays > 1) { uRunStreak = 1; }
+          } else { uRunStreak = 1; }
+          uPrevDateObj = currDateObj;
+          if (uRunStreak > uMaxStreak) uMaxStreak = uRunStreak;
+        }
+      });
+      userLongestStreak = Math.max(userStreak, uMaxStreak);
+
+      $('stat-pr-day').innerText = `${userMaxDay} Beers`;
+      $('stat-favorite-drink').innerText = userFavDrink;
+      $('stat-active-streak').innerText = `${userLongestStreak} Days`;
 
       const userTotals = members.map(m => {
         const email = m.user_email.toLowerCase().trim();
