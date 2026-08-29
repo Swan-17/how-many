@@ -486,10 +486,30 @@
     }
 
     function calculateUnitsAndBeers(e) {
-      if (!e) return { units: 0, beers: 0 };
-      const u = ((e.pints||0)*2.50) + ((e.bottles||0)*1.5) + ((e.wines||0)*1.75) + ((e.cocktails||0)*2) + ((e.shots||0)*1);
-      return { units: Number(u.toFixed(2)), beers: Math.round(u / 2) };
-    }
+
+  if (!e) return { units: 0, beers: 0 };
+
+  const u =
+
+    ((e.pints || 0) * 2.5) +
+
+    ((e.bottles || 0) * 1.5) +
+
+    ((e.wines || 0) * 1.75) +
+
+    ((e.cocktails || 0) * 2) +
+
+    ((e.shots || 0) * 1);
+
+  return {
+
+    units: Number(u.toFixed(2)),
+
+    beers: Math.round(u / 2.5)
+
+  };
+
+}
 
     async function fetchDrinkLogsForDate(targetDate) {
       $('today-date-label').innerText = targetDate;
