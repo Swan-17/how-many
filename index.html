@@ -87,6 +87,8 @@
     .admin-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
     .admin-table th, .admin-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #334155; }
     .admin-table th { color: #8b5cf6; font-size: 11px; text-transform: uppercase; }
+    .admin-clickable-row { cursor: pointer; }
+    .admin-clickable-row:hover { background: #334155; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -272,29 +274,64 @@
 
     <!-- PAGE 4: ADMIN (Hidden tab) -->
     <div id="page-admin" class="hidden">
-      <div class="card" style="border-color: #8b5cf6;">
-        <h3 style="margin-top: 0; font-size: 16px; color: #8b5cf6; text-align: center;">🛡️ SYSTEM ADMIN DASHBOARD</h3>
-        <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0;">System-wide access to all users and group data.</p>
-      </div>
+      <!-- Main Admin Dashboard View -->
+      <div id="admin-main-view">
+        <div class="card" style="border-color: #8b5cf6;">
+          <h3 style="margin-top: 0; font-size: 16px; color: #8b5cf6; text-align: center;">🛡️ SYSTEM ADMIN DASHBOARD</h3>
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0;">System-wide access to all users and group data.</p>
+        </div>
 
-      <div class="card">
-        <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">ALL USERS</h3>
-        <div id="admin-users-table-container">
-          <span style="color: #94a3b8; font-size: 12px;">Loading user analysis...</span>
+        <div class="card">
+          <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">ALL USERS</h3>
+          <div id="admin-users-table-container">
+            <span style="color: #94a3b8; font-size: 12px;">Loading user analysis...</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">GROUP-LEVEL OVERVIEW</h3>
+          <div id="admin-groups-table-container">
+            <span style="color: #94a3b8; font-size: 12px;">Loading group data...</span>
+          </div>
         </div>
       </div>
 
-      <div class="card">
-        <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">GROUP-LEVEL OVERVIEW</h3>
-        <div id="admin-groups-table-container">
-          <span style="color: #94a3b8; font-size: 12px;">Loading group data...</span>
+      <!-- User Stats Click-through Page -->
+      <div id="admin-user-stats-page" class="hidden">
+        <div class="card" style="border-color: #8b5cf6;">
+          <h3 id="admin-user-stats-title" style="margin-top: 0; font-size: 16px; color: #8b5cf6; text-align: center;">User Personal Stats</h3>
+        </div>
+        <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(adminUserTotalsBreakdown, adminUserModalTitle)">
+          <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL YOUR BEERS</h3>
+          <p id="admin-user-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
+          <span class="click-hint">(Click to view breakdown)</span>
+        </div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminUserFreqChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminUserDowChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME DAILY BEERS</h3><div class="chart-container"><canvas id="adminUserWeeklyChart"></canvas></div></div>
+        
+        <div class="card">
+          <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">PERSONAL ACHIEVEMENTS & HIGHLIGHTS</h3>
+          <div class="member-row">
+            <div><span style="font-size: 11px; color: #94a3b8; display: block;">PERSONAL RECORD (BEST DAY)</span><strong id="admin-stat-pr-day" style="font-size: 15px; color: #f59e0b;">0 Beers</strong></div>
+          </div>
+          <div class="member-row">
+            <div><span style="font-size: 11px; color: #94a3b8; display: block;">FAVORITE GO-TO DRINK</span><strong id="admin-stat-favorite-drink" style="font-size: 15px; color: #f59e0b;">None yet</strong></div>
+          </div>
+          <div class="member-row" style="border-bottom: none;">
+            <div><span style="font-size: 11px; color: #94a3b8; display: block;">LONGEST STREAK</span><strong id="admin-stat-active-streak" style="font-size: 15px; color: #f59e0b;">0 Days</strong></div>
+          </div>
+        </div>
+
+        <div style="margin: 24px 0;">
+          <button class="btn-secondary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="returnToAdminDashboard()">Back to Dashboard</button>
         </div>
       </div>
 
-      <div id="admin-group-inspection-view" class="hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h3 id="admin-inspected-group-title" style="margin: 0; font-size: 16px; color: #8b5cf6;">Group Details</h3>
-          <button class="btn-secondary" onclick="closeAdminGroupInspection()">Close Group View</button>
+      <!-- Group Stats Click-through Page -->
+      <div id="admin-group-stats-page" class="hidden">
+        <div class="card" style="border-color: #8b5cf6;">
+          <h3 id="admin-group-stats-title" style="margin: 0; font-size: 16px; color: #8b5cf6; text-align: center;">Group Stats</h3>
         </div>
         <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(adminGroupTotalsBreakdown, 'Total Group Drink Breakdown')">
           <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
@@ -306,6 +343,9 @@
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminFreqChart"></canvas></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminDowChart"></canvas></div></div>
         <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="adminWeeklyChart"></canvas></div></div>
+        <div style="margin: 24px 0;">
+          <button class="btn-secondary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="returnToAdminDashboard()">Back to Dashboard</button>
+        </div>
       </div>
     </div>
   </div>
@@ -357,9 +397,11 @@
     let activeHostCode = null, realtimeChannel = null;
     let freqChartInstance = null, dowChartInstance = null, weeklyChartInstance = null;
     let adminFreqChartInstance = null, adminDowChartInstance = null, adminWeeklyChartInstance = null;
-    let lifetimeTotals = {}, groupTotalsBreakdown = {}, adminGroupTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
+    let adminUserFreqChartInstance = null, adminUserDowChartInstance = null, adminUserWeeklyChartInstance = null;
+    let lifetimeTotals = {}, groupTotalsBreakdown = {}, adminGroupTotalsBreakdown = {}, adminUserTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
     let allSystemUsers = [];
     let modalBreakdownTitle = 'Total Group Drink Breakdown';
+    let adminUserModalTitle = 'User Drink Breakdown';
 
     $('drink-list-container').innerHTML = DRINKS.map(d => `
       <div class="drink-row">
@@ -900,7 +942,6 @@
           });
         });
 
-        // Calculate current & longest streak
         let currentStreak = 0;
         let longestStreak = 0;
         let tempStreak = 0;
@@ -955,7 +996,6 @@
         });
         longestStreak = Math.max(currentStreak, maxStreak);
 
-        // Favorite Drink calculation
         let favDrinkName = 'None yet';
         let maxDrinkCount = 0;
         DRINKS.forEach(d => {
@@ -1126,6 +1166,13 @@
           data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: accentColor, borderRadius: 6 }] },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
+      } else if (freqCanvasId === 'adminUserFreqChart') {
+        if (adminUserFreqChartInstance) adminUserFreqChartInstance.destroy();
+        adminUserFreqChartInstance = new Chart(c1.getContext('2d'), {
+          type: 'bar',
+          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: accentColor, borderRadius: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
       }
 
       if (dowCanvasId === 'dowChart') {
@@ -1142,9 +1189,15 @@
           data: { labels: dowLabels, datasets: [{ data: dowMap, backgroundColor: accentColor, borderRadius: 6 }] },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
+      } else if (dowCanvasId === 'adminUserDowChart') {
+        if (adminUserDowChartInstance) adminUserDowChartInstance.destroy();
+        adminUserDowChartInstance = new Chart(c2.getContext('2d'), {
+          type: 'bar',
+          data: { labels: dowLabels, datasets: [{ data: dowMap, backgroundColor: accentColor, borderRadius: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
       }
 
-      // Handle third chart: Lifetime Daily (Bar chart) or Weekly (Line chart)
       let chart3Type = 'bar';
       let chart3Labels = [];
       let chart3Data = [];
@@ -1209,6 +1262,13 @@
           data: { labels: chart3Labels, datasets: [chart3Dataset] },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
+      } else if (weeklyCanvasId === 'adminUserWeeklyChart') {
+        if (adminUserWeeklyChartInstance) adminUserWeeklyChartInstance.destroy();
+        adminUserWeeklyChartInstance = new Chart(c3.getContext('2d'), {
+          type: chart3Type,
+          data: { labels: chart3Labels, datasets: [chart3Dataset] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
       }
     }
 
@@ -1251,23 +1311,39 @@
       $('breakdown-modal').classList.add('hidden');
     }
 
-    async function openAdminMemberStatsModal(targetEmail, displayName) {
+    function returnToAdminDashboard() {
+      $('admin-main-view').classList.remove('hidden');
+      $('admin-user-stats-page').classList.add('hidden');
+      $('admin-group-stats-page').classList.add('hidden');
+    }
+
+    async function openAdminUserStatsPage(targetEmail, displayName) {
+      $('admin-main-view').classList.add('hidden');
+      $('admin-group-stats-page').classList.add('hidden');
+      $('admin-user-stats-page').classList.remove('hidden');
+      $('admin-user-stats-title').innerText = `${displayName}'s Personal Stats`;
+      adminUserModalTitle = `${displayName}'s Drink Breakdown`;
+
       const { data: userRecord } = await sb.from('users').select('*').eq('email', targetEmail).maybeSingle();
       const userCreatedDate = userRecord?.created_at ? userRecord.created_at.split('T')[0] : getEffectiveTodayDate();
 
       const { data: logs } = await sb.from('drink_logs').select('*').eq('user_email', targetEmail);
       let totalBeers = 0;
       let maxSingleDayBeers = 0;
+      adminUserTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
       const drinkTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
 
       (logs || []).forEach(l => {
         const dayBeers = calculateUnitsAndBeers(l).beers;
         totalBeers += dayBeers;
         if (dayBeers > maxSingleDayBeers) maxSingleDayBeers = dayBeers;
-        DRINKS.forEach(d => drinkTotals[d.key] += (l[d.key] || 0));
+        DRINKS.forEach(d => {
+          const val = l[d.key] || 0;
+          adminUserTotalsBreakdown[d.key] += val;
+          drinkTotals[d.key] += val;
+        });
       });
 
-      // Calculate streak
       let currentStreak = 0, longestStreak = 0, tempStreak = 0;
       const checkDate = new Date();
       if (checkDate.getHours() < 4) checkDate.setDate(checkDate.getDate() - 1);
@@ -1306,24 +1382,70 @@
         if (drinkTotals[d.key] > maxDrinkCount) { maxDrinkCount = drinkTotals[d.key]; favDrinkName = d.label; }
       });
 
-      $('modal-title').innerText = `${displayName}'s Personal Stats`;
-      
-      let html = `
-        <div style="background:#0f172a; padding:12px; border-radius:8px; text-align:center; margin-bottom:12px; border:1px solid #334155;">
-          <span style="font-size:11px; color:#94a3b8; display:block;">TOTAL LIFETIME BEERS</span>
-          <strong style="font-size:24px; color:#f59e0b;">${totalBeers} 🍺</strong>
-        </div>
-        <div style="font-size:12px; margin-bottom:12px;">
-          <div class="breakdown-row"><span>Best Day Record:</span><strong style="color:#f59e0b;">${maxSingleDayBeers} Beers</strong></div>
-          <div class="breakdown-row"><span>Favorite Drink:</span><strong style="color:#f59e0b;">${favDrinkName}</strong></div>
-          <div class="breakdown-row"><span>Longest Streak:</span><strong style="color:#f59e0b;">${longestStreak} Days</strong></div>
-        </div>
-        <h4 style="margin:12px 0 6px 0; font-size:13px; color:#8b5cf6;">DRINK BREAKDOWN</h4>
-        ${DRINKS.map(d => `<div class="breakdown-row"><span>${d.label}:</span> <strong>${drinkTotals[d.key] || 0}</strong></div>`).join('')}
-      `;
+      $('admin-user-total-beers').innerText = `${totalBeers} 🍺`;
+      $('admin-stat-pr-day').innerText = `${maxSingleDayBeers} Beers`;
+      $('admin-stat-favorite-drink').innerText = favDrinkName;
+      $('admin-stat-active-streak').innerText = `${longestStreak} Days`;
 
-      $('modal-breakdown-rows').innerHTML = html;
-      $('breakdown-modal').classList.remove('hidden');
+      renderCharts(logs || [], 'adminUserFreqChart', 'adminUserDowChart', 'adminUserWeeklyChart', 'lifetime_daily', userCreatedDate);
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function openAdminGroupStatsPage(code, name) {
+      $('admin-main-view').classList.add('hidden');
+      $('admin-user-stats-page').classList.add('hidden');
+      $('admin-group-stats-page').classList.remove('hidden');
+      $('admin-group-stats-title').innerText = `📊 ${name} (${code})`;
+
+      const todayStr = getEffectiveTodayDate();
+      const lb = $('admin-leaderboard-list'), dlb = $('admin-daily-leaderboard-list');
+      lb.innerHTML = dlb.innerHTML = '';
+
+      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
+      if (!members) return;
+
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
+
+      let totalGroupBeers = 0;
+      adminGroupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+      const userTotals = members.map(m => {
+        const email = m.user_email.toLowerCase().trim();
+        const userLogs = (logs || []).filter(l => l.user_email.toLowerCase().trim() === email);
+        let beers = 0;
+        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+        userLogs.forEach(l => {
+          beers += calculateUnitsAndBeers(l).beers;
+          DRINKS.forEach(d => {
+            const val = l[d.key] || 0;
+            uBreakdown[d.key] += val;
+            adminGroupTotalsBreakdown[d.key] += val;
+          });
+        });
+
+        userBreakdownsByEmail[email] = uBreakdown;
+        totalGroupBeers += beers;
+        return { name: m.user_name, email, beers };
+      }).sort((a, b) => b.beers - a.beers);
+
+      userTotals.forEach(i => {
+        lb.innerHTML += `<div class="member-row"><span>${i.name}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
+      });
+
+      const dailyTotals = members.map(m => {
+        const email = m.user_email.toLowerCase().trim();
+        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
+        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
+      }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
+
+      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+
+      $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
+      renderCharts(logs || [], 'adminFreqChart', 'adminDowChart', 'adminWeeklyChart', 'weekly');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function renderAdminPage() {
@@ -1381,17 +1503,17 @@
               <tr>
                 <th>User</th>
                 <th>Beers</th>
-                <th>Stats</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>`;
         activeUsersData.forEach(u => {
           const safeName = u.name.replace(/'/g, "\\'");
           uHtml += `
-            <tr>
+            <tr class="admin-clickable-row" onclick="openAdminUserStatsPage('${u.email}', '${safeName}')">
               <td><strong>${u.name}</strong><br><span style="font-size:10px; color:#94a3b8;">${u.email}</span></td>
               <td><strong style="color:#f59e0b;">${u.totalBeers} 🍺</strong></td>
-              <td><button class="btn-admin" style="padding: 2px 6px; font-size: 10px;" onclick="openAdminMemberStatsModal('${u.email}', '${safeName}')">View Stats</button></td>
+              <td><span style="color:#8b5cf6; font-size:11px; text-decoration:underline;">View Stats</span></td>
             </tr>`;
         });
         uHtml += '</tbody></table>';
@@ -1427,81 +1549,23 @@
                 <th>Group</th>
                 <th>Members</th>
                 <th>Total</th>
-                <th>Inspect</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>`;
         groupsData.forEach(g => {
+          const safeGroupName = g.name.replace(/'/g, "\\'");
           gHtml += `
-            <tr>
+            <tr class="admin-clickable-row" onclick="openAdminGroupStatsPage('${g.code}', '${safeGroupName}')">
               <td><strong>${g.name}</strong><br><code style="color:#f59e0b; font-size:10px;">${g.code}</code></td>
               <td>${g.memberCount}</td>
               <td><strong style="color:#f59e0b;">${g.totalBeers} 🍺</strong></td>
-              <td><button class="btn-admin" style="padding: 3px 6px; font-size: 10px;" onclick="inspectGroupAsAdmin('${g.code}', '${g.name.replace(/'/g, "\\'")}')">View</button></td>
+              <td><span style="color:#8b5cf6; font-size:11px; text-decoration:underline;">View Stats</span></td>
             </tr>`;
         });
         gHtml += '</tbody></table>';
         gContainer.innerHTML = gHtml;
       }
-    }
-
-    async function inspectGroupAsAdmin(code, name) {
-      const todayStr = getEffectiveTodayDate();
-      const view = $('admin-group-inspection-view');
-      view.classList.remove('hidden');
-      $('admin-inspected-group-title').innerText = `📊 ${name} (${code})`;
-
-      const lb = $('admin-leaderboard-list'), dlb = $('admin-daily-leaderboard-list');
-      lb.innerHTML = dlb.innerHTML = '';
-
-      const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
-      if (!members) return;
-
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
-
-      let totalGroupBeers = 0;
-      adminGroupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-      const userTotals = members.map(m => {
-        const email = m.user_email.toLowerCase().trim();
-        const userLogs = (logs || []).filter(l => l.user_email.toLowerCase().trim() === email);
-        let beers = 0;
-        const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-
-        userLogs.forEach(l => {
-          beers += calculateUnitsAndBeers(l).beers;
-          DRINKS.forEach(d => {
-            const val = l[d.key] || 0;
-            uBreakdown[d.key] += val;
-            adminGroupTotalsBreakdown[d.key] += val;
-          });
-        });
-
-        userBreakdownsByEmail[email] = uBreakdown;
-        totalGroupBeers += beers;
-        return { name: m.user_name, email, beers };
-      }).sort((a, b) => b.beers - a.beers);
-
-      userTotals.forEach(i => {
-        lb.innerHTML += `<div class="member-row"><span>${i.name}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
-      });
-
-      const dailyTotals = members.map(m => {
-        const email = m.user_email.toLowerCase().trim();
-        const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
-        return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
-      }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
-
-      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
-
-      $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
-      renderCharts(logs || [], 'adminFreqChart', 'adminDowChart', 'adminWeeklyChart', 'weekly');
-
-      view.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function closeAdminGroupInspection() {
-      $('admin-group-inspection-view').classList.add('hidden');
     }
 
     async function editProfileName() {
@@ -1550,6 +1614,7 @@
 
     function switchPage(p) {
       closeAllExpandables();
+      returnToAdminDashboard();
 
       if (p !== 'admin') {
         $('nav-admin')?.classList.add('hidden');
