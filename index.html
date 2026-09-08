@@ -480,7 +480,8 @@
 
     let userName = '', userEmail = '', firstCreatedDate = '', activeLogDate = getEffectiveTodayDate();
     let userLifetimeBeers = 0, globalTopUserEmail = '';
-    let selectedTheme = 'amber', selectedIconStyle = 'default', selectedTitle = '';
+    let selectedTheme = localStorage.getItem('dt_saved_theme') || 'amber';
+    let selectedIconStyle = 'default', selectedTitle = '';
     let calendarViewYear = new Date().getFullYear(), calendarViewMonth = new Date().getMonth();
     let userJoinedGroups = [], relevantEmails = [], todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null, realtimeChannel = null;
@@ -491,6 +492,9 @@
     let allUsersMetaData = {};
     let modalBreakdownTitle = 'Total Group Drink Breakdown';
     let adminUserModalTitle = 'User Drink Breakdown';
+
+    // Instantly apply theme from LocalStorage on initial load
+    applyThemeColor(selectedTheme);
 
     $('today-date-label').innerText = activeLogDate;
 
@@ -557,13 +561,13 @@
       if (user) {
         userName = user.display_name;
         firstCreatedDate = user.created_at ? user.created_at.split('T')[0] : getEffectiveTodayDate();
-        selectedTheme = user.selected_theme || 'amber';
+        if (user.selected_theme) selectedTheme = user.selected_theme;
         selectedIconStyle = user.selected_icon_style || 'default';
         selectedTitle = user.selected_title || '';
       } else {
         userName = sessionStorage.getItem('dt_pending_name') || session.user.user_metadata?.display_name || userEmail.split('@')[0];
         firstCreatedDate = getEffectiveTodayDate();
-        await sb.from('users').upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
+        await sb.from('users').upsert([{ email: userEmail, display_name: userName, selected_theme: selectedTheme }], { onConflict: 'email' });
       }
       sessionStorage.removeItem('dt_pending_name');
 
@@ -586,6 +590,7 @@
       document.documentElement.style.setProperty('--primary-color', t.primary);
       document.documentElement.style.setProperty('--primary-hover', t.hover);
       selectedTheme = themeKey;
+      localStorage.setItem('dt_saved_theme', themeKey);
     }
 
     async function saveUserPerks() {
