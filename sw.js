@@ -1,4 +1,4 @@
-const CACHE_NAME = 'beer-tracker-v2'; // Changed version to force cache update
+const CACHE_NAME = 'beer-tracker-v3'; // Changed version to force cache update
 const urlsToCache = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', event => {
