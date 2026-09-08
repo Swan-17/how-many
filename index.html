@@ -945,7 +945,7 @@
       if (!codes || !codes.length) return;
       userJoinedGroups.sort((a, b) => codes.indexOf(a.code) - codes.indexOf(b.code));
       saveGroupOrder();
-      populateAnalyticsDropdown();
+      populateAnalyticsDropdown(true);
     }
 
     async function createGroup() {
@@ -1058,8 +1058,9 @@
         }).subscribe();
     }
 
-    function populateAnalyticsDropdown() {
+    function populateAnalyticsDropdown(forceTopSelection) {
       const select = $('analytics-group-select');
+      const currentSelectVal = select ? select.value : null;
       const savedGroup = loadLastSelectedGroup();
       let html = '';
       
@@ -1072,14 +1073,31 @@
 
       select.innerHTML = html;
 
-      // Restore user's saved selection if valid; otherwise default to top group or my_stats
-      if (savedGroup && (savedGroup === 'my_stats' || userJoinedGroups.some(g => g.code === savedGroup))) {
-        select.value = savedGroup;
-      } else {
+      // 1. Force top group selection (e.g. user reordered groups)
+      if (forceTopSelection) {
         const defaultChoice = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
         select.value = defaultChoice;
         saveLastSelectedGroup(defaultChoice);
+        return;
       }
+
+      // 2. Preserve active DOM element selection if valid
+      if (currentSelectVal && (currentSelectVal === 'my_stats' || userJoinedGroups.some(g => g.code === currentSelectVal))) {
+        select.value = currentSelectVal;
+        saveLastSelectedGroup(currentSelectVal);
+        return;
+      }
+
+      // 3. Fallback to localStorage saved choice across reloads
+      if (savedGroup && (savedGroup === 'my_stats' || userJoinedGroups.some(g => g.code === savedGroup))) {
+        select.value = savedGroup;
+        return;
+      }
+
+      // 4. Default to top group
+      const fallbackChoice = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
+      select.value = fallbackChoice;
+      saveLastSelectedGroup(fallbackChoice);
     }
 
     function onAnalyticsGroupChange() {
@@ -1962,7 +1980,9 @@
 
       if (p === 'account') updateAccountPage();
       if (p === 'stats') {
-        populateAnalyticsDropdown();
+        if (!$('analytics-group-select').value) {
+          populateAnalyticsDropdown();
+        }
         renderAnalytics();
       }
       if (p === 'admin') renderAdminPage();
