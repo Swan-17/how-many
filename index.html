@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🍺 How Many Beers</title>
+  <title>🍺 How Many Beer</title>
 
   <!-- PWA & MOBILE META TAGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#f59e0b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="How Many Beers">
+  <meta name="apple-mobile-web-app-title" content="How Many Beer">
   <link rel="apple-touch-icon" href="Logo.png">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -203,7 +203,7 @@
       <!-- ADD TO HOME SCREEN PROMPT CARD -->
       <div class="card" id="card-install-app">
         <h3 style="margin-top: 0; font-size: 15px; color: var(--primary-color);">📲 INSTALL WEB APP</h3>
-        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Add <strong>How Many Beers</strong> to your home screen for a full-screen app experience.</p>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Add <strong>How Many Beer</strong> to your home screen for a full-screen app experience.</p>
         <button class="btn-submit" onclick="promptInstallApp()">Add to Home Screen 📲</button>
       </div>
 
@@ -235,11 +235,15 @@
         </div>
       </div>
 
-      <!-- ADMIN REVEAL BUTTON -->
-      <div id="admin-trigger-card" class="card hidden" style="border: 1px solid #8b5cf6;">
-        <h3 style="margin-top: 0; font-size: 14px; color: #8b5cf6;">ADMIN CONTROLS</h3>
-        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Reveal the Admin Dashboard tab to view system-wide analytics.</p>
-        <button class="btn-admin" style="width: 100%; padding: 10px; font-size: 13px;" onclick="revealAndOpenAdminTab()">Open Admin Dashboard 🛡️</button>
+      <!-- COLLAPSIBLE ADMIN CONTROLS ACCORDION -->
+      <div id="admin-trigger-card" class="card hidden">
+        <div class="accordion-header" onclick="toggleAccordion('admin-accordion-body', 'admin-accordion-icon')">
+          <h3 style="color: #8b5cf6;">🛡️ Admin Controls</h3><span id="admin-accordion-icon" class="accordion-icon" style="color: #8b5cf6;">▼</span>
+        </div>
+        <div id="admin-accordion-body" class="accordion-content hidden">
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Reveal the Admin Dashboard tab to view system-wide analytics.</p>
+          <button class="btn-admin" style="width: 100%; padding: 10px; font-size: 13px;" onclick="revealAndOpenAdminTab()">Open Admin Dashboard 🛡️</button>
+        </div>
       </div>
 
       <div class="card" id="card-active-groups">
@@ -1900,8 +1904,8 @@
 
     function closeAllExpandables() {
       closeHostPanel();
-      ['perks-accordion-body', 'groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => $(id)?.classList.add('hidden'));
-      ['perks-accordion-icon', 'groups-accordion-icon', 'join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => { if ($(id)) $(id).innerText = '▼'; });
+      ['perks-accordion-body', 'admin-accordion-body', 'groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => $(id)?.classList.add('hidden'));
+      ['perks-accordion-icon', 'admin-accordion-icon', 'groups-accordion-icon', 'join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => { if ($(id)) $(id).innerText = '▼'; });
     }
 
     function toggleAccordion(bodyId, iconId) {
@@ -1919,7 +1923,7 @@
     }
 
     function handleGlobalClick(e) {
-      const isInsideCard = ['card-perks-customization', 'card-active-groups', 'card-join-group', 'card-create-group', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
+      const isInsideCard = ['card-perks-customization', 'admin-trigger-card', 'card-active-groups', 'card-join-group', 'card-create-group', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
       const isMissedBtn = e.target.closest('button')?.getAttribute('onclick')?.includes('missed-drinks-body');
       const isInsideHost = activeHostCode && $(`host-panel-${activeHostCode}`)?.contains(e.target);
       if (!isInsideCard && !isMissedBtn && !isInsideHost) closeAllExpandables();
