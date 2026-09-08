@@ -1991,13 +1991,33 @@
     }
   </script>
 
-  <!-- PWA SERVICE WORKER REGISTRATION -->
+ <!-- PWA SERVICE WORKER REGISTRATION WITH AUTO-UPDATE -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker Registered'))
-          .catch(err => console.log('Service Worker Error', err));
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          // Check for service worker updates
+          reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Reload page once new service worker takes control
+                  window.location.reload();
+                }
+              };
+            }
+          };
+        }).catch(err => console.log('Service Worker Error', err));
+      });
+
+      // Reload page if controller changes in background
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
       });
     }
   </script>
