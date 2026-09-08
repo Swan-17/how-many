@@ -945,7 +945,7 @@
       if (!codes || !codes.length) return;
       userJoinedGroups.sort((a, b) => codes.indexOf(a.code) - codes.indexOf(b.code));
       saveGroupOrder();
-      populateAnalyticsDropdown(true);
+      populateAnalyticsDropdown();
     }
 
     async function createGroup() {
@@ -1058,12 +1058,11 @@
         }).subscribe();
     }
 
-    function populateAnalyticsDropdown(forceTopSelection) {
+    function populateAnalyticsDropdown() {
       const select = $('analytics-group-select');
       const savedGroup = loadLastSelectedGroup();
       let html = '';
       
-      // Default selection is the top ranked group on Account tab if user has groups, otherwise 'my_stats'
       if (userJoinedGroups.length > 0) {
         html += userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('');
         html += `<option value="my_stats">My Stats</option>`;
@@ -1073,7 +1072,8 @@
 
       select.innerHTML = html;
 
-      if (!forceTopSelection && savedGroup && (savedGroup === 'my_stats' || userJoinedGroups.some(g => g.code === savedGroup))) {
+      // Restore user's saved selection if valid; otherwise default to top group or my_stats
+      if (savedGroup && (savedGroup === 'my_stats' || userJoinedGroups.some(g => g.code === savedGroup))) {
         select.value = savedGroup;
       } else {
         const defaultChoice = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
@@ -1962,7 +1962,7 @@
 
       if (p === 'account') updateAccountPage();
       if (p === 'stats') {
-        populateAnalyticsDropdown(false);
+        populateAnalyticsDropdown();
         renderAnalytics();
       }
       if (p === 'admin') renderAdminPage();
