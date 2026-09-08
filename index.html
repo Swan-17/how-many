@@ -217,7 +217,7 @@
           
           <!-- 100 BEERS PERK -->
           <div class="perk-option-box">
-            <label>🎨 100 BEERS: UI COLOUR THEME</label>
+            <label>🎨 100 BEERS: UI COLOR THEME</label>
             <div id="perk-theme-container"></div>
           </div>
 
@@ -342,7 +342,7 @@
       <div class="card">
         <h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">PERSONAL ACHIEVEMENTS & HIGHLIGHTS</h3>
         <div class="member-row">
-          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">PERSONAL RECORD (TOP DAY)</span><strong id="stat-pr-day" style="font-size: 15px; color: var(--primary-color);">0 Beers</strong></div>
+          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">PERSONAL RECORD (BEST DAY)</span><strong id="stat-pr-day" style="font-size: 15px; color: var(--primary-color);">0 Beers</strong></div>
         </div>
         <div class="member-row">
           <div><span style="font-size: 11px; color: var(--text-muted); display: block;">FAVORITE GO-TO DRINK</span><strong id="stat-favorite-drink" style="font-size: 15px; color: var(--primary-color);">None yet</strong></div>
@@ -1377,31 +1377,62 @@
         }
       });
 
-      const sortedAmts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
+      // Generate a complete consecutive sequence from 1 to maxBeers (1, 2, 3, 4...)
+      const rawAmts = Object.keys(freqMap).map(Number);
+      const maxBeers = rawAmts.length > 0 ? Math.max(...rawAmts) : 0;
+      const sequentialAmts = [];
+      const freqData = [];
+
+      for (let i = 1; i <= maxBeers; i++) {
+        sequentialAmts.push(String(i)); // Plain number labels ("1", "2", "3"...)
+        freqData.push(freqMap[i] || 0);  // Use frequency count, or 0 if never logged
+      }
+
       const computedPrimary = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#f59e0b';
       const accentColor = freqCanvasId.startsWith('admin') ? '#8b5cf6' : computedPrimary;
       const accentBg = freqCanvasId.startsWith('admin') ? 'rgba(139, 92, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)';
+
+      // Common options to force horizontal, non-angled labels across charts
+      const horizontalTickOptions = {
+        maxRotation: 0,
+        minRotation: 0
+      };
 
       if (freqCanvasId === 'freqChart') {
         if (freqChartInstance) freqChartInstance.destroy();
         freqChartInstance = new Chart(c1.getContext('2d'), {
           type: 'bar',
-          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: accentColor, borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          data: { labels: sequentialAmts, datasets: [{ data: freqData, backgroundColor: accentColor, borderRadius: 6 }] },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       } else if (freqCanvasId === 'adminFreqChart') {
         if (adminFreqChartInstance) adminFreqChartInstance.destroy();
         adminFreqChartInstance = new Chart(c1.getContext('2d'), {
           type: 'bar',
-          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: accentColor, borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          data: { labels: sequentialAmts, datasets: [{ data: freqData, backgroundColor: accentColor, borderRadius: 6 }] },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       } else if (freqCanvasId === 'adminUserFreqChart') {
         if (adminUserFreqChartInstance) adminUserFreqChartInstance.destroy();
         adminUserFreqChartInstance = new Chart(c1.getContext('2d'), {
           type: 'bar',
-          data: { labels: sortedAmts.map(a => `${a} Beer${a > 1 ? 's' : ''}`), datasets: [{ data: sortedAmts.map(a => freqMap[a]), backgroundColor: accentColor, borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          data: { labels: sequentialAmts, datasets: [{ data: freqData, backgroundColor: accentColor, borderRadius: 6 }] },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       }
 
@@ -1410,21 +1441,36 @@
         dowChartInstance = new Chart(c2.getContext('2d'), {
           type: 'bar',
           data: { labels: dowLabels, datasets: [{ data: dowMap, backgroundColor: accentColor, borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       } else if (dowCanvasId === 'adminDowChart') {
         if (adminDowChartInstance) adminDowChartInstance.destroy();
         adminDowChartInstance = new Chart(c2.getContext('2d'), {
           type: 'bar',
           data: { labels: dowLabels, datasets: [{ data: dowMap, backgroundColor: accentColor, borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       } else if (dowCanvasId === 'adminUserDowChart') {
         if (adminUserDowChartInstance) adminUserDowChartInstance.destroy();
         adminUserDowChartInstance = new Chart(c2.getContext('2d'), {
           type: 'bar',
           data: { labels: dowLabels, datasets: [{ data: dowMap, backgroundColor: accentColor, borderRadius: 6 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       }
 
@@ -1483,21 +1529,36 @@
         weeklyChartInstance = new Chart(c3.getContext('2d'), {
           type: chart3Type,
           data: { labels: chart3Labels, datasets: [chart3Dataset] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       } else if (weeklyCanvasId === 'adminWeeklyChart') {
         if (adminWeeklyChartInstance) adminWeeklyChartInstance.destroy();
         adminWeeklyChartInstance = new Chart(c3.getContext('2d'), {
           type: chart3Type,
           data: { labels: chart3Labels, datasets: [chart3Dataset] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       } else if (weeklyCanvasId === 'adminUserWeeklyChart') {
         if (adminUserWeeklyChartInstance) adminUserWeeklyChartInstance.destroy();
         adminUserWeeklyChartInstance = new Chart(c3.getContext('2d'), {
           type: chart3Type,
           data: { labels: chart3Labels, datasets: [chart3Dataset] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: horizontalTickOptions } }
+          }
         });
       }
     }
@@ -1991,33 +2052,13 @@
     }
   </script>
 
- <!-- PWA SERVICE WORKER REGISTRATION WITH AUTO-UPDATE -->
+  <!-- PWA SERVICE WORKER REGISTRATION -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
-          // Check for service worker updates
-          reg.onupdatefound = () => {
-            const installingWorker = reg.installing;
-            if (installingWorker) {
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Reload page once new service worker takes control
-                  window.location.reload();
-                }
-              };
-            }
-          };
-        }).catch(err => console.log('Service Worker Error', err));
-      });
-
-      // Reload page if controller changes in background
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker Registered'))
+          .catch(err => console.log('Service Worker Error', err));
       });
     }
   </script>
