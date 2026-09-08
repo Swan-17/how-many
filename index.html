@@ -100,20 +100,15 @@
     .admin-clickable-row { cursor: pointer; }
     .admin-clickable-row:hover { background: var(--border-color); }
 
-    /* UNLOCKABLE AVATAR FRAMES */
-    .avatar-frame-none { border: none; padding: 0; }
-    .avatar-frame-gold { border: 2px solid #f59e0b; padding: 2px 6px; border-radius: 6px; box-shadow: 0 0 6px rgba(245, 158, 11, 0.5); }
-    .avatar-frame-neon { border: 2px solid #06b6d4; padding: 2px 6px; border-radius: 6px; box-shadow: 0 0 8px #06b6d4; }
-    .avatar-frame-flame { border: 2px solid #ef4444; padding: 2px 6px; border-radius: 6px; box-shadow: 0 0 8px #ef4444; }
-
-    /* MILESTONE BADGES */
-    .century-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+    /* TEXT DESCRIPTION BADGES */
+    .century-badge { display: inline-block; font-size: 9px; font-weight: 800; border-radius: 4px; padding: 2px 5px; margin-left: 6px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.5px; }
     .badge-100 { background: #78350f; color: #fde68a; border: 1px solid #b45309; }
-    .badge-200 { background: #334155; color: #f1f5f9; border: 1px solid #94a3b8; }
-    .badge-300 { background: #713f12; color: #fef08a; border: 1px solid #eab308; }
-    .badge-500 { background: #581c87; color: #f0abfc; border: 1px solid #c084fc; box-shadow: 0 0 6px #c084fc; }
+    .badge-250 { background: #334155; color: #f1f5f9; border: 1px solid #94a3b8; }
+    .badge-500 { background: #713f12; color: #fef08a; border: 1px solid #eab308; }
+    .badge-1000 { background: #581c87; color: #f0abfc; border: 1px solid #c084fc; box-shadow: 0 0 6px #c084fc; }
 
     .user-title-tag { font-size: 10px; color: var(--primary-color); font-weight: bold; margin-left: 4px; font-style: italic; }
+    .global-crown-icon { font-size: 12px; margin-left: 4px; }
     .perk-option-box { margin-bottom: 12px; }
     .perk-option-box label { font-weight: bold; color: var(--primary-color); display: block; margin-bottom: 4px; }
     .locked-perk-text { font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 4px; }
@@ -186,33 +181,31 @@
         </div>
       </div>
 
-      <!-- UNLOCKED PERKS & CUSTOMIZATION CENTER -->
-      <div class="card" id="perks-customization-card">
-        <h3 style="margin-top: 0; font-size: 16px; color: var(--primary-color);">🏆 UNLOCKED PERKS & THEMES</h3>
-        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Hit century milestones to unlock exclusive UI themes, frames, and titles.</p>
-        
-        <!-- 100 BEERS PERK -->
-        <div class="perk-option-box">
-          <label>🎨 100 BEERS: UI COLOR THEME</label>
-          <div id="perk-theme-container"></div>
+      <!-- COLLAPSIBLE PERKS & CUSTOMIZATION ACCORDION -->
+      <div class="card" id="card-perks-customization">
+        <div class="accordion-header" onclick="toggleAccordion('perks-accordion-body', 'perks-accordion-icon')">
+          <h3>🏆 Unlocked Perks & Themes</h3><span id="perks-accordion-icon" class="accordion-icon">▼</span>
         </div>
+        <div id="perks-accordion-body" class="accordion-content hidden">
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Hit milestones to unlock UI themes, custom drink icons, and titles.</p>
+          
+          <!-- 100 BEERS PERK -->
+          <div class="perk-option-box">
+            <label>🎨 100 BEERS: UI COLOR THEME</label>
+            <div id="perk-theme-container"></div>
+          </div>
 
-        <!-- 200 BEERS PERK -->
-        <div class="perk-option-box">
-          <label>🖼️ 200 BEERS: AVATAR FRAME</label>
-          <div id="perk-frame-container"></div>
-        </div>
+          <!-- 250 BEERS PERK -->
+          <div class="perk-option-box">
+            <label>🕹️ 250 BEERS: DRINK ICON STYLE</label>
+            <div id="perk-icon-container"></div>
+          </div>
 
-        <!-- 300 BEERS PERK -->
-        <div class="perk-option-box">
-          <label>🕹️ 300 BEERS: DRINK ICON STYLE</label>
-          <div id="perk-icon-container"></div>
-        </div>
-
-        <!-- 500 BEERS PERK -->
-        <div class="perk-option-box">
-          <label>👑 500 BEERS: CUSTOM TITLE</label>
-          <div id="perk-title-container"></div>
+          <!-- 500 BEERS PERK -->
+          <div class="perk-option-box">
+            <label>👑 500 BEERS: CUSTOM TITLE</label>
+            <div id="perk-title-container"></div>
+          </div>
         </div>
       </div>
 
@@ -486,8 +479,8 @@
     }
 
     let userName = '', userEmail = '', firstCreatedDate = '', activeLogDate = getEffectiveTodayDate();
-    let userLifetimeBeers = 0;
-    let selectedTheme = 'amber', selectedFrame = 'none', selectedIconStyle = 'default', selectedTitle = '';
+    let userLifetimeBeers = 0, globalTopUserEmail = '';
+    let selectedTheme = 'amber', selectedIconStyle = 'default', selectedTitle = '';
     let calendarViewYear = new Date().getFullYear(), calendarViewMonth = new Date().getMonth();
     let userJoinedGroups = [], relevantEmails = [], todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null, realtimeChannel = null;
@@ -565,7 +558,6 @@
         userName = user.display_name;
         firstCreatedDate = user.created_at ? user.created_at.split('T')[0] : getEffectiveTodayDate();
         selectedTheme = user.selected_theme || 'amber';
-        selectedFrame = user.selected_frame || 'none';
         selectedIconStyle = user.selected_icon_style || 'default';
         selectedTitle = user.selected_title || '';
       } else {
@@ -599,7 +591,6 @@
     async function saveUserPerks() {
       await sb.from('users').update({
         selected_theme: selectedTheme,
-        selected_frame: selectedFrame,
         selected_icon_style: selectedIconStyle,
         selected_title: selectedTitle
       }).eq('email', userEmail);
@@ -1023,21 +1014,38 @@
       }
     }
 
-    // BADGE & FRAME HELPER FUNCTION FOR LEADERBOARDS
+    // TEXT DESCRIPTION BADGES
     function getBadgeHTML(beers) {
-      if (beers >= 500) return `<span class="century-badge badge-500">👑 500+</span>`;
-      if (beers >= 300) return `<span class="century-badge badge-300">🥇 300+</span>`;
-      if (beers >= 200) return `<span class="century-badge badge-200">🥈 200+</span>`;
-      if (beers >= 100) return `<span class="century-badge badge-100">🥉 100+</span>`;
+      if (beers >= 1000) return `<span class="century-badge badge-1000">Grand Sovereign</span>`;
+      if (beers >= 500) return `<span class="century-badge badge-500">Tavern Lord</span>`;
+      if (beers >= 250) return `<span class="century-badge badge-250">Keg Master</span>`;
+      if (beers >= 100) return `<span class="century-badge badge-100">Centurion</span>`;
       return '';
     }
 
-    async function fetchAllUsersMetaData() {
-      const { data } = await sb.from('users').select('email, selected_frame, selected_title');
+    async function fetchAllUsersMetaDataAndGlobalTop() {
+      const [usersRes, logsRes] = await Promise.all([
+        sb.from('users').select('email, selected_title'),
+        sb.from('drink_logs').select('*')
+      ]);
+
       allUsersMetaData = {};
-      (data || []).forEach(u => {
+      (usersRes.data || []).forEach(u => {
         allUsersMetaData[u.email.toLowerCase().trim()] = u;
       });
+
+      // Calculate absolute top user across whole app
+      const userTotals = {};
+      (logsRes.data || []).forEach(l => {
+        const email = l.user_email.toLowerCase().trim();
+        userTotals[email] = (userTotals[email] || 0) + calculateUnitsAndBeers(l).beers;
+      });
+
+      let topEmail = '', maxBeers = -1;
+      for (const [em, b] of Object.entries(userTotals)) {
+        if (b > maxBeers) { maxBeers = b; topEmail = em; }
+      }
+      globalTopUserEmail = maxBeers > 0 ? topEmail : '';
     }
 
     async function renderAnalytics() {
@@ -1046,7 +1054,7 @@
       const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
 
-      await fetchAllUsersMetaData();
+      await fetchAllUsersMetaDataAndGlobalTop();
 
       if (code === 'my_stats') {
         lbContainer.classList.add('hidden');
@@ -1215,7 +1223,7 @@
           if (uRunStreak > uMaxStreak) uMaxStreak = uRunStreak;
         }
       });
-      userLongestStreak = Math.max(userStreak, uMaxStreak);
+      userLongestStreak = Math.max(userStreak, uRunStreak);
 
       $('stat-pr-day').innerText = `${userMaxDay} Beers`;
       $('stat-favorite-drink').innerText = userFavDrink;
@@ -1243,14 +1251,15 @@
 
       userTotals.forEach(i => {
         const meta = allUsersMetaData[i.email] || {};
-        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
         const titleTag = meta.selected_title ? `<span class="user-title-tag">"${meta.selected_title}"</span>` : '';
         const badge = getBadgeHTML(i.beers);
+        const globalCrown = (i.email === globalTopUserEmail) ? `<span class="global-crown-icon" title="Global Drink Leader">👑</span>` : '';
 
         lb.innerHTML += `
           <div class="member-row">
             <span>
-              <span class="${frameClass}">${i.name}</span> ${i.email === userEmail ? '(You)' : ''}
+              <span>${i.name}</span> ${i.email === userEmail ? '(You)' : ''}
+              ${globalCrown}
               ${titleTag}
               ${badge}
             </span>
@@ -1265,9 +1274,8 @@
       }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
 
       dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => {
-        const meta = allUsersMetaData[i.email] || {};
-        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
-        return `<div class="member-row"><span class="${frameClass}">${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`;
+        const globalCrown = (i.email === globalTopUserEmail) ? `<span class="global-crown-icon" title="Global Drink Leader">👑</span>` : '';
+        return `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''} ${globalCrown}</span><strong>${i.beers} 🍺</strong></div>`;
       }).join('') : '<span style="color:var(--text-muted); font-size:12px;">No beers logged today yet.</span>';
 
       $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
@@ -1432,10 +1440,10 @@
     function checkAndNotifyMilestones(prevBeers, currentBeers) {
       if (!prevBeers) return;
       const milestones = [
-        { count: 100, title: "1st Century (100 Beers)!", perk: "UI Theme Selector in your Account tab!" },
-        { count: 200, title: "2nd Century (200 Beers)!", perk: "Custom Avatar Frames for group leaderboards!" },
-        { count: 300, title: "3rd Century (300 Beers)!", perk: "Custom Pixel Drink Icon style!" },
-        { count: 500, title: "Half-K Legend (500 Beers)!", perk: "Custom Titles next to your name!" }
+        { count: 100, title: "Centurion Milestone (100 Beers)!", perk: "UI Theme Selector in your Account tab!" },
+        { count: 250, title: "Keg Master Milestone (250 Beers)!", perk: "Custom Pixel Drink Icon style!" },
+        { count: 500, title: "Tavern Lord Milestone (500 Beers)!", perk: "Custom Titles next to your name!" },
+        { count: 1000, title: "Grand Sovereign Milestone (1000 Beers)!", perk: "Grand Sovereign Title & Crown Badge!" }
       ];
 
       for (const m of milestones) {
@@ -1496,30 +1504,16 @@
         themeBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 100 beers to unlock custom UI colors)</span>`;
       }
 
-      // 200 BEERS: FRAMES
-      const frameBox = $('perk-frame-container');
-      if (userLifetimeBeers >= 200) {
-        frameBox.innerHTML = `
-          <select id="select-frame-picker" onchange="changeFrameFromPicker(this.value)">
-            <option value="none" ${selectedFrame === 'none' ? 'selected' : ''}>Standard (No Frame)</option>
-            <option value="gold" ${selectedFrame === 'gold' ? 'selected' : ''}>Gold Glow Frame</option>
-            <option value="neon" ${selectedFrame === 'neon' ? 'selected' : ''}>Cyber Cyan Neon Frame</option>
-            <option value="flame" ${selectedFrame === 'flame' ? 'selected' : ''}>Ruby Flame Frame</option>
-          </select>`;
-      } else {
-        frameBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 200 beers to unlock avatar frames)</span>`;
-      }
-
-      // 300 BEERS: ICONS
+      // 250 BEERS: ICONS
       const iconBox = $('perk-icon-container');
-      if (userLifetimeBeers >= 300) {
+      if (userLifetimeBeers >= 250) {
         iconBox.innerHTML = `
           <select id="select-icon-picker" onchange="changeIconStyleFromPicker(this.value)">
             <option value="default" ${selectedIconStyle === 'default' ? 'selected' : ''}>Modern Line Icons</option>
             <option value="pixel" ${selectedIconStyle === 'pixel' ? 'selected' : ''}>Retro Pixel Art Icons</option>
           </select>`;
       } else {
-        iconBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 300 beers to unlock drink icon styles)</span>`;
+        iconBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 250 beers to unlock drink icon styles)</span>`;
       }
 
       // 500 BEERS: TITLE
@@ -1529,7 +1523,7 @@
           <select id="select-title-picker" onchange="changeTitleFromPicker(this.value)">
             <option value="" ${selectedTitle === '' ? 'selected' : ''}>No Title</option>
             <option value="Pub Legend" ${selectedTitle === 'Pub Legend' ? 'selected' : ''}>Pub Legend</option>
-            <option value="Beer Centurion" ${selectedTitle === 'Beer Centurion' ? 'selected' : ''}>Beer Centurion</option>
+            <option value="Keg Master" ${selectedTitle === 'Keg Master' ? 'selected' : ''}>Keg Master</option>
             <option value="Master Brewer" ${selectedTitle === 'Master Brewer' ? 'selected' : ''}>Master Brewer</option>
             <option value="Bottomless Pit" ${selectedTitle === 'Bottomless Pit' ? 'selected' : ''}>Bottomless Pit</option>
           </select>`;
@@ -1540,11 +1534,6 @@
 
     async function changeThemeFromPicker(val) {
       applyThemeColor(val);
-      await saveUserPerks();
-    }
-
-    async function changeFrameFromPicker(val) {
-      selectedFrame = val;
       await saveUserPerks();
     }
 
@@ -1668,7 +1657,7 @@
       const lb = $('admin-leaderboard-list'), dlb = $('admin-daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
 
-      await fetchAllUsersMetaData();
+      await fetchAllUsersMetaDataAndGlobalTop();
 
       const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
       if (!members) return;
@@ -1701,14 +1690,15 @@
 
       userTotals.forEach(i => {
         const meta = allUsersMetaData[i.email] || {};
-        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
         const titleTag = meta.selected_title ? `<span class="user-title-tag">"${meta.selected_title}"</span>` : '';
         const badge = getBadgeHTML(i.beers);
+        const globalCrown = (i.email === globalTopUserEmail) ? `<span class="global-crown-icon" title="Global Drink Leader">👑</span>` : '';
 
         lb.innerHTML += `
           <div class="member-row">
             <span>
-              <span class="${frameClass}">${i.name}</span>
+              <span>${i.name}</span>
+              ${globalCrown}
               ${titleTag}
               ${badge}
             </span>
@@ -1723,9 +1713,8 @@
       }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
 
       dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => {
-        const meta = allUsersMetaData[i.email] || {};
-        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
-        return `<div class="member-row"><span class="${frameClass}">${i.name}</span><strong>${i.beers} 🍺</strong></div>`;
+        const globalCrown = (i.email === globalTopUserEmail) ? `<span class="global-crown-icon" title="Global Drink Leader">👑</span>` : '';
+        return `<div class="member-row"><span>${i.name} ${globalCrown}</span><strong>${i.beers} 🍺</strong></div>`;
       }).join('') : '<span style="color:var(--text-muted); font-size:12px;">No beers logged today yet.</span>';
 
       $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
@@ -1873,8 +1862,8 @@
 
     function closeAllExpandables() {
       closeHostPanel();
-      ['groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => $(id)?.classList.add('hidden'));
-      ['groups-accordion-icon', 'join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => { if ($(id)) $(id).innerText = '▼'; });
+      ['perks-accordion-body', 'groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => $(id)?.classList.add('hidden'));
+      ['perks-accordion-icon', 'groups-accordion-icon', 'join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => { if ($(id)) $(id).innerText = '▼'; });
     }
 
     function toggleAccordion(bodyId, iconId) {
@@ -1892,7 +1881,7 @@
     }
 
     function handleGlobalClick(e) {
-      const isInsideCard = ['card-active-groups', 'card-join-group', 'card-create-group', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
+      const isInsideCard = ['card-perks-customization', 'card-active-groups', 'card-join-group', 'card-create-group', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
       const isMissedBtn = e.target.closest('button')?.getAttribute('onclick')?.includes('missed-drinks-body');
       const isInsideHost = activeHostCode && $(`host-panel-${activeHostCode}`)?.contains(e.target);
       if (!isInsideCard && !isMissedBtn && !isInsideHost) closeAllExpandables();
