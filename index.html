@@ -323,7 +323,7 @@
     <div id="page-stats" class="hidden">
       <div class="card centered-select-container">
         <label style="font-weight: bold;">VIEW STATS FOR</label>
-        <select id="analytics-group-select" onchange="renderAnalytics()"></select>
+        <select id="analytics-group-select" onchange="onAnalyticsGroupChange()"></select>
       </div>
       <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, modalBreakdownTitle)">
         <h3 id="group-total-label" style="margin: 0; font-size: 13px; color: var(--text-muted);">TOTAL GROUP BEERS</h3>
@@ -685,6 +685,14 @@
 
     function loadLastPage() {
       try { return localStorage.getItem('dt_last_page') || 'tracker'; } catch (e) { return 'tracker'; }
+    }
+
+    function saveLastSelectedGroup(groupCode) {
+      try { localStorage.setItem(`dt_last_group_${userEmail}`, groupCode); } catch (e) {}
+    }
+
+    function loadLastSelectedGroup() {
+      try { return localStorage.getItem(`dt_last_group_${userEmail}`); } catch (e) { return null; }
     }
 
     function calculateUnitsAndBeers(e) {
@@ -1051,7 +1059,8 @@
     }
 
     function populateAnalyticsDropdown(forceTopSelection) {
-      const select = $('analytics-group-select'), cur = select.value;
+      const select = $('analytics-group-select');
+      const savedGroup = loadLastSelectedGroup();
       let html = '';
       
       // Default selection is the top ranked group on Account tab if user has groups, otherwise 'my_stats'
@@ -1063,11 +1072,20 @@
       }
 
       select.innerHTML = html;
-      if (!forceTopSelection && cur && (cur === 'my_stats' || userJoinedGroups.some(g => g.code === cur))) {
-        select.value = cur;
+
+      if (!forceTopSelection && savedGroup && (savedGroup === 'my_stats' || userJoinedGroups.some(g => g.code === savedGroup))) {
+        select.value = savedGroup;
       } else {
-        select.value = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
+        const defaultChoice = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
+        select.value = defaultChoice;
+        saveLastSelectedGroup(defaultChoice);
       }
+    }
+
+    function onAnalyticsGroupChange() {
+      const val = $('analytics-group-select').value;
+      saveLastSelectedGroup(val);
+      renderAnalytics();
     }
 
     // TEXT DESCRIPTION BADGES
@@ -1944,7 +1962,7 @@
 
       if (p === 'account') updateAccountPage();
       if (p === 'stats') {
-        populateAnalyticsDropdown(true);
+        populateAnalyticsDropdown(false);
         renderAnalytics();
       }
       if (p === 'admin') renderAdminPage();
