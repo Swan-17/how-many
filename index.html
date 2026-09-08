@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🍺 How Many Beers</title>
+
+  <!-- PWA & MOBILE META TAGS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#f59e0b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="How Many Beers">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -105,7 +114,7 @@
     .admin-clickable-row { cursor: pointer; }
     .admin-clickable-row:hover { background: var(--border-color); }
 
-    /* FIXED FLEXIBLE BADGES & TAGS */
+    /* TEXT DESCRIPTION BADGES */
     .century-badge { display: inline-block; font-size: 9px; font-weight: 800; border-radius: 4px; padding: 2px 5px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.5px; }
     .badge-100 { background: #78350f; color: #fde68a; border: 1px solid #b45309; }
     .badge-250 { background: #334155; color: #f1f5f9; border: 1px solid #94a3b8; }
@@ -358,7 +367,7 @@
           <h3 id="admin-user-stats-title" style="margin-top: 0; font-size: 16px; color: #8b5cf6; text-align: center;">User Personal Stats</h3>
         </div>
         <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(adminUserTotalsBreakdown, adminUserModalTitle)">
-          <h3 style="margin: 0; font-size: 13px; color: var(--text-muted);">TOTAL YOUR BEERS</h3>
+          <h3 style="margin: 0; font-size: 13px; color: var(--text-muted);">YOUR TOTAL BEERS</h3>
           <p id="admin-user-total-beers" style="font-size: 36px; font-weight: 900; color: var(--primary-color); margin: 6px 0 0 0;">0 🍺</p>
           <span class="click-hint">(Click to view breakdown)</span>
         </div>
@@ -1865,6 +1874,17 @@
       if (p === 'admin') renderAdminPage();
 
       saveLastPage(p);
+    }
+  </script>
+
+  <!-- PWA SERVICE WORKER REGISTRATION -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker Registered'))
+          .catch(err => console.log('Service Worker Error', err));
+      });
     }
   </script>
 </body>
