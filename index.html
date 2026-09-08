@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🍺 How Many Beers</title>
+  <title>🍺 How Many Beer</title>
 
   <!-- PWA & MOBILE META TAGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#f59e0b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="How Many Beers">
-<link rel="apple-touch-icon" href="Logo.png">
+  <meta name="apple-mobile-web-app-title" content="How Many Beer">
+  <link rel="apple-touch-icon" href="Logo.png">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -126,13 +126,18 @@
     .perk-option-box { margin-bottom: 12px; }
     .perk-option-box label { font-weight: bold; color: var(--primary-color); display: block; margin-bottom: 4px; }
     .locked-perk-text { font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 4px; }
+
+    /* HIDE INSTALL PROMPT WHEN APP IS LAUNCHED FROM HOME SCREEN */
+    @media (display-mode: standalone) {
+      #card-install-app { display: none !important; }
+    }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
 
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="card">
-    <h2 style="margin-top: 0; text-align: center;">How Many Beers</h2>
+    <h2 style="margin-top: 0; text-align: center;">How Many Beer</h2>
     <div id="login-form-fields">
       <h3 style="font-size: 14px; color: var(--text-muted); margin-bottom: 4px;">LOG IN</h3>
       <div style="margin-bottom: 10px;"><label>EMAIL</label><input type="email" id="login-email" placeholder="alex@example.com"></div>
@@ -193,6 +198,13 @@
             <span class="click-hint">(Click to view breakdown)</span>
           </div>
         </div>
+      </div>
+
+      <!-- ADD TO HOME SCREEN PROMPT CARD -->
+      <div class="card" id="card-install-app">
+        <h3 style="margin-top: 0; font-size: 15px; color: var(--primary-color);">📲 INSTALL WEB APP</h3>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Add <strong>How Many Beer</strong> to your home screen for a full-screen app experience.</p>
+        <button class="btn-submit" onclick="promptInstallApp()">Add to Home Screen 📲</button>
       </div>
 
       <!-- COLLAPSIBLE PERKS & CUSTOMIZATION ACCORDION -->
@@ -434,6 +446,16 @@
     </div>
   </div>
 
+  <!-- INSTALL PWA MODAL -->
+  <div id="install-modal" class="modal-overlay hidden" onclick="closeInstallModal()">
+    <div class="modal-content" style="text-align: center; border-color: var(--primary-color);" onclick="event.stopPropagation()">
+      <div style="font-size: 36px; margin-bottom: 6px;">📲</div>
+      <h3 style="margin-top: 0; margin-bottom: 8px; color: var(--primary-color); font-size: 18px;">Add to Home Screen</h3>
+      <div id="install-modal-instructions" style="font-size: 13px; color: var(--text-main); text-align: left; line-height: 1.5; margin-bottom: 16px;"></div>
+      <button class="btn-submit" onclick="closeInstallModal()">Got it!</button>
+    </div>
+  </div>
+
   <script>
     const ADMIN_EMAIL = 'matthewswan17@gmail.com';
     const SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
@@ -461,6 +483,12 @@
     };
 
     let DRINKS = DRINK_SETS.default;
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+    });
 
     function renderDrinkListUI() {
       $('drink-list-container').innerHTML = DRINKS.map(d => `
@@ -1020,16 +1048,21 @@
 
     function populateAnalyticsDropdown(forceTopSelection) {
       const select = $('analytics-group-select'), cur = select.value;
-      let html = `<option value="my_stats">My Stats</option>`;
+      let html = '';
+      
+      // Default selection is the top ranked group on Account tab if user has groups, otherwise 'my_stats'
       if (userJoinedGroups.length > 0) {
         html += userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('');
+        html += `<option value="my_stats">My Stats</option>`;
+      } else {
+        html = `<option value="my_stats">My Stats</option>`;
       }
 
       select.innerHTML = html;
       if (!forceTopSelection && cur && (cur === 'my_stats' || userJoinedGroups.some(g => g.code === cur))) {
         select.value = cur;
       } else {
-        select.value = 'my_stats';
+        select.value = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
       }
     }
 
@@ -1452,6 +1485,42 @@
       $('milestone-modal').classList.add('hidden');
     }
 
+    // INSTALL PWA PROMPT LOGIC
+    function promptInstallApp() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; });
+        return;
+      }
+
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const container = $('install-modal-instructions');
+
+      if (isIOS) {
+        container.innerHTML = `
+          <strong>On iPhone / iPad (Safari):</strong>
+          <ol style="margin-top: 6px; padding-left: 20px;">
+            <li>Tap the <strong>Share</strong> icon (square with an up arrow) at the bottom of Safari.</li>
+            <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+            <li>Tap <strong>Add</strong> in the top right corner.</li>
+          </ol>`;
+      } else {
+        container.innerHTML = `
+          <strong>On Android / Mobile Chrome:</strong>
+          <ol style="margin-top: 6px; padding-left: 20px;">
+            <li>Tap the <strong>three dots menu (⋮)</strong> in the top right corner.</li>
+            <li>Tap <strong>Install App</strong> or <strong>Add to Home screen</strong>.</li>
+            <li>Confirm by tapping <strong>Add</strong>.</li>
+          </ol>`;
+      }
+
+      $('install-modal').classList.remove('hidden');
+    }
+
+    function closeInstallModal() {
+      $('install-modal').classList.add('hidden');
+    }
+
     async function updateAccountPage(prevBeers = null) {
       $('acc-name-display').innerText = userName;
       $('acc-email-display').innerText = userEmail;
@@ -1870,7 +1939,10 @@
       });
 
       if (p === 'account') updateAccountPage();
-      if (p === 'stats') renderAnalytics();
+      if (p === 'stats') {
+        populateAnalyticsDropdown(true);
+        renderAnalytics();
+      }
       if (p === 'admin') renderAdminPage();
 
       saveLastPage(p);
