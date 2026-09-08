@@ -7,76 +7,86 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+    :root {
+      --primary-color: #f59e0b;
+      --primary-hover: #fbbf24;
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: #0f172a; color: #f8fafc; max-width: 520px; margin: 0 auto; padding: 16px; }
+    body { background: var(--bg-main); color: var(--text-main); max-width: 520px; margin: 0 auto; padding: 16px; }
     nav { display: flex; gap: 6px; margin-bottom: 16px; }
-    nav button { flex: 1; padding: 10px 4px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; font: bold 13px inherit; cursor: pointer; }
-    nav button.active { background: #f59e0b; color: #000; border-color: #f59e0b; }
+    nav button { flex: 1; padding: 10px 4px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 8px; font: bold 13px inherit; cursor: pointer; }
+    nav button.active { background: var(--primary-color); color: #000; border-color: var(--primary-color); }
     nav button.admin-tab.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
-    .card { background: #1e293b; padding: 18px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #334155; }
+    .card { background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border-color); }
     .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
     .accordion-header h3 { margin: 0; font-size: 15px; }
-    .accordion-icon { font-size: 14px; color: #f59e0b; }
-    .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; }
+    .accordion-icon { font-size: 14px; color: var(--primary-color); }
+    .accordion-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); }
     .drink-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-    .drink-row { background: #0f172a; padding: 12px 16px; border-radius: 10px; border: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+    .drink-row { background: var(--bg-main); padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; }
     .drink-info { display: flex; align-items: center; gap: 12px; }
-    .drink-icon-svg { width: 28px; height: 28px; fill: none; stroke: #f59e0b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .drink-icon-svg { width: 28px; height: 28px; fill: none; stroke: var(--primary-color); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .drink-title { font-size: 15px; font-weight: 700; }
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-    .stat-box { background: #0f172a; padding: 14px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
-    .stat-number { font-size: 26px; font-weight: 900; color: #f59e0b; margin-top: 4px; }
-    .stat-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
+    .stat-box { background: var(--bg-main); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; }
+    .stat-number { font-size: 26px; font-weight: 900; color: var(--primary-color); margin-top: 4px; }
+    .stat-label { font-size: 11px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; }
     .clickable-stat { cursor: pointer; position: relative; }
-    .clickable-stat:hover { background: #334155; }
-    .clickable-text { cursor: pointer; color: #f59e0b; text-decoration: none; }
+    .clickable-stat:hover { background: var(--border-color); }
+    .clickable-text { cursor: pointer; color: var(--primary-color); text-decoration: none; }
     .clickable-text span { text-decoration: underline dotted; }
-    .clickable-text:hover { color: #fbbf24; }
+    .clickable-text:hover { color: var(--primary-hover); }
     .click-hint { font-size: 10px; color: #64748b; margin-top: 4px; display: block; text-transform: none; }
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
     .btn-circle { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .btn-minus { background: #334155; color: white; }
-    .btn-plus { background: #f59e0b; color: black; }
-    .count-val { font-size: 22px; font-weight: 800; color: #f59e0b; min-width: 24px; text-align: center; }
-    .summary-box { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px; text-align: center; margin-top: 16px; }
-    .unit-text { font-size: 12px; color: #94a3b8; }
-    .beer-text { font-size: 28px; font-weight: 900; color: #f59e0b; margin-top: 2px; }
+    .btn-minus { background: var(--border-color); color: white; }
+    .btn-plus { background: var(--primary-color); color: black; }
+    .count-val { font-size: 22px; font-weight: 800; color: var(--primary-color); min-width: 24px; text-align: center; }
+    .summary-box { background: var(--bg-main); border: 1px solid var(--primary-color); border-radius: 8px; padding: 14px; text-align: center; margin-top: 16px; }
+    .unit-text { font-size: 12px; color: var(--text-muted); }
+    .beer-text { font-size: 28px; font-weight: 900; color: var(--primary-color); margin-top: 2px; }
     .hidden { display: none !important; }
-    input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; }
-    label { color: #94a3b8; font-size: 12px; }
-    .btn-submit { background: #f59e0b; color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
+    input, select { background: var(--bg-main); border: 1px solid var(--border-color); color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; }
+    label { color: var(--text-muted); font-size: 12px; }
+    .btn-submit { background: var(--primary-color); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
     .btn-submit:disabled { opacity: 0.6; cursor: default; }
     .btn-danger, .btn-secondary, .btn-share, .btn-admin { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; }
     .btn-danger { background: #ef4444; }
-    .btn-secondary { background: #334155; }
+    .btn-secondary { background: var(--border-color); }
     .btn-share { background: #059669; }
     .btn-admin { background: #8b5cf6; color: white; }
     .btn-admin:hover { background: #7c3aed; }
-    .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
+    .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); }
     .member-row:last-child { border-bottom: none; }
-    .group-drag-item { border-bottom: 1px solid #334155; }
+    .group-drag-item { border-bottom: 1px solid var(--border-color); }
     .group-drag-item:last-child { border-bottom: none; }
     .group-drag-row { display: flex; align-items: center; gap: 4px; }
     .drag-handle { cursor: grab; color: #64748b; font-size: 20px; line-height: 1; padding: 10px 8px 10px 0; touch-action: none; user-select: none; }
-    .drag-handle:active { cursor: grabbing; color: #f59e0b; }
-    .group-drag-item.dragging { opacity: 0.95; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-radius: 10px; background: #0f172a; border-bottom: none; }
-    .group-drag-placeholder { border: 2px dashed #f59e0b; border-radius: 10px; margin: 4px 0; opacity: 0.5; box-sizing: border-box; }
+    .drag-handle:active { cursor: grabbing; color: var(--primary-color); }
+    .group-drag-item.dragging { opacity: 0.95; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-radius: 10px; background: var(--bg-main); border-bottom: none; }
+    .group-drag-placeholder { border: 2px dashed var(--primary-color); border-radius: 10px; margin: 4px 0; opacity: 0.5; box-sizing: border-box; }
     .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
-    .inline-host-panel { background: #0f172a; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
+    .inline-host-panel { background: var(--bg-main); border: 1px solid var(--primary-color); border-radius: 8px; padding: 12px; margin: 8px 0 12px 0; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .modal-content { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; width: 100%; max-width: 380px; max-height: 90vh; overflow-y: auto; }
-    .breakdown-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; font-size: 14px; }
+    .modal-content { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; width: 100%; max-width: 380px; max-height: 90vh; overflow-y: auto; }
+    .breakdown-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; }
     .breakdown-row:last-child { border-bottom: none; }
-    .calendar-container { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-top: 8px; }
+    .calendar-container { background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-top: 8px; }
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .calendar-header h4 { margin: 0; font-size: 13px; color: #f59e0b; }
+    .calendar-header h4 { margin: 0; font-size: 13px; color: var(--primary-color); }
     .calendar-scroll-area { max-height: 240px; overflow-y: auto; padding-right: 4px; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
     .calendar-day-header { font-size: 10px; font-weight: bold; color: #64748b; padding-bottom: 4px; }
-    .calendar-day { padding: 8px 0; font-size: 12px; border-radius: 6px; background: #1e293b; color: #f8fafc; cursor: pointer; user-select: none; transition: background 0.15s ease; }
-    .calendar-day:hover:not(.disabled) { background: #334155; }
-    .calendar-day.selected { background: #f59e0b; color: #000; font-weight: bold; }
-    .calendar-day.today { border: 1px solid #f59e0b; }
+    .calendar-day { padding: 8px 0; font-size: 12px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); cursor: pointer; user-select: none; transition: background 0.15s ease; }
+    .calendar-day:hover:not(.disabled) { background: var(--border-color); }
+    .calendar-day.selected { background: var(--primary-color); color: #000; font-weight: bold; }
+    .calendar-day.today { border: 1px solid var(--primary-color); }
     .calendar-day.disabled { opacity: 0.25; cursor: not-allowed; background: transparent; }
     .calendar-day.empty { background: transparent; cursor: default; }
     
@@ -85,10 +95,28 @@
     .centered-select-container select { text-align: center; text-align-last: center; }
 
     .admin-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
-    .admin-table th, .admin-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #334155; }
+    .admin-table th, .admin-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border-color); }
     .admin-table th { color: #8b5cf6; font-size: 11px; text-transform: uppercase; }
     .admin-clickable-row { cursor: pointer; }
-    .admin-clickable-row:hover { background: #334155; }
+    .admin-clickable-row:hover { background: var(--border-color); }
+
+    /* UNLOCKABLE AVATAR FRAMES */
+    .avatar-frame-none { border: none; padding: 0; }
+    .avatar-frame-gold { border: 2px solid #f59e0b; padding: 2px 6px; border-radius: 6px; box-shadow: 0 0 6px rgba(245, 158, 11, 0.5); }
+    .avatar-frame-neon { border: 2px solid #06b6d4; padding: 2px 6px; border-radius: 6px; box-shadow: 0 0 8px #06b6d4; }
+    .avatar-frame-flame { border: 2px solid #ef4444; padding: 2px 6px; border-radius: 6px; box-shadow: 0 0 8px #ef4444; }
+
+    /* MILESTONE BADGES */
+    .century-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+    .badge-100 { background: #78350f; color: #fde68a; border: 1px solid #b45309; }
+    .badge-200 { background: #334155; color: #f1f5f9; border: 1px solid #94a3b8; }
+    .badge-300 { background: #713f12; color: #fef08a; border: 1px solid #eab308; }
+    .badge-500 { background: #581c87; color: #f0abfc; border: 1px solid #c084fc; box-shadow: 0 0 6px #c084fc; }
+
+    .user-title-tag { font-size: 10px; color: var(--primary-color); font-weight: bold; margin-left: 4px; font-style: italic; }
+    .perk-option-box { margin-bottom: 12px; }
+    .perk-option-box label { font-weight: bold; color: var(--primary-color); display: block; margin-bottom: 4px; }
+    .locked-perk-text { font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 4px; }
   </style>
 </head>
 <body onclick="handleGlobalClick(event)">
@@ -97,16 +125,16 @@
   <div id="login-screen" class="card">
     <h2 style="margin-top: 0; text-align: center;">How Many Beers</h2>
     <div id="login-form-fields">
-      <h3 style="font-size: 14px; color: #94a3b8; margin-bottom: 4px;">LOG IN</h3>
+      <h3 style="font-size: 14px; color: var(--text-muted); margin-bottom: 4px;">LOG IN</h3>
       <div style="margin-bottom: 10px;"><label>EMAIL</label><input type="email" id="login-email" placeholder="alex@example.com"></div>
       <div style="margin-bottom: 10px;"><label>PASSWORD</label><input type="password" id="login-password" placeholder="Your password"></div>
       <button id="login-submit-btn" class="btn-submit" onclick="loginUser()">Log In</button>
       <p id="login-error" class="hidden" style="color: #ef4444; font-size: 12px; text-align: center; margin-top: 8px;"></p>
     </div>
 
-    <div id="signup-accordion-body" class="accordion-content" style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px;">
+    <div id="signup-accordion-body" class="accordion-content" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
       <div class="accordion-header" onclick="toggleSignupPanel()">
-        <h3 style="font-size: 14px; color: #94a3b8; margin: 0;">New here? Sign up</h3>
+        <h3 style="font-size: 14px; color: var(--text-muted); margin: 0;">New here? Sign up</h3>
         <span id="signup-accordion-icon" class="accordion-icon">▼</span>
       </div>
       <div id="signup-form-fields" class="hidden" style="margin-top: 12px;">
@@ -119,8 +147,8 @@
     </div>
 
     <div id="login-check-email" class="hidden" style="text-align: center;">
-      <p style="color: #f8fafc; font-size: 14px;">📬 Check your email</p>
-      <p style="color: #94a3b8; font-size: 13px;">We sent you a verification link. Click it to confirm your account, then come back here and log in.</p>
+      <p style="color: var(--text-main); font-size: 14px;">📬 Check your email</p>
+      <p style="color: var(--text-muted); font-size: 13px;">We sent you a verification link. Click it to confirm your account, then come back here and log in.</p>
       <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 8px;" onclick="resetToLoginScreen()">Back to login</button>
     </div>
   </div>
@@ -137,13 +165,13 @@
     <!-- PAGE 1: ACCOUNT -->
     <div id="page-account" class="hidden">
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 16px; color: #94a3b8;">USER PROFILE</h3>
+        <h3 style="margin-top: 0; font-size: 16px; color: var(--text-muted);">USER PROFILE</h3>
         <div class="member-row">
-          <div><span style="font-size: 11px; color: #94a3b8; display: block;">DISPLAY NAME</span><strong id="acc-name-display" style="font-size: 16px; color: #f59e0b;">---</strong></div>
+          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">DISPLAY NAME</span><strong id="acc-name-display" style="font-size: 16px; color: var(--primary-color);">---</strong></div>
           <button class="btn-secondary" onclick="editProfileName()">Edit Name</button>
         </div>
         <div class="member-row">
-          <div><span style="font-size: 11px; color: #94a3b8; display: block;">EMAIL</span><strong id="acc-email-display" style="font-size: 13px; color: white;">---</strong></div>
+          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">EMAIL</span><strong id="acc-email-display" style="font-size: 13px; color: white;">---</strong></div>
         </div>
 
         <div class="stat-grid">
@@ -158,10 +186,40 @@
         </div>
       </div>
 
-      <!-- ADMIN REVEAL BUTTON (Visible ONLY on Account Page to Admin) -->
+      <!-- UNLOCKED PERKS & CUSTOMIZATION CENTER -->
+      <div class="card" id="perks-customization-card">
+        <h3 style="margin-top: 0; font-size: 16px; color: var(--primary-color);">🏆 UNLOCKED PERKS & THEMES</h3>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Hit century milestones to unlock exclusive UI themes, frames, and titles.</p>
+        
+        <!-- 100 BEERS PERK -->
+        <div class="perk-option-box">
+          <label>🎨 100 BEERS: UI COLOR THEME</label>
+          <div id="perk-theme-container"></div>
+        </div>
+
+        <!-- 200 BEERS PERK -->
+        <div class="perk-option-box">
+          <label>🖼️ 200 BEERS: AVATAR FRAME</label>
+          <div id="perk-frame-container"></div>
+        </div>
+
+        <!-- 300 BEERS PERK -->
+        <div class="perk-option-box">
+          <label>🕹️ 300 BEERS: DRINK ICON STYLE</label>
+          <div id="perk-icon-container"></div>
+        </div>
+
+        <!-- 500 BEERS PERK -->
+        <div class="perk-option-box">
+          <label>👑 500 BEERS: CUSTOM TITLE</label>
+          <div id="perk-title-container"></div>
+        </div>
+      </div>
+
+      <!-- ADMIN REVEAL BUTTON -->
       <div id="admin-trigger-card" class="card hidden" style="border: 1px solid #8b5cf6;">
         <h3 style="margin-top: 0; font-size: 14px; color: #8b5cf6;">ADMIN CONTROLS</h3>
-        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Reveal the Admin Dashboard tab to view system-wide analytics.</p>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Reveal the Admin Dashboard tab to view system-wide analytics.</p>
         <button class="btn-admin" style="width: 100%; padding: 10px; font-size: 13px;" onclick="revealAndOpenAdminTab()">Open Admin Dashboard 🛡️</button>
       </div>
 
@@ -204,7 +262,7 @@
     <div id="page-tracker">
       <div class="card">
         <button id="back-to-today-btn" class="btn-submit hidden" style="margin-top: 0; margin-bottom: 12px;" onclick="resetToTodayDate()">Back to Today</button>
-        <h3 style="margin: 0; font-size: 14px; color: #94a3b8; text-align: center;">LOG DRINKS FOR (<span id="today-date-label"></span>)</h3>
+        <h3 style="margin: 0; font-size: 14px; color: var(--text-muted); text-align: center;">LOG DRINKS FOR (<span id="today-date-label"></span>)</h3>
 
         <div class="drink-list" id="drink-list-container"></div>
 
@@ -213,7 +271,7 @@
           <div class="beer-text"><span id="total-beers-val">0</span> Beer 🍺</div>
         </div>
 
-        <div style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px;">
+        <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
           <button class="btn-secondary" style="width: 100%; padding: 10px; font-size: 12px;" onclick="event.stopPropagation(); toggleAccordion('missed-drinks-body', 'missed-drinks-icon')">
             📅 History <span id="missed-drinks-icon" class="accordion-icon" style="float: right;">▼</span>
           </button>
@@ -245,53 +303,53 @@
         <select id="analytics-group-select" onchange="renderAnalytics()"></select>
       </div>
       <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(groupTotalsBreakdown, modalBreakdownTitle)">
-        <h3 id="group-total-label" style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
-        <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
+        <h3 id="group-total-label" style="margin: 0; font-size: 13px; color: var(--text-muted);">TOTAL GROUP BEERS</h3>
+        <p id="group-total-beers" style="font-size: 36px; font-weight: 900; color: var(--primary-color); margin: 6px 0 0 0;">0 🍺</p>
         <span class="click-hint">(Click to view breakdown)</span>
       </div>
       <div id="leaderboards-container">
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="leaderboard-list"></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="daily-leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">LIFETIME LEADERBOARD</h3><div id="leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">DAILY LEADERBOARD</h3><div id="daily-leaderboard-list"></div></div>
       </div>
-      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
-      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="dowChart"></canvas></div></div>
-      <div class="card"><h3 id="third-chart-title" style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME DAILY BEERS</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="freqChart"></canvas></div></div>
+      <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="dowChart"></canvas></div></div>
+      <div class="card"><h3 id="third-chart-title" style="margin-top: 0; font-size: 15px; color: var(--text-muted);">LIFETIME DAILY BEERS</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
       
       <!-- PERSONAL STATS / HIGHLIGHTS -->
       <div class="card">
-        <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">PERSONAL ACHIEVEMENTS & HIGHLIGHTS</h3>
+        <h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">PERSONAL ACHIEVEMENTS & HIGHLIGHTS</h3>
         <div class="member-row">
-          <div><span style="font-size: 11px; color: #94a3b8; display: block;">PERSONAL RECORD (BEST DAY)</span><strong id="stat-pr-day" style="font-size: 15px; color: #f59e0b;">0 Beers</strong></div>
+          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">PERSONAL RECORD (BEST DAY)</span><strong id="stat-pr-day" style="font-size: 15px; color: var(--primary-color);">0 Beers</strong></div>
         </div>
         <div class="member-row">
-          <div><span style="font-size: 11px; color: #94a3b8; display: block;">FAVORITE GO-TO DRINK</span><strong id="stat-favorite-drink" style="font-size: 15px; color: #f59e0b;">None yet</strong></div>
+          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">FAVORITE GO-TO DRINK</span><strong id="stat-favorite-drink" style="font-size: 15px; color: var(--primary-color);">None yet</strong></div>
         </div>
         <div class="member-row" style="border-bottom: none;">
-          <div><span style="font-size: 11px; color: #94a3b8; display: block;">LONGEST STREAK</span><strong id="stat-active-streak" style="font-size: 15px; color: #f59e0b;">0 Days</strong></div>
+          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">LONGEST STREAK</span><strong id="stat-active-streak" style="font-size: 15px; color: var(--primary-color);">0 Days</strong></div>
         </div>
       </div>
     </div>
 
-    <!-- PAGE 4: ADMIN (Hidden tab) -->
+    <!-- PAGE 4: ADMIN -->
     <div id="page-admin" class="hidden">
       <!-- Main Admin Dashboard View -->
       <div id="admin-main-view">
         <div class="card" style="border-color: #8b5cf6;">
           <h3 style="margin-top: 0; font-size: 16px; color: #8b5cf6; text-align: center;">🛡️ SYSTEM ADMIN DASHBOARD</h3>
-          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0;">System-wide access to all users and group data.</p>
+          <p style="font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 0;">System-wide access to all users and group data.</p>
         </div>
 
         <div class="card">
-          <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">ALL USERS</h3>
+          <h3 style="margin-top: 0; font-size: 14px; color: var(--primary-color);">ALL USERS</h3>
           <div id="admin-users-table-container">
-            <span style="color: #94a3b8; font-size: 12px;">Loading user analysis...</span>
+            <span style="color: var(--text-muted); font-size: 12px;">Loading user analysis...</span>
           </div>
         </div>
 
         <div class="card">
-          <h3 style="margin-top: 0; font-size: 14px; color: #f59e0b;">GROUP-LEVEL OVERVIEW</h3>
+          <h3 style="margin-top: 0; font-size: 14px; color: var(--primary-color);">GROUP-LEVEL OVERVIEW</h3>
           <div id="admin-groups-table-container">
-            <span style="color: #94a3b8; font-size: 12px;">Loading group data...</span>
+            <span style="color: var(--text-muted); font-size: 12px;">Loading group data...</span>
           </div>
         </div>
       </div>
@@ -302,24 +360,24 @@
           <h3 id="admin-user-stats-title" style="margin-top: 0; font-size: 16px; color: #8b5cf6; text-align: center;">User Personal Stats</h3>
         </div>
         <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(adminUserTotalsBreakdown, adminUserModalTitle)">
-          <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL YOUR BEERS</h3>
-          <p id="admin-user-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
+          <h3 style="margin: 0; font-size: 13px; color: var(--text-muted);">TOTAL YOUR BEERS</h3>
+          <p id="admin-user-total-beers" style="font-size: 36px; font-weight: 900; color: var(--primary-color); margin: 6px 0 0 0;">0 🍺</p>
           <span class="click-hint">(Click to view breakdown)</span>
         </div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminUserFreqChart"></canvas></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminUserDowChart"></canvas></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME DAILY BEERS</h3><div class="chart-container"><canvas id="adminUserWeeklyChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminUserFreqChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminUserDowChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">LIFETIME DAILY BEERS</h3><div class="chart-container"><canvas id="adminUserWeeklyChart"></canvas></div></div>
         
         <div class="card">
-          <h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">PERSONAL ACHIEVEMENTS & HIGHLIGHTS</h3>
+          <h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">PERSONAL ACHIEVEMENTS & HIGHLIGHTS</h3>
           <div class="member-row">
-            <div><span style="font-size: 11px; color: #94a3b8; display: block;">PERSONAL RECORD (BEST DAY)</span><strong id="admin-stat-pr-day" style="font-size: 15px; color: #f59e0b;">0 Beers</strong></div>
+            <div><span style="font-size: 11px; color: var(--text-muted); display: block;">PERSONAL RECORD (BEST DAY)</span><strong id="admin-stat-pr-day" style="font-size: 15px; color: var(--primary-color);">0 Beers</strong></div>
           </div>
           <div class="member-row">
-            <div><span style="font-size: 11px; color: #94a3b8; display: block;">FAVORITE GO-TO DRINK</span><strong id="admin-stat-favorite-drink" style="font-size: 15px; color: #f59e0b;">None yet</strong></div>
+            <div><span style="font-size: 11px; color: var(--text-muted); display: block;">FAVORITE GO-TO DRINK</span><strong id="admin-stat-favorite-drink" style="font-size: 15px; color: var(--primary-color);">None yet</strong></div>
           </div>
           <div class="member-row" style="border-bottom: none;">
-            <div><span style="font-size: 11px; color: #94a3b8; display: block;">LONGEST STREAK</span><strong id="admin-stat-active-streak" style="font-size: 15px; color: #f59e0b;">0 Days</strong></div>
+            <div><span style="font-size: 11px; color: var(--text-muted); display: block;">LONGEST STREAK</span><strong id="admin-stat-active-streak" style="font-size: 15px; color: var(--primary-color);">0 Days</strong></div>
           </div>
         </div>
 
@@ -334,15 +392,15 @@
           <h3 id="admin-group-stats-title" style="margin: 0; font-size: 16px; color: #8b5cf6; text-align: center;">Group Stats</h3>
         </div>
         <div class="card clickable-stat" style="text-align: center;" onclick="openBreakdownModal(adminGroupTotalsBreakdown, 'Total Group Drink Breakdown')">
-          <h3 style="margin: 0; font-size: 13px; color: #94a3b8;">TOTAL GROUP BEERS</h3>
-          <p id="admin-group-total-beers" style="font-size: 36px; font-weight: 900; color: #f59e0b; margin: 6px 0 0 0;">0 🍺</p>
+          <h3 style="margin: 0; font-size: 13px; color: var(--text-muted);">TOTAL GROUP BEERS</h3>
+          <p id="admin-group-total-beers" style="font-size: 36px; font-weight: 900; color: var(--primary-color); margin: 6px 0 0 0;">0 🍺</p>
           <span class="click-hint">(Click to view breakdown)</span>
         </div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">LIFETIME LEADERBOARD</h3><div id="admin-leaderboard-list"></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY LEADERBOARD</h3><div id="admin-daily-leaderboard-list"></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminFreqChart"></canvas></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminDowChart"></canvas></div></div>
-        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: #94a3b8;">BEERS BY WEEK</h3><div class="chart-container"><canvas id="adminWeeklyChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">LIFETIME LEADERBOARD</h3><div id="admin-leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">DAILY LEADERBOARD</h3><div id="admin-daily-leaderboard-list"></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">DAILY BEER FREQUENCY</h3><div class="chart-container"><canvas id="adminFreqChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">BEERS BY DAY OF WEEK</h3><div class="chart-container"><canvas id="adminDowChart"></canvas></div></div>
+        <div class="card"><h3 style="margin-top: 0; font-size: 15px; color: var(--text-muted);">BEERS BY WEEK</h3><div class="chart-container"><canvas id="adminWeeklyChart"></canvas></div></div>
         <div style="margin: 24px 0;">
           <button class="btn-secondary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="returnToAdminDashboard()">Back to Dashboard</button>
         </div>
@@ -353,9 +411,19 @@
   <!-- BREAKDOWN / MEMBER STATS MODAL -->
   <div id="breakdown-modal" class="modal-overlay hidden" onclick="closeBreakdownModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
-      <h3 id="modal-title" style="margin-top: 0; margin-bottom: 16px; color: #f59e0b; text-align: center;">Drink Breakdown</h3>
+      <h3 id="modal-title" style="margin-top: 0; margin-bottom: 16px; color: var(--primary-color); text-align: center;">Drink Breakdown</h3>
       <div id="modal-breakdown-rows"></div>
       <button class="btn-secondary" style="width: 100%; padding: 10px; font-size: 13px; margin-top: 16px;" onclick="closeBreakdownModal()">Close</button>
+    </div>
+  </div>
+
+  <!-- MILESTONE UNLOCK NOTIFICATION MODAL -->
+  <div id="milestone-modal" class="modal-overlay hidden" onclick="closeMilestoneModal()">
+    <div class="modal-content" style="text-align: center; border-color: var(--primary-color);" onclick="event.stopPropagation()">
+      <div style="font-size: 42px; margin-bottom: 8px;">🎉🏆🍺</div>
+      <h3 style="margin-top: 0; margin-bottom: 8px; color: var(--primary-color); font-size: 20px;">MILESTONE UNLOCKED!</h3>
+      <p id="milestone-modal-desc" style="font-size: 14px; color: var(--text-main); line-height: 1.4; margin-bottom: 16px;"></p>
+      <button class="btn-submit" onclick="closeMilestoneModal()">Awesome!</button>
     </div>
   </div>
 
@@ -367,13 +435,39 @@
 
     const $ = id => document.getElementById(id);
 
-    const DRINKS = [
-      { key: 'pints', label: 'Pints', svg: '<path d="M6 3h12l-2 18H8L6 3z"/><path d="M6 6c1-1 3-1 4 0 1-1 3-1 4 0 1-1 3-1 4 0"/><path d="M6 6h12"/><circle cx="10" cy="12" r="0.5" fill="#f59e0b"/><circle cx="14" cy="15" r="0.5" fill="#f59e0b"/><circle cx="11" cy="17" r="0.5" fill="#f59e0b"/>' },
-      { key: 'bottles', label: 'Bottles/Cans', svg: '<path d="M10 2h4v1.5h-4z"/><path d="M11 3.5h2v4.5l2.5 3v11h-7.0v-11l2.5-3v-4.5z"/><rect x="9.5" y="13" width="5" height="5" rx="1"/>' },
-      { key: 'wines', label: 'Wines', svg: '<path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/>' },
-      { key: 'cocktails', label: 'Cocktails', svg: '<path d="M4 3h16l-8 9-8-9z"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/><path d="M15 6l3-3"/>' },
-      { key: 'shots', label: 'Shots', svg: '<path d="M6 4h12l-1.5 16h-9L6 4z"/><line x1="6.5" y1="9" x2="17.5" y2="9"/>' }
-    ];
+    // UNLOCKABLE DRINKS SETS
+    const DRINK_SETS = {
+      default: [
+        { key: 'pints', label: 'Pints', svg: '<path d="M6 3h12l-2 18H8L6 3z"/><path d="M6 6c1-1 3-1 4 0 1-1 3-1 4 0 1-1 3-1 4 0"/><path d="M6 6h12"/><circle cx="10" cy="12" r="0.5" fill="var(--primary-color)"/><circle cx="14" cy="15" r="0.5" fill="var(--primary-color)"/><circle cx="11" cy="17" r="0.5" fill="var(--primary-color)"/>' },
+        { key: 'bottles', label: 'Bottles/Cans', svg: '<path d="M10 2h4v1.5h-4z"/><path d="M11 3.5h2v4.5l2.5 3v11h-7.0v-11l2.5-3v-4.5z"/><rect x="9.5" y="13" width="5" height="5" rx="1"/>' },
+        { key: 'wines', label: 'Wines', svg: '<path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/>' },
+        { key: 'cocktails', label: 'Cocktails', svg: '<path d="M4 3h16l-8 9-8-9z"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/><path d="M15 6l3-3"/>' },
+        { key: 'shots', label: 'Shots', svg: '<path d="M6 4h12l-1.5 16h-9L6 4z"/><line x1="6.5" y1="9" x2="17.5" y2="9"/>' }
+      ],
+      pixel: [
+        { key: 'pints', label: 'Pixel Pint', svg: '<rect x="6" y="3" width="12" height="18" rx="0" fill="none" stroke="var(--primary-color)" stroke-width="2"/><rect x="8" y="5" width="8" height="3" fill="var(--primary-color)"/><rect x="8" y="10" width="8" height="9" fill="var(--primary-color)" opacity="0.4"/>' },
+        { key: 'bottles', label: 'Pixel Bottle', svg: '<rect x="10" y="2" width="4" height="4" fill="none" stroke="var(--primary-color)" stroke-width="2"/><rect x="8" y="6" width="8" height="15" fill="none" stroke="var(--primary-color)" stroke-width="2"/><rect x="10" y="10" width="4" height="6" fill="var(--primary-color)"/>' },
+        { key: 'wines', label: 'Pixel Goblet', svg: '<rect x="6" y="3" width="12" height="8" fill="none" stroke="var(--primary-color)" stroke-width="2"/><rect x="11" y="11" width="2" height="8" fill="var(--primary-color)"/><rect x="7" y="19" width="10" height="2" fill="var(--primary-color)"/>' },
+        { key: 'cocktails', label: 'Pixel Martini', svg: '<polygon points="4,3 20,3 12,12" fill="none" stroke="var(--primary-color)" stroke-width="2"/><rect x="11" y="12" width="2" height="7" fill="var(--primary-color)"/><rect x="7" y="19" width="10" height="2" fill="var(--primary-color)"/>' },
+        { key: 'shots', label: 'Pixel Shot', svg: '<rect x="7" y="5" width="10" height="14" fill="none" stroke="var(--primary-color)" stroke-width="2"/><rect x="9" y="11" width="6" height="6" fill="var(--primary-color)"/>' }
+      ]
+    };
+
+    let DRINKS = DRINK_SETS.default;
+
+    function renderDrinkListUI() {
+      $('drink-list-container').innerHTML = DRINKS.map(d => `
+        <div class="drink-row">
+          <div class="drink-info"><svg class="drink-icon-svg" viewBox="0 0 24 24">${d.svg}</svg><span class="drink-title">${d.label}</span></div>
+          <div class="counter-controls">
+            <button class="btn-circle btn-minus" onclick="adjustDrink('${d.key}', -1)">-</button>
+            <span id="cnt-${d.key}" class="count-val">0</span>
+            <button class="btn-circle btn-plus" onclick="adjustDrink('${d.key}', 1)">+</button>
+          </div>
+        </div>
+      `).join('');
+      updateTrackerUI();
+    }
 
     function getEffectiveTodayDate() {
       const d = new Date();
@@ -392,6 +486,8 @@
     }
 
     let userName = '', userEmail = '', firstCreatedDate = '', activeLogDate = getEffectiveTodayDate();
+    let userLifetimeBeers = 0;
+    let selectedTheme = 'amber', selectedFrame = 'none', selectedIconStyle = 'default', selectedTitle = '';
     let calendarViewYear = new Date().getFullYear(), calendarViewMonth = new Date().getMonth();
     let userJoinedGroups = [], relevantEmails = [], todayDrinkEntry = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
     let activeHostCode = null, realtimeChannel = null;
@@ -399,20 +495,9 @@
     let adminFreqChartInstance = null, adminDowChartInstance = null, adminWeeklyChartInstance = null;
     let adminUserFreqChartInstance = null, adminUserDowChartInstance = null, adminUserWeeklyChartInstance = null;
     let lifetimeTotals = {}, groupTotalsBreakdown = {}, adminGroupTotalsBreakdown = {}, adminUserTotalsBreakdown = {}, userBreakdownsByEmail = {}, authInitialized = false;
-    let allSystemUsers = [];
+    let allUsersMetaData = {};
     let modalBreakdownTitle = 'Total Group Drink Breakdown';
     let adminUserModalTitle = 'User Drink Breakdown';
-
-    $('drink-list-container').innerHTML = DRINKS.map(d => `
-      <div class="drink-row">
-        <div class="drink-info"><svg class="drink-icon-svg" viewBox="0 0 24 24">${d.svg}</svg><span class="drink-title">${d.label}</span></div>
-        <div class="counter-controls">
-          <button class="btn-circle btn-minus" onclick="adjustDrink('${d.key}', -1)">-</button>
-          <span id="cnt-${d.key}" class="count-val">0</span>
-          <button class="btn-circle btn-plus" onclick="adjustDrink('${d.key}', 1)">+</button>
-        </div>
-      </div>
-    `).join('');
 
     $('today-date-label').innerText = activeLogDate;
 
@@ -479,13 +564,45 @@
       if (user) {
         userName = user.display_name;
         firstCreatedDate = user.created_at ? user.created_at.split('T')[0] : getEffectiveTodayDate();
+        selectedTheme = user.selected_theme || 'amber';
+        selectedFrame = user.selected_frame || 'none';
+        selectedIconStyle = user.selected_icon_style || 'default';
+        selectedTitle = user.selected_title || '';
       } else {
         userName = sessionStorage.getItem('dt_pending_name') || session.user.user_metadata?.display_name || userEmail.split('@')[0];
         firstCreatedDate = getEffectiveTodayDate();
         await sb.from('users').upsert([{ email: userEmail, display_name: userName }], { onConflict: 'email' });
       }
       sessionStorage.removeItem('dt_pending_name');
+
+      applyThemeColor(selectedTheme);
+      DRINKS = DRINK_SETS[selectedIconStyle] || DRINK_SETS.default;
+      renderDrinkListUI();
+
       await showApp();
+    }
+
+    function applyThemeColor(themeKey) {
+      const themes = {
+        amber: { primary: '#f59e0b', hover: '#fbbf24' },
+        emerald: { primary: '#10b981', hover: '#34d399' },
+        violet: { primary: '#8b5cf6', hover: '#a78bfa' },
+        ruby: { primary: '#ef4444', hover: '#f87171' },
+        cyan: { primary: '#06b6d4', hover: '#38bdf8' }
+      };
+      const t = themes[themeKey] || themes.amber;
+      document.documentElement.style.setProperty('--primary-color', t.primary);
+      document.documentElement.style.setProperty('--primary-hover', t.hover);
+      selectedTheme = themeKey;
+    }
+
+    async function saveUserPerks() {
+      await sb.from('users').update({
+        selected_theme: selectedTheme,
+        selected_frame: selectedFrame,
+        selected_icon_style: selectedIconStyle,
+        selected_title: selectedTitle
+      }).eq('email', userEmail);
     }
 
     async function logoutUser() {
@@ -600,13 +717,14 @@
     }
 
     async function adjustDrink(type, delta) {
+      const prevBeers = userLifetimeBeers;
       todayDrinkEntry[type] = Math.max(0, (todayDrinkEntry[type] || 0) + delta);
       updateTrackerUI();
 
       const { data, error } = await sb.rpc('increment_drink_log', { p_user_email: userEmail, p_log_date: activeLogDate, p_type: type, p_delta: delta });
       if (error) { await fetchDrinkLogsForDate(activeLogDate); return; }
       if (data?.[0]) { todayDrinkEntry = data[0]; updateTrackerUI(); }
-      updateAccountPage();
+      await updateAccountPage(prevBeers);
     }
 
     function updateTrackerUI() {
@@ -636,7 +754,7 @@
 
     function renderMyGroups() {
       const container = $('my-groups-list');
-      container.innerHTML = userJoinedGroups.length ? '' : '<span style="color:#94a3b8; font-size:12px;">You are not currently part of any group.</span>';
+      container.innerHTML = userJoinedGroups.length ? '' : '<span style="color:var(--text-muted); font-size:12px;">You are not currently part of any group.</span>';
 
       userJoinedGroups.forEach(grp => {
         const isHost = (grp.host_email === userEmail);
@@ -648,7 +766,7 @@
           <div class="group-drag-row">
             <span class="drag-handle" title="Drag to reorder">⠿</span>
             <div class="member-row" style="flex:1; border-bottom:none;">
-              <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:#f59e0b;"> 👑 Host</span>' : ''}</div>
+              <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:var(--primary-color);"> 👑 Host</span>' : ''}</div>
               <div style="display:flex; gap:6px;">
                 ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
                 <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
@@ -847,21 +965,21 @@
       if (isHost) {
         const rows = (members||[]).filter(m => m.user_email.toLowerCase().trim() !== userEmail).map(m => `
           <div class="member-row" style="padding: 6px 0;">
-            <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: #94a3b8;">(${m.user_email})</span></span>
+            <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: var(--text-muted);">(${m.user_email})</span></span>
             <button class="btn-danger" onclick="removeMember('${code}', '${m.user_email}')">Remove</button>
           </div>
         `).join('');
 
         panel.innerHTML = `
-          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">HOST CONTROLS</h4>
-          <div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 11px;">GROUP CODE: </span><strong style="color: #f59e0b; font-size: 13px;">${code}</strong></div>
+          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--primary-color);">HOST CONTROLS</h4>
+          <div style="margin-bottom: 8px;"><span style="color: var(--text-muted); font-size: 11px;">GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 13px;">${code}</strong></div>
           <label>MEMBERS</label>
-          <div>${rows || '<span style="color:#94a3b8; font-size:12px; display:block; margin-top:4px;">No other members.</span>'}</div>
-          <div style="margin-top: 12px; border-top: 1px solid #334155; padding-top: 8px;">
+          <div>${rows || '<span style="color:var(--text-muted); font-size:12px; display:block; margin-top:4px;">No other members.</span>'}</div>
+          <div style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px;">
             <button class="btn-danger" style="width: 100%; padding: 6px; font-size: 12px;" onclick="deleteGroup('${code}')">Delete Group for Everyone</button>
           </div>`;
       } else {
-        panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: #f59e0b;">GROUP INFO</h4><div><span style="color: #94a3b8; font-size: 12px;">GROUP CODE: </span><strong style="color: #f59e0b; font-size: 14px;">${code}</strong></div>`;
+        panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--primary-color);">GROUP INFO</h4><div><span style="color: var(--text-muted); font-size: 12px;">GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 14px;">${code}</strong></div>`;
       }
       wrapper.appendChild(panel);
     }
@@ -905,11 +1023,30 @@
       }
     }
 
+    // BADGE & FRAME HELPER FUNCTION FOR LEADERBOARDS
+    function getBadgeHTML(beers) {
+      if (beers >= 500) return `<span class="century-badge badge-500">👑 500+</span>`;
+      if (beers >= 300) return `<span class="century-badge badge-300">🥇 300+</span>`;
+      if (beers >= 200) return `<span class="century-badge badge-200">🥈 200+</span>`;
+      if (beers >= 100) return `<span class="century-badge badge-100">🥉 100+</span>`;
+      return '';
+    }
+
+    async function fetchAllUsersMetaData() {
+      const { data } = await sb.from('users').select('email, selected_frame, selected_title');
+      allUsersMetaData = {};
+      (data || []).forEach(u => {
+        allUsersMetaData[u.email.toLowerCase().trim()] = u;
+      });
+    }
+
     async function renderAnalytics() {
       const todayStr = getEffectiveTodayDate(), code = $('analytics-group-select').value;
       const lbContainer = $('leaderboards-container');
       const lb = $('leaderboard-list'), dlb = $('daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
+
+      await fetchAllUsersMetaData();
 
       if (code === 'my_stats') {
         lbContainer.classList.add('hidden');
@@ -1019,12 +1156,13 @@
       $('third-chart-title').innerText = 'BEERS BY WEEK';
       modalBreakdownTitle = 'Total Group Drink Breakdown';
 
-      if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:#94a3b8; font-size:12px;">No group selected.</span>'; return; }
+      if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:var(--text-muted); font-size:12px;">No group selected.</span>'; return; }
 
       const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
       if (!members) return;
 
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
+      const memberEmails = members.map(m => m.user_email.toLowerCase().trim());
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
 
       let totalGroupBeers = 0;
       groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -1104,7 +1242,20 @@
       }).sort((a, b) => b.beers - a.beers);
 
       userTotals.forEach(i => {
-        lb.innerHTML += `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
+        const meta = allUsersMetaData[i.email] || {};
+        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
+        const titleTag = meta.selected_title ? `<span class="user-title-tag">"${meta.selected_title}"</span>` : '';
+        const badge = getBadgeHTML(i.beers);
+
+        lb.innerHTML += `
+          <div class="member-row">
+            <span>
+              <span class="${frameClass}">${i.name}</span> ${i.email === userEmail ? '(You)' : ''}
+              ${titleTag}
+              ${badge}
+            </span>
+            <strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong>
+          </div>`;
       });
 
       const dailyTotals = members.map(m => {
@@ -1113,7 +1264,11 @@
         return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
       }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
 
-      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => {
+        const meta = allUsersMetaData[i.email] || {};
+        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
+        return `<div class="member-row"><span class="${frameClass}">${i.name} ${i.email === userEmail ? '(You)' : ''}</span><strong>${i.beers} 🍺</strong></div>`;
+      }).join('') : '<span style="color:var(--text-muted); font-size:12px;">No beers logged today yet.</span>';
 
       $('group-total-beers').innerText = `${totalGroupBeers} 🍺`;
       renderCharts(logs || [], 'freqChart', 'dowChart', 'weeklyChart', 'weekly');
@@ -1149,7 +1304,8 @@
       });
 
       const sortedAmts = Object.keys(freqMap).map(Number).sort((a, b) => a - b);
-      const accentColor = freqCanvasId.startsWith('admin') ? '#8b5cf6' : '#f59e0b';
+      const computedPrimary = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#f59e0b';
+      const accentColor = freqCanvasId.startsWith('admin') ? '#8b5cf6' : computedPrimary;
       const accentBg = freqCanvasId.startsWith('admin') ? 'rgba(139, 92, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)';
 
       if (freqCanvasId === 'freqChart') {
@@ -1272,7 +1428,30 @@
       }
     }
 
-    function updateAccountPage() {
+    // MILESTONE CHECK & POPUP NOTIFICATIONS
+    function checkAndNotifyMilestones(prevBeers, currentBeers) {
+      if (!prevBeers) return;
+      const milestones = [
+        { count: 100, title: "1st Century (100 Beers)!", perk: "UI Theme Selector in your Account tab!" },
+        { count: 200, title: "2nd Century (200 Beers)!", perk: "Custom Avatar Frames for group leaderboards!" },
+        { count: 300, title: "3rd Century (300 Beers)!", perk: "Custom Pixel Drink Icon style!" },
+        { count: 500, title: "Half-K Legend (500 Beers)!", perk: "Custom Titles next to your name!" }
+      ];
+
+      for (const m of milestones) {
+        if (prevBeers < m.count && currentBeers >= m.count) {
+          $('milestone-modal-desc').innerHTML = `You hit <strong>${m.count} Lifetime Beers</strong>!<br><br>🎁 <strong>UNLOCKED:</strong> ${m.perk}`;
+          $('milestone-modal').classList.remove('hidden');
+          break;
+        }
+      }
+    }
+
+    function closeMilestoneModal() {
+      $('milestone-modal').classList.add('hidden');
+    }
+
+    async function updateAccountPage(prevBeers = null) {
       $('acc-name-display').innerText = userName;
       $('acc-email-display').innerText = userEmail;
       const daysActive = Math.max(1, Math.ceil(Math.abs(new Date() - new Date(firstCreatedDate)) / 86400000));
@@ -1282,16 +1461,103 @@
       const isAdmin = (userEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim());
       $('admin-trigger-card').classList.toggle('hidden', !isAdmin);
 
-      sb.from('drink_logs').select('*').eq('user_email', userEmail).then(({ data }) => {
-        let beers = 0; lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
-        (data || []).forEach(e => {
-          beers += calculateUnitsAndBeers(e).beers;
-          DRINKS.forEach(d => lifetimeTotals[d.key] += (e[d.key] || 0));
-        });
-        $('acc-total-pints').innerText = `${beers} 🍺`;
-        const avgBeers = daysActive > 0 ? (beers / daysActive).toFixed(1) : '0';
-        $('acc-avg-beers').innerText = `${avgBeers} 🍺`;
+      const { data } = await sb.from('drink_logs').select('*').eq('user_email', userEmail);
+      let beers = 0; lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      (data || []).forEach(e => {
+        beers += calculateUnitsAndBeers(e).beers;
+        DRINKS.forEach(d => lifetimeTotals[d.key] += (e[d.key] || 0));
       });
+
+      userLifetimeBeers = beers;
+      $('acc-total-pints').innerText = `${beers} 🍺`;
+      const avgBeers = daysActive > 0 ? (beers / daysActive).toFixed(1) : '0';
+      $('acc-avg-beers').innerText = `${avgBeers} 🍺`;
+
+      if (prevBeers !== null) {
+        checkAndNotifyMilestones(prevBeers, userLifetimeBeers);
+      }
+
+      renderPerksCustomizationUI();
+    }
+
+    function renderPerksCustomizationUI() {
+      // 100 BEERS: THEMES
+      const themeBox = $('perk-theme-container');
+      if (userLifetimeBeers >= 100) {
+        themeBox.innerHTML = `
+          <select id="select-theme-picker" onchange="changeThemeFromPicker(this.value)">
+            <option value="amber" ${selectedTheme === 'amber' ? 'selected' : ''}> Amber Gold (Default)</option>
+            <option value="emerald" ${selectedTheme === 'emerald' ? 'selected' : ''}> Emerald Green</option>
+            <option value="violet" ${selectedTheme === 'violet' ? 'selected' : ''}> Neon Violet</option>
+            <option value="ruby" ${selectedTheme === 'ruby' ? 'selected' : ''}> Crimson Ruby</option>
+            <option value="cyan" ${selectedTheme === 'cyan' ? 'selected' : ''}> Cyber Cyan</option>
+          </select>`;
+      } else {
+        themeBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 100 beers to unlock custom UI colors)</span>`;
+      }
+
+      // 200 BEERS: FRAMES
+      const frameBox = $('perk-frame-container');
+      if (userLifetimeBeers >= 200) {
+        frameBox.innerHTML = `
+          <select id="select-frame-picker" onchange="changeFrameFromPicker(this.value)">
+            <option value="none" ${selectedFrame === 'none' ? 'selected' : ''}>Standard (No Frame)</option>
+            <option value="gold" ${selectedFrame === 'gold' ? 'selected' : ''}>Gold Glow Frame</option>
+            <option value="neon" ${selectedFrame === 'neon' ? 'selected' : ''}>Cyber Cyan Neon Frame</option>
+            <option value="flame" ${selectedFrame === 'flame' ? 'selected' : ''}>Ruby Flame Frame</option>
+          </select>`;
+      } else {
+        frameBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 200 beers to unlock avatar frames)</span>`;
+      }
+
+      // 300 BEERS: ICONS
+      const iconBox = $('perk-icon-container');
+      if (userLifetimeBeers >= 300) {
+        iconBox.innerHTML = `
+          <select id="select-icon-picker" onchange="changeIconStyleFromPicker(this.value)">
+            <option value="default" ${selectedIconStyle === 'default' ? 'selected' : ''}>Modern Line Icons</option>
+            <option value="pixel" ${selectedIconStyle === 'pixel' ? 'selected' : ''}>Retro Pixel Art Icons</option>
+          </select>`;
+      } else {
+        iconBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 300 beers to unlock drink icon styles)</span>`;
+      }
+
+      // 500 BEERS: TITLE
+      const titleBox = $('perk-title-container');
+      if (userLifetimeBeers >= 500) {
+        titleBox.innerHTML = `
+          <select id="select-title-picker" onchange="changeTitleFromPicker(this.value)">
+            <option value="" ${selectedTitle === '' ? 'selected' : ''}>No Title</option>
+            <option value="Pub Legend" ${selectedTitle === 'Pub Legend' ? 'selected' : ''}>Pub Legend</option>
+            <option value="Beer Centurion" ${selectedTitle === 'Beer Centurion' ? 'selected' : ''}>Beer Centurion</option>
+            <option value="Master Brewer" ${selectedTitle === 'Master Brewer' ? 'selected' : ''}>Master Brewer</option>
+            <option value="Bottomless Pit" ${selectedTitle === 'Bottomless Pit' ? 'selected' : ''}>Bottomless Pit</option>
+          </select>`;
+      } else {
+        titleBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 500 beers to unlock custom titles)</span>`;
+      }
+    }
+
+    async function changeThemeFromPicker(val) {
+      applyThemeColor(val);
+      await saveUserPerks();
+    }
+
+    async function changeFrameFromPicker(val) {
+      selectedFrame = val;
+      await saveUserPerks();
+    }
+
+    async function changeIconStyleFromPicker(val) {
+      selectedIconStyle = val;
+      DRINKS = DRINK_SETS[val] || DRINK_SETS.default;
+      renderDrinkListUI();
+      await saveUserPerks();
+    }
+
+    async function changeTitleFromPicker(val) {
+      selectedTitle = val;
+      await saveUserPerks();
     }
 
     function revealAndOpenAdminTab() {
@@ -1402,10 +1668,13 @@
       const lb = $('admin-leaderboard-list'), dlb = $('admin-daily-leaderboard-list');
       lb.innerHTML = dlb.innerHTML = '';
 
+      await fetchAllUsersMetaData();
+
       const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
       if (!members) return;
 
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', members.map(m => m.user_email));
+      const memberEmails = members.map(m => m.user_email.toLowerCase().trim());
+      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
 
       let totalGroupBeers = 0;
       adminGroupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -1431,7 +1700,20 @@
       }).sort((a, b) => b.beers - a.beers);
 
       userTotals.forEach(i => {
-        lb.innerHTML += `<div class="member-row"><span>${i.name}</span><strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong></div>`;
+        const meta = allUsersMetaData[i.email] || {};
+        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
+        const titleTag = meta.selected_title ? `<span class="user-title-tag">"${meta.selected_title}"</span>` : '';
+        const badge = getBadgeHTML(i.beers);
+
+        lb.innerHTML += `
+          <div class="member-row">
+            <span>
+              <span class="${frameClass}">${i.name}</span>
+              ${titleTag}
+              ${badge}
+            </span>
+            <strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong>
+          </div>`;
       });
 
       const dailyTotals = members.map(m => {
@@ -1440,7 +1722,11 @@
         return { name: m.user_name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
       }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
 
-      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => `<div class="member-row"><span>${i.name}</span><strong>${i.beers} 🍺</strong></div>`).join('') : '<span style="color:#94a3b8; font-size:12px;">No beers logged today yet.</span>';
+      dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => {
+        const meta = allUsersMetaData[i.email] || {};
+        const frameClass = meta.selected_frame ? `avatar-frame-${meta.selected_frame}` : 'avatar-frame-none';
+        return `<div class="member-row"><span class="${frameClass}">${i.name}</span><strong>${i.beers} 🍺</strong></div>`;
+      }).join('') : '<span style="color:var(--text-muted); font-size:12px;">No beers logged today yet.</span>';
 
       $('admin-group-total-beers').innerText = `${totalGroupBeers} 🍺`;
       renderCharts(logs || [], 'adminFreqChart', 'adminDowChart', 'adminWeeklyChart', 'weekly');
@@ -1454,8 +1740,8 @@
       const uContainer = $('admin-users-table-container');
       const gContainer = $('admin-groups-table-container');
 
-      uContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">Loading user data...</span>';
-      gContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">Loading group data...</span>';
+      uContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">Loading user data...</span>';
+      gContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">Loading group data...</span>';
 
       const [usersRes, logsRes, groupsRes, membersRes] = await Promise.all([
         sb.from('users').select('*'),
@@ -1495,7 +1781,7 @@
       activeUsersData.sort((a, b) => b.totalBeers - a.totalBeers);
 
       if (!activeUsersData.length) {
-        uContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No users have logged any drinks yet.</span>';
+        uContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">No users have logged any drinks yet.</span>';
       } else {
         let uHtml = `
           <table class="admin-table">
@@ -1511,8 +1797,8 @@
           const safeName = u.name.replace(/'/g, "\\'");
           uHtml += `
             <tr class="admin-clickable-row" onclick="openAdminUserStatsPage('${u.email}', '${safeName}')">
-              <td><strong>${u.name}</strong><br><span style="font-size:10px; color:#94a3b8;">${u.email}</span></td>
-              <td><strong style="color:#f59e0b;">${u.totalBeers} 🍺</strong></td>
+              <td><strong>${u.name}</strong><br><span style="font-size:10px; color:var(--text-muted);">${u.email}</span></td>
+              <td><strong style="color:var(--primary-color);">${u.totalBeers} 🍺</strong></td>
               <td><span style="color:#8b5cf6; font-size:11px; text-decoration:underline;">View Stats</span></td>
             </tr>`;
         });
@@ -1540,7 +1826,7 @@
       .sort((a, b) => b.totalBeers - a.totalBeers);
 
       if (!groupsData.length) {
-        gContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">No groups with 2 or more beers.</span>';
+        gContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">No groups with 2 or more beers.</span>';
       } else {
         let gHtml = `
           <table class="admin-table">
@@ -1557,9 +1843,9 @@
           const safeGroupName = g.name.replace(/'/g, "\\'");
           gHtml += `
             <tr class="admin-clickable-row" onclick="openAdminGroupStatsPage('${g.code}', '${safeGroupName}')">
-              <td><strong>${g.name}</strong><br><code style="color:#f59e0b; font-size:10px;">${g.code}</code></td>
+              <td><strong>${g.name}</strong><br><code style="color:var(--primary-color); font-size:10px;">${g.code}</code></td>
               <td>${g.memberCount}</td>
-              <td><strong style="color:#f59e0b;">${g.totalBeers} 🍺</strong></td>
+              <td><strong style="color:var(--primary-color);">${g.totalBeers} 🍺</strong></td>
               <td><span style="color:#8b5cf6; font-size:11px; text-decoration:underline;">View Stats</span></td>
             </tr>`;
         });
