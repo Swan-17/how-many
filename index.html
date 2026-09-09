@@ -786,8 +786,15 @@
     }
 
     async function fetchUserGroups() {
-      const { data } = await sb.from('group_members').select('group_code, groups(name, host_email, join_code)').eq('user_email', userEmail);
-      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim(), join_code: (d.groups?.join_code || '').toUpperCase() })) : [];
+      // Include created_at from groups table
+      const { data } = await sb.from('group_members').select('group_code, groups(name, host_email, join_code, created_at)').eq('user_email', userEmail);
+      userJoinedGroups = data ? data.map(d => ({ 
+        code: d.group_code, 
+        name: d.groups?.name || d.group_code, 
+        host_email: (d.groups?.host_email || '').toLowerCase().trim(), 
+        join_code: (d.groups?.join_code || '').toUpperCase(),
+        created_at: d.groups?.created_at ? d.groups.created_at.split('T')[0] : null
+      })) : [];
       applySavedGroupOrder();
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
@@ -1261,11 +1268,19 @@
 
       if (!code) { $('group-total-beers').innerText = '0 🍺'; dlb.innerHTML = '<span style="color:var(--text-muted); font-size:12px;">No group selected.</span>'; return; }
 
+      const currentGroup = userJoinedGroups.find(g => g.code === code);
+      const groupCreatedDate = currentGroup?.created_at;
+
       const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
       if (!members) return;
 
       const memberEmails = members.map(m => m.user_email.toLowerCase().trim());
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
+      let { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
+
+      // Filter group logs to entries on or after group creation date
+      if (groupCreatedDate && logs) {
+        logs = logs.filter(l => l.log_date >= groupCreatedDate);
+      }
 
       let totalGroupBeers = 0;
       groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -1794,11 +1809,19 @@
 
       await fetchAllUsersMetaDataAndGlobalTop();
 
+      const { data: groupData } = await sb.from('groups').select('created_at').eq('code', code).maybeSingle();
+      const groupCreatedDate = groupData?.created_at ? groupData.created_at.split('T')[0] : null;
+
       const { data: members } = await sb.from('group_members').select('*').eq('group_code', code);
       if (!members) return;
 
       const memberEmails = members.map(m => m.user_email.toLowerCase().trim());
-      const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
+      let { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
+
+      // Filter group logs to creation date
+      if (groupCreatedDate && logs) {
+        logs = logs.filter(l => l.log_date >= groupCreatedDate);
+      }
 
       let totalGroupBeers = 0;
       adminGroupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -1940,7 +1963,13 @@
       const groupsData = allGroups.map(g => {
         const gMembers = allMembers.filter(m => m.group_code === g.code);
         const memberEmails = gMembers.map(m => m.user_email.toLowerCase().trim());
-        const gLogs = allLogs.filter(l => memberEmails.includes(l.user_email.toLowerCase().trim()));
+        const gCreatedDate = g.created_at ? g.created_at.split('T')[0] : null;
+
+        const gLogs = allLogs.filter(l => {
+          const isMember = memberEmails.includes(l.user_email.toLowerCase().trim());
+          const isAfterCreation = gCreatedDate ? l.log_date >= gCreatedDate : true;
+          return isMember && isAfterCreation;
+        });
 
         let totalGroupBeers = 0;
         gLogs.forEach(l => { totalGroupBeers += calculateUnitsAndBeers(l).beers; });
