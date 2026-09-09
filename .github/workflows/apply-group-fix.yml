@@ -3,91 +3,89 @@ name: Fix group creation and sharing
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - index.html
 
 permissions:
   contents: write
 
 jobs:
   fix:
-    if: ${{ !contains(github.event.head_commit.message, '[group-fix]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Patch index.html
-        shell: python
+      - name: Patch group functions
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           import re
 
-          path = Path('index.html')
-          text = path.read_text()
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
 
-          # Fetch the server-generated join code with each active group.
-          text = text.replace("groups(name, host_email)", "groups(name, host_email, join_code)")
-          text = re.sub(
+          s = s.replace("groups(name, host_email)", "groups(name, host_email, join_code)", 1)
+
+          s = re.sub(
               r"userJoinedGroups = data \? data\.map\(d => \(\{.*?\}\)\) : \[\];",
               "userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim(), join_code: (d.groups?.join_code || '').toUpperCase() })) : [];",
-              text,
-              count=1,
-              flags=re.S,
-          )
+              s, count=1, flags=re.S)
 
-          def replace_function(source, name, replacement, next_name):
-              start = source.find(f"async function {name}()")
-              if start < 0:
-                  raise SystemExit(f'{name} function not found')
-              end = source.find(f"async function {next_name}()", start)
-              if end < 0:
-                  raise SystemExit(f'{next_name} function marker not found')
-              return source[:start] + replacement + "\n\n    " + source[end:]
+          def between(s, start_marker, end_marker, replacement):
+              a = s.find(start_marker)
+              if a < 0: raise RuntimeError(f'Not found: {start_marker}')
+              b = s.find(end_marker, a + len(start_marker))
+              if b < 0: raise RuntimeError(f'Not found: {end_marker}')
+              return s[:a] + replacement + s[b:]
 
-          create_replacement = '''async function createGroup() {
+          create = '''    async function createGroup() {
       const name = $('create-group-name').value.trim();
       if (!name) return alert('Enter a group name.');
-
       const { data, error } = await sb.rpc('create_group_secure', { p_name: name });
       if (error) return alert(error.message || 'Could not create the group.');
-
       const joinCode = String(data?.join_code || data?.password || '').toUpperCase();
       if (!joinCode) return alert('The group was created, but no unique join code was returned. Apply the Supabase group join-code migration.');
-
       $('create-group-name').value = '';
       closeAllExpandables();
       await fetchUserGroups();
       alert(`Group created!\\n\\nGroup: ${name}\\nUnique code: ${joinCode}`);
-    }'''
-          text = replace_function(text, 'createGroup', create_replacement, 'joinGroup')
+    }
 
-          join_replacement = '''async function joinGroup() {
+'''
+          s = between(s, '    async function createGroup() {', '    async function joinGroup() {', create)
+
+          join = '''    async function joinGroup() {
       const name = $('join-group-name').value.trim();
       const code = $('join-group-code').value.trim().toUpperCase();
       if (!name || !code) return alert('Enter the group name and unique 5-character code.');
       if (!/^[A-Z0-9]{5}$/.test(code)) return alert('The group code must be exactly 5 letters and numbers.');
-
       const { error } = await sb.rpc('join_group_secure', { p_group_name: name, p_password: code });
       if (error) return alert(error.message || 'Could not join the group.');
-
       $('join-group-name').value = '';
       $('join-group-code').value = '';
       closeAllExpandables();
       await fetchUserGroups();
-    }'''
-          text = replace_function(text, 'joinGroup', join_replacement, 'leaveGroup')
+    }
 
-          # Share: app link + group name + unique code.
-          share_start = text.find('async function shareGroup(')
-          if share_start < 0:
-              share_start = text.find('function shareGroup(')
-          if share_start < 0:
-              raise SystemExit('shareGroup function not found')
-          share_end = text.find('\n    }', share_start)
-          if share_end < 0:
-              raise SystemExit('shareGroup function end not found')
-          share_end += len('\n    }')
-          share_replacement = '''async function shareGroup(e, code) {
+'''
+          s = between(s, '    async function joinGroup() {', '    async function leaveGroup(', join)
+
+          share_start = s.find('    function shareGroup(')
+          if share_start < 0: share_start = s.find('    async function shareGroup(')
+          if share_start < 0: raise RuntimeError('shareGroup not found')
+          depth = 0
+          share_end = None
+          for i in range(share_start, len(s)):
+              if s[i] == '{': depth += 1
+              elif s[i] == '}':
+                  depth -= 1
+                  if depth == 0:
+                      share_end = i + 1
+                      break
+          if share_end is None: raise RuntimeError('shareGroup end not found')
+          share = '''    async function shareGroup(e, code) {
       if (e) e.stopPropagation();
       const group = userJoinedGroups.find(g => g.code === code);
       const groupName = group?.name || 'Group';
@@ -102,35 +100,26 @@ jobs:
       try { await navigator.clipboard.writeText(shareText); alert(`Group invite copied!\\n\\nGroup name: ${groupName}\\nUnique code: ${joinCode}`); }
       catch (err) { prompt('Copy this group invite:', shareText); }
     }'''
-          text = text[:share_start] + share_replacement + text[share_end:]
+          s = s[:share_start] + share + s[share_end:]
 
-          # Display the server-generated code in the Manage panel.
-          text = text.replace('GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 13px;">${code}</strong>', 'UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 13px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong>', 1)
-          text = text.replace('GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 14px;">${code}</strong>', 'UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 14px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong>', 1)
+          s = s.replace('GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 13px;">${code}</strong>', 'UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 13px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong>', 1)
+          s = s.replace('GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 14px;">${code}</strong>', 'UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 14px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong>', 1)
 
-          path.write_text(text)
+          required = ["sb.rpc('create_group_secure'", "sb.rpc('join_group_secure'", 'join_code', 'navigator.share', 'Group name:', 'Unique code:']
+          missing = [x for x in required if x not in s]
+          if missing: raise RuntimeError('Missing: ' + ', '.join(missing))
+          if "sb.from('groups').insert" in s: raise RuntimeError('Direct groups insert remains')
+          if "sb.from('group_members').upsert" in s: raise RuntimeError('Direct group member upsert remains')
 
-      - name: Validate patched app
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          text = Path('index.html').read_text()
-          required = ['sb.rpc(\'create_group_secure\'', 'sb.rpc(\'join_group_secure\'', 'join_code', 'navigator.share']
-          missing = [x for x in required if x not in text]
-          if missing:
-              raise SystemExit('Missing required changes: ' + ', '.join(missing))
-          if "sb.from('groups').insert" in text:
-              raise SystemExit('Direct groups insert still present')
-          if "sb.from('group_members').upsert" in text:
-              raise SystemExit('Direct group_members upsert still present')
-          print('index.html group flow validation passed')
+          p.write_text(s, encoding='utf-8')
+          print('Group flow patch validated successfully')
           PY
 
-      - name: Commit patched app
+      - name: Commit app fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           git diff --cached --quiet && exit 0
-          git commit -m "Fix secure group creation and sharing [group-fix]"
+          git commit -m "Fix secure group creation and sharing"
           git push
