@@ -1995,16 +1995,35 @@
       }
     }
 
-    async function shareGroup(e, code) {
-      if (e) e.stopPropagation();
-      const group = userJoinedGroups.find(g => g.code === code);
-      const groupName = group?.name || 'Group';
-      const joinCode = String(group?.join_code || code || '').toUpperCase();
-      const url = `${window.location.href.split('?')[0]}?join=${encodeURIComponent(joinCode)}`;
-      const shareText = `Join my How Many Beers group!\n\nGroup name: ${groupName}\nUnique code: ${joinCode}\n\n${url}`;
-      if (navigator.share) { try { await navigator.share({title:`How Many Beers - ${groupName}`,text:shareText,url}); } catch(err) { if(err?.name!=='AbortError') console.error(err); } return; }
-      try { await navigator.clipboard.writeText(shareText); alert(`Group invite copied!\n\nGroup name: ${groupName}\nUnique code: ${joinCode}`); } catch(err) { prompt('Copy this group invite:',shareText); }
+  async function shareGroup(e, code) {
+  if (e) e.stopPropagation();
+  const group = userJoinedGroups.find(g => g.code === code);
+  const groupName = group?.name || 'Group';
+  const joinCode = String(group?.join_code || code || '').toUpperCase();
+
+  const shareText = `Join my How Many Beers group
+
+Group Name: ${groupName}
+Unique Code: ${joinCode}
+
+https://github.com/Swan-17/how-many`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ text: shareText });
+    } catch (err) {
+      if (err?.name !== 'AbortError') console.error(err);
     }
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(shareText);
+    alert('Group invite copied!');
+  } catch (err) {
+    prompt('Copy this group invite:', shareText);
+  }
+}
 
     function closeAllExpandables() {
       closeHostPanel();
