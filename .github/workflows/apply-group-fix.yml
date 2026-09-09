@@ -1,4 +1,4 @@
-name: Apply group creation and sharing fix
+name: Fix group creation and sharing
 
 on:
   push:
@@ -6,17 +6,17 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   fix:
+    if: ${{ !contains(github.event.head_commit.message, '[group-fix]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Update index.html
+      - name: Patch group flows
         shell: python
         run: |
           from pathlib import Path
@@ -25,160 +25,79 @@ jobs:
           path = Path('index.html')
           text = path.read_text()
 
-          old_create_ui = '''<label>GROUP NAME</label><input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
-          <label style="margin-top: 8px; display: block;">UNIQUE CODE</label>
-          <input type="text" id="create-group-code" style="text-transform: uppercase;" placeholder="e.g. FRIDAY26">
-          <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>'''
-          new_create_ui = '''<label>GROUP NAME</label><input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
-          <p style="font-size: 11px; color: var(--text-muted); margin: 8px 0 0;">A unique 5-character join code will be generated automatically.</p>
-          <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>'''
-          if old_create_ui not in text:
-              raise SystemExit('Create-group UI pattern not found')
-          text = text.replace(old_create_ui, new_create_ui, 1)
+          old = "const { data } = await sb.from('group_members').select('group_code, groups(name, host_email)').eq('user_email', userEmail);"
+          new = "const { data } = await sb.from('group_members').select('group_code, groups(name, host_email, join_code)').eq('user_email', userEmail);"
+          if old not in text: raise SystemExit('fetchUserGroups query pattern not found')
+          text = text.replace(old, new, 1)
 
-          old_join_ui = '''<label>ENTER UNIQUE GROUP CODE</label>
-          <input type="text" id="join-group-code" style="text-transform: uppercase;" placeholder="e.g. 1234">
-          <button class="btn-submit" onclick="joinGroup()">Join Group</button>'''
-          new_join_ui = '''<label>GROUP NAME</label>
-          <input type="text" id="join-group-name" placeholder="e.g. Friday Drinks">
-          <label style="margin-top: 8px; display: block;">UNIQUE 5-CHARACTER CODE</label>
-          <input type="text" id="join-group-code" maxlength="5" autocomplete="off" style="text-transform: uppercase;" placeholder="e.g. A7K2Q">
-          <button class="btn-submit" onclick="joinGroup()">Join Group</button>'''
-          if old_join_ui not in text:
-              raise SystemExit('Join-group UI pattern not found')
-          text = text.replace(old_join_ui, new_join_ui, 1)
+          old = "userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];"
+          new = "userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim(), join_code: (d.groups?.join_code || '').toUpperCase() })) : [];"
+          if old not in text: raise SystemExit('userJoinedGroups mapping pattern not found')
+          text = text.replace(old, new, 1)
 
-          old_create = '''async function createGroup() {
-            const name = $('create-group-name').value.trim(), code = $('create-group-code').value.trim().toUpperCase();
-            if (!name || !code) return alert('Provide a group name and unique code.');
+          create_pattern = re.compile(r"async function createGroup\(\) \{.*?\n    \}\n\n    async function joinGroup\(\)", re.S)
+          create_replacement = '''async function createGroup() {
+      const name = $('create-group-name').value.trim();
+      if (!name) return alert('Enter a group name.');
 
-            const { error } = await sb.from('groups').insert([{ code, name, host_email: userEmail }]);
-            if (error) return alert(error.code === '23505' ? 'Group code already taken.' : error.message);
+      const { data, error } = await sb.rpc('create_group_secure', { p_name: name });
+      if (error) return alert(error.message || 'Could not create the group.');
 
-            await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
-            $('create-group-name').value = $('create-group-code').value = '';
-            closeAllExpandables();
-            await fetchUserGroups();
-          }'''
-          new_create = '''function generateGroupCode(length = 5) {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let code = '';
-            for (let i = 0; i < length; i++) code += chars[Math.floor(Math.random() * chars.length)];
-            return code;
-          }
+      const joinCode = String(data?.join_code || data?.password || '').toUpperCase();
+      if (!joinCode) return alert('The group was created, but no join code was returned. Please check the Supabase group join-code migration.');
 
-          async function createGroup() {
-            const name = $('create-group-name').value.trim();
-            if (!name) return alert('Enter a group name.');
+      $('create-group-name').value = '';
+      closeAllExpandables();
+      await fetchUserGroups();
+      alert(`Group created!\\n\\nGroup: ${name}\\nUnique code: ${joinCode}`);
+    }
 
-            let code = null;
-            let lastError = null;
-            for (let attempt = 0; attempt < 10; attempt++) {
-              const candidate = generateGroupCode();
-              const { error } = await sb.from('groups').insert([{ code: candidate, name, host_email: userEmail }]);
-              if (!error) { code = candidate; break; }
-              lastError = error;
-              if (error.code !== '23505') break;
-            }
-            if (!code) return alert(lastError?.message || 'Could not generate a unique group code. Please try again.');
+    async function joinGroup()'''
+          text, count = create_pattern.subn(create_replacement, text, count=1)
+          if count != 1: raise SystemExit('createGroup function pattern not found')
 
-            const { error: memberError } = await sb.from('group_members').upsert(
-              [{ group_code: code, user_email: userEmail, user_name: userName }],
-              { onConflict: 'group_code,user_email' }
-            );
-            if (memberError) return alert(memberError.message);
+          join_pattern = re.compile(r"async function joinGroup\(\) \{.*?\n    \}\n\n    async function leaveGroup", re.S)
+          join_replacement = '''async function joinGroup() {
+      const name = $('join-group-name').value.trim();
+      const code = $('join-group-code').value.trim().toUpperCase();
+      if (!name || !code) return alert('Enter the group name and unique 5-character code.');
+      if (!/^[A-Z0-9]{5}$/.test(code)) return alert('The group code must be exactly 5 letters and numbers.');
 
-            $('create-group-name').value = '';
-            closeAllExpandables();
-            await fetchUserGroups();
-            alert(`Group created!\\n\\nGroup: ${name}\\nUnique code: ${code}`);
-          }'''
-          if old_create not in text:
-              raise SystemExit('createGroup function pattern not found')
-          text = text.replace(old_create, new_create, 1)
+      const { error } = await sb.rpc('join_group_secure', { p_group_name: name, p_password: code });
+      if (error) return alert(error.message || 'Could not join the group.');
 
-          old_join = '''async function joinGroup() {
-            const code = $('join-group-code').value.trim().toUpperCase();
-            if (!code) return alert('Enter a valid code.');
+      $('join-group-name').value = '';
+      $('join-group-code').value = '';
+      closeAllExpandables();
+      await fetchUserGroups();
+    }
 
-            const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
-            if (!grp) return alert('Group code not found.');
+    async function leaveGroup'''
+          text, count = join_pattern.subn(join_replacement, text, count=1)
+          if count != 1: raise SystemExit('joinGroup function pattern not found')
 
-            await sb.from('group_members').upsert([{ group_code: code, user_email: userEmail, user_name: userName }], { onConflict: 'group_code,user_email' });
-            $('join-group-code').value = '';
-            closeAllExpandables();
-            await fetchUserGroups();
-          }'''
-          new_join = '''async function joinGroup() {
-            const name = $('join-group-name').value.trim();
-            const code = $('join-group-code').value.trim().toUpperCase();
-            if (!name || !code) return alert('Enter the group name and unique 5-character code.');
-            if (!/^[A-Z0-9]{5}$/.test(code)) return alert('The group code must be exactly 5 letters and numbers.');
+          old = "const joinCode = String(code || '').toUpperCase();"
+          new = "const joinCode = String(group?.join_code || code || '').toUpperCase();"
+          if old not in text: raise SystemExit('shareGroup join-code pattern not found')
+          text = text.replace(old, new, 1)
 
-            const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
-            if (!grp) return alert('Group code not found.');
-            if (grp.name.trim().toLowerCase() !== name.toLowerCase()) return alert('Group name and code do not match.');
+          old = '<div style="margin-bottom: 8px;"><span style="color: var(--text-muted); font-size: 11px;">GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 13px;">${code}</strong></div>'
+          new = '<div style="margin-bottom: 8px;"><span style="color: var(--text-muted); font-size: 11px;">UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 13px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong></div>'
+          if old not in text: raise SystemExit('host join-code display pattern not found')
+          text = text.replace(old, new, 1)
 
-            const { error } = await sb.from('group_members').upsert(
-              [{ group_code: code, user_email: userEmail, user_name: userName }],
-              { onConflict: 'group_code,user_email' }
-            );
-            if (error) return alert(error.message);
-
-            $('join-group-name').value = '';
-            $('join-group-code').value = '';
-            closeAllExpandables();
-            await fetchUserGroups();
-          }'''
-          if old_join not in text:
-              raise SystemExit('joinGroup function pattern not found')
-          text = text.replace(old_join, new_join, 1)
-
-          old_share = '''function shareGroup(e, code) {
-            if (e) e.stopPropagation();
-            const url = `${window.location.href.split('?')[0]}?join=${code}`;
-            if (navigator.share) navigator.share({ title: 'Drink Tracker', text: `Join code: ${code}`, url });
-            else navigator.clipboard.writeText(url).then(() => alert(`Link copied to clipboard!\\nCode: ${code}`));
-          }'''
-          new_share = '''async function shareGroup(e, code) {
-            if (e) e.stopPropagation();
-            const group = userJoinedGroups.find(g => g.code === code);
-            const groupName = group?.name || 'Group';
-            const joinCode = String(code || '').toUpperCase();
-            const url = `${window.location.href.split('?')[0]}?join=${encodeURIComponent(joinCode)}`;
-            const shareText = `Join my How Many Beers group!\\n\\nGroup: ${groupName}\\nUnique code: ${joinCode}\\n\\n${url}`;
-
-            if (navigator.share) {
-              try {
-                await navigator.share({ title: `How Many Beers - ${groupName}`, text: shareText, url });
-              } catch (err) {
-                if (err?.name !== 'AbortError') console.error('Share failed:', err);
-              }
-              return;
-            }
-
-            try {
-              await navigator.clipboard.writeText(shareText);
-              alert(`Group invite copied to clipboard!\\n\\nGroup: ${groupName}\\nUnique code: ${joinCode}`);
-            } catch (err) {
-              prompt('Copy this group invite:', shareText);
-            }
-          }'''
-          if old_share not in text:
-              raise SystemExit('shareGroup function pattern not found')
-          text = text.replace(old_share, new_share, 1)
+          old = 'panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--primary-color);">GROUP INFO</h4><div><span style="color: var(--text-muted); font-size: 12px;">GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 14px;">${code}</strong></div>`;'
+          new = 'panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--primary-color);">GROUP INFO</h4><div><span style="color: var(--text-muted); font-size: 12px;">UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 14px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong></div>`;'
+          if old not in text: raise SystemExit('member join-code display pattern not found')
+          text = text.replace(old, new, 1)
 
           path.write_text(text)
-          print('Updated index.html successfully')
 
-      - name: Commit and open pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Commit patched app
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b fix/group-creation-sharing
-          git add index.html .github/workflows/apply-group-fix.yml
-          git commit -m "Fix group creation codes and sharing"
-          git push --set-upstream origin fix/group-creation-sharing
-          gh pr create --base main --head fix/group-creation-sharing --title "Fix group creation codes and sharing" --body "Fixes group creation/join validation and updates active-group sharing to include the app link, group name, and 5-character unique code."
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix group creation join codes and sharing [group-fix]"
+          git push
