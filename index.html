@@ -786,8 +786,8 @@
     }
 
     async function fetchUserGroups() {
-      const { data } = await sb.from('group_members').select('group_code, groups(name, host_email)').eq('user_email', userEmail);
-      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim() })) : [];
+      const { data } = await sb.from('group_members').select('group_code, groups(name, host_email, join_code)').eq('user_email', userEmail);
+      userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim(), join_code: (d.groups?.join_code || '').toUpperCase() })) : [];
       applySavedGroupOrder();
       await fetchRelevantEmails();
       rebuildRealtimeSubscriptions();
@@ -959,31 +959,12 @@
     async function createGroup() {
       const name = $('create-group-name').value.trim();
       if (!name) return alert('Enter a group name.');
-
-      let code = null;
-      let lastError = null;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        const candidate = generateGroupCode();
-        const { error } = await sb.from('groups').insert([{ code: candidate, name, host_email: userEmail }]);
-        if (!error) { code = candidate; break; }
-        lastError = error;
-        if (error.code !== '23505') break;
-      }
-      if (!code) return alert(lastError?.message || 'Could not generate a unique group code. Please try again.');
-
-      const { error: memberError } = await sb.from('group_members').upsert(
-        [{ group_code: code, user_email: userEmail, user_name: userName }],
-        { onConflict: 'group_code,user_email' }
-      );
-      if (memberError) return alert(memberError.message);
-
-      $('create-group-name').value = '';
-      closeAllExpandables();
-      await fetchUserGroups();
-      alert(`Group created!
-
-Group: ${name}
-Unique code: ${code}`);
+      const { data, error } = await sb.rpc('create_group_secure', { p_name: name });
+      if (error) return alert(error.message || 'Could not create the group.');
+      const joinCode = String(data?.join_code || data?.password || '').toUpperCase();
+      if (!joinCode) return alert('Group created, but no unique join code was returned. Apply the Supabase join-code migration.');
+      $('create-group-name').value = ''; closeAllExpandables(); await fetchUserGroups();
+      alert(`Group created!\n\nGroup: ${name}\nUnique code: ${joinCode}`);
     }
 
     async function joinGroup() {
@@ -991,21 +972,9 @@ Unique code: ${code}`);
       const code = $('join-group-code').value.trim().toUpperCase();
       if (!name || !code) return alert('Enter the group name and unique 5-character code.');
       if (!/^[A-Z0-9]{5}$/.test(code)) return alert('The group code must be exactly 5 letters and numbers.');
-
-      const { data: grp } = await sb.from('groups').select('*').eq('code', code).maybeSingle();
-      if (!grp) return alert('Group code not found.');
-      if (grp.name.trim().toLowerCase() !== name.toLowerCase()) return alert('Group name and code do not match.');
-
-      const { error } = await sb.from('group_members').upsert(
-        [{ group_code: code, user_email: userEmail, user_name: userName }],
-        { onConflict: 'group_code,user_email' }
-      );
-      if (error) return alert(error.message);
-
-      $('join-group-name').value = '';
-      $('join-group-code').value = '';
-      closeAllExpandables();
-      await fetchUserGroups();
+      const { error } = await sb.rpc('join_group_secure', { p_group_name: name, p_password: code });
+      if (error) return alert(error.message || 'Could not join the group.');
+      $('join-group-name').value = ''; $('join-group-code').value = ''; closeAllExpandables(); await fetchUserGroups();
     }
 
     async function leaveGroup(code) {
@@ -1056,14 +1025,14 @@ Unique code: ${code}`);
 
         panel.innerHTML = `
           <h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--primary-color);">HOST CONTROLS</h4>
-          <div style="margin-bottom: 8px;"><span style="color: var(--text-muted); font-size: 11px;">GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 13px;">${code}</strong></div>
+          <div style="margin-bottom: 8px;"><span style="color: var(--text-muted); font-size: 11px;">UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 13px; letter-spacing: 1px;">${grp?.join_code || 'Unavailable'}</strong></div>
           <label>MEMBERS</label>
           <div>${rows || '<span style="color:var(--text-muted); font-size:12px; display:block; margin-top:4px;">No other members.</span>'}</div>
           <div style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px;">
             <button class="btn-danger" style="width: 100%; padding: 6px; font-size: 12px;" onclick="deleteGroup('${code}')">Delete Group for Everyone</button>
           </div>`;
       } else {
-        panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--primary-color);">GROUP INFO</h4><div><span style="color: var(--text-muted); font-size: 12px;">GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 14px;">${code}</strong></div>`;
+        panel.innerHTML = `<h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--primary-color);">GROUP INFO</h4><div><span style="color: var(--text-muted); font-size: 12px;">UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 14px; letter-spacing: 1px;">${grp?.join_code || 'Unavailable'}</strong></div>`;
       }
       wrapper.appendChild(panel);
     }
@@ -2030,33 +1999,11 @@ Unique code: ${code}`);
       if (e) e.stopPropagation();
       const group = userJoinedGroups.find(g => g.code === code);
       const groupName = group?.name || 'Group';
-      const joinCode = String(code || '').toUpperCase();
+      const joinCode = String(group?.join_code || code || '').toUpperCase();
       const url = `${window.location.href.split('?')[0]}?join=${encodeURIComponent(joinCode)}`;
-      const shareText = `Join my How Many Beers group!
-
-Group: ${groupName}
-Unique code: ${joinCode}
-
-${url}`;
-
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: `How Many Beers - ${groupName}`, text: shareText, url });
-        } catch (err) {
-          if (err?.name !== 'AbortError') console.error('Share failed:', err);
-        }
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(shareText);
-        alert(`Group invite copied to clipboard!
-
-Group: ${groupName}
-Unique code: ${joinCode}`);
-      } catch (err) {
-        prompt('Copy this group invite:', shareText);
-      }
+      const shareText = `Join my How Many Beers group!\n\nGroup name: ${groupName}\nUnique code: ${joinCode}\n\n${url}`;
+      if (navigator.share) { try { await navigator.share({title:`How Many Beers - ${groupName}`,text:shareText,url}); } catch(err) { if(err?.name!=='AbortError') console.error(err); } return; }
+      try { await navigator.clipboard.writeText(shareText); alert(`Group invite copied!\n\nGroup name: ${groupName}\nUnique code: ${joinCode}`); } catch(err) { prompt('Copy this group invite:',shareText); }
     }
 
     function closeAllExpandables() {
