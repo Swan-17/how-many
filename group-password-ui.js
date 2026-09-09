@@ -29,13 +29,17 @@ function setup(){
   const btn=c.querySelector('.btn-submit');
   if(btn)c.insertBefore(note,btn);
  }
+ const joinBtn=j?.querySelector('.btn-submit');
+ if(joinBtn){joinBtn.removeAttribute('onclick');joinBtn.onclick=function(e){e.preventDefault();e.stopPropagation();join()}}
+ const createBtn=c?.querySelector('.btn-submit');
+ if(createBtn){createBtn.removeAttribute('onclick');createBtn.onclick=function(e){e.preventDefault();e.stopPropagation();create()}}
 }
 async function create(){
  const n=$('create-group-name')?.value.trim();
  if(!n)return alert('Enter a group name.');
  const r=await sb.rpc('create_group_secure',{p_name:n});
  if(r.error)return alert(r.error.message||'Unable to create group.');
- const code=r.data?.password;
+ const code=r.data?.join_code||r.data?.password;
  if(!code)return alert('Group created, but the code could not be displayed. Please contact the host/admin.');
  alert('Group created!\n\nYour unique group code is: '+code+'\n\nShare this 5-character code with the people you want to join.');
  $('create-group-name').value='';
@@ -57,7 +61,7 @@ async function join(){
 async function setPassword(code){
  const r=await sb.rpc('set_group_password',{p_group_code:code});
  if(r.error)return alert(r.error.message||'Unable to generate a new group code.');
- const generated=r.data?.password;
+ const generated=r.data?.join_code||r.data?.password;
  if(generated)alert('New group code generated:\n\n'+generated+'\n\nThe previous code no longer works.');
  else alert('Group code updated.');
 }
