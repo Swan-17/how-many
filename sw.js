@@ -1,9 +1,9 @@
-const CACHE_NAME='beer-tracker-v20';
+const CACHE_NAME='beer-tracker-v21';
 const UI='./group-password-ui-v10.js?v=10';
 const urlsToCache=['./','./index.html','./manifest.json',UI];
 self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(urlsToCache)))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(names=>Promise.all(names.filter(n=>n!==CACHE_NAME).map(n=>caches.delete(n)))).then(()=>self.clients.claim()))});
-self.addEventListener('fetch',event=>{const u=new URL(event.request.url);if(event.request.mode==='navigate'){event.respondWith(fetch(event.request,{cache:'no-store'}).then(async r=>{const t=r.headers.get('content-type')||'';if(!t.includes('text/html'))return r;const html=await r.text();const fixes=`<style>
+self.addEventListener('fetch',event=>{const u=new URL(event.request.url);if(event.request.mode==='navigate'){event.respondWith(fetch(event.request,{cache:'no-store'}).then(async r=>{const t=r.headers.get('content-type')||'';if(!t.includes('text/html'))return r;const html=await r.text();const fixes=`<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"><style>
 html,body,button,input,select,textarea{touch-action:manipulation;}
 input,select,textarea{font-size:16px !important;}
 </style><script>
