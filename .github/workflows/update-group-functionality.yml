@@ -1,6 +1,7 @@
 name: Update group functionality
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: write
 jobs:
@@ -78,8 +79,6 @@ jobs:
 
       let code = null;
       let lastError = null;
-
-      // Retry on the very unlikely event of a generated-code collision.
       for (let attempt = 0; attempt < 10; attempt++) {
         const candidate = generateGroupCode();
         const { error } = await sb.from('groups').insert([{ code: candidate, name, host_email: userEmail }]);
@@ -147,11 +146,7 @@ jobs:
 
       if (navigator.share) {
         try {
-          await navigator.share({
-            title: `How Many Beers - ${groupName}`,
-            text: shareText,
-            url
-          });
+          await navigator.share({ title: `How Many Beers - ${groupName}`, text: shareText, url });
         } catch (err) {
           if (err?.name !== 'AbortError') console.error('Share failed:', err);
         }
@@ -176,5 +171,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
+          git diff --cached --quiet && exit 0
           git commit -m "Fix group creation, joining and sharing"
           git push
