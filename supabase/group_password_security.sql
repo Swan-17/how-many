@@ -13,12 +13,12 @@ create unique index if not exists groups_password_hash_unique
 
 create or replace function public.hash_group_password(p_password text)
 returns text language sql immutable security invoker
-set search_path = public, extensions
-as $$ select encode(digest(convert_to(lower(trim(p_password)), 'utf8'), 'sha256'), 'hex'); $$;
+set search_path = ''
+as $$ select encode(extensions.digest(convert_to(lower(trim(p_password)), 'utf8'), 'sha256'), 'hex'); $$;
 
 create or replace function public.create_group_secure(p_name text, p_code text, p_password text)
-returns public.groups language plpgsql security definer
-set search_path = public, extensions
+returns jsonb language plpgsql security definer
+set search_path = ''
 as $$
 declare v_group public.groups; v_name text := trim(p_name); v_code text := upper(trim(p_code)); v_password text := trim(p_password); v_hash text;
 begin
@@ -40,12 +40,12 @@ begin
   insert into public.group_members (group_code, user_email, user_name)
   select v_group.code, lower(trim(auth.email())), u.display_name from public.users u
   where lower(trim(u.email)) = lower(trim(auth.email())) on conflict (group_code, user_email) do nothing;
-  return v_group;
+  return jsonb_build_object('code', v_group.code, 'name', v_group.name, 'host_email', v_group.host_email);
 end; $$;
 
 create or replace function public.set_group_password(p_group_code text, p_password text)
-returns public.groups language plpgsql security definer
-set search_path = public, extensions
+returns jsonb language plpgsql security definer
+set search_path = ''
 as $$
 declare v_group public.groups; v_password text := trim(p_password); v_hash text;
 begin
@@ -59,12 +59,12 @@ begin
   exception when unique_violation then
     raise exception 'That group password is already in use. Choose a different password.' using errcode = '23505';
   end;
-  return v_group;
+  return jsonb_build_object('code', v_group.code, 'name', v_group.name, 'host_email', v_group.host_email);
 end; $$;
 
 create or replace function public.join_group_secure(p_group_name text, p_password text)
-returns public.groups language plpgsql security definer
-set search_path = public, extensions
+returns jsonb language plpgsql security definer
+set search_path = ''
 as $$
 declare v_group public.groups; v_name text := trim(p_group_name); v_password text := trim(p_password); v_hash text; v_user_name text; v_email text := lower(trim(auth.email()));
 begin
@@ -77,7 +77,7 @@ begin
   select display_name into v_user_name from public.users where lower(trim(email)) = v_email limit 1;
   insert into public.group_members (group_code, user_email, user_name)
   values (v_group.code, v_email, coalesce(v_user_name, split_part(v_email, '@', 1))) on conflict (group_code, user_email) do nothing;
-  return v_group;
+  return jsonb_build_object('code', v_group.code, 'name', v_group.name, 'host_email', v_group.host_email);
 end; $$;
 
 revoke insert on public.group_members from anon, authenticated;
@@ -93,7 +93,7 @@ create policy "Members can view their groups" on public.groups for select to aut
 create policy "Hosts can view their groups" on public.groups for select to authenticated using (lower(trim(host_email)) = lower(trim(auth.email())));
 create policy "Admin can view all groups" on public.groups for select to authenticated using (lower(trim(auth.email())) = 'matthewswan17@gmail.com');
 
-revoke execute on function public.hash_group_password(text) from anon, authenticated;
+revoke execute on function public.hash_group_password(text) from public, anon, authenticated;
 grant execute on function public.create_group_secure(text, text, text) to authenticated;
 grant execute on function public.set_group_password(text, text) to authenticated;
 grant execute on function public.join_group_secure(text, text) to authenticated;
