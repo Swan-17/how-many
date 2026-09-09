@@ -14,112 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Patch group functions
+      - name: Patch index.html
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
-
-          s = s.replace("groups(name, host_email)", "groups(name, host_email, join_code)", 1)
-
-          s = re.sub(
-              r"userJoinedGroups = data \? data\.map\(d => \(\{.*?\}\)\) : \[\];",
-              "userJoinedGroups = data ? data.map(d => ({ code: d.group_code, name: d.groups?.name || d.group_code, host_email: (d.groups?.host_email || '').toLowerCase().trim(), join_code: (d.groups?.join_code || '').toUpperCase() })) : [];",
-              s, count=1, flags=re.S)
-
-          def between(s, start_marker, end_marker, replacement):
-              a = s.find(start_marker)
-              if a < 0: raise RuntimeError(f'Not found: {start_marker}')
-              b = s.find(end_marker, a + len(start_marker))
-              if b < 0: raise RuntimeError(f'Not found: {end_marker}')
-              return s[:a] + replacement + s[b:]
-
-          create = '''    async function createGroup() {
-      const name = $('create-group-name').value.trim();
-      if (!name) return alert('Enter a group name.');
-      const { data, error } = await sb.rpc('create_group_secure', { p_name: name });
-      if (error) return alert(error.message || 'Could not create the group.');
-      const joinCode = String(data?.join_code || data?.password || '').toUpperCase();
-      if (!joinCode) return alert('The group was created, but no unique join code was returned. Apply the Supabase group join-code migration.');
-      $('create-group-name').value = '';
-      closeAllExpandables();
-      await fetchUserGroups();
-      alert(`Group created!\\n\\nGroup: ${name}\\nUnique code: ${joinCode}`);
-    }
-
-'''
-          s = between(s, '    async function createGroup() {', '    async function joinGroup() {', create)
-
-          join = '''    async function joinGroup() {
-      const name = $('join-group-name').value.trim();
-      const code = $('join-group-code').value.trim().toUpperCase();
-      if (!name || !code) return alert('Enter the group name and unique 5-character code.');
-      if (!/^[A-Z0-9]{5}$/.test(code)) return alert('The group code must be exactly 5 letters and numbers.');
-      const { error } = await sb.rpc('join_group_secure', { p_group_name: name, p_password: code });
-      if (error) return alert(error.message || 'Could not join the group.');
-      $('join-group-name').value = '';
-      $('join-group-code').value = '';
-      closeAllExpandables();
-      await fetchUserGroups();
-    }
-
-'''
-          s = between(s, '    async function joinGroup() {', '    async function leaveGroup(', join)
-
-          share_start = s.find('    function shareGroup(')
-          if share_start < 0: share_start = s.find('    async function shareGroup(')
-          if share_start < 0: raise RuntimeError('shareGroup not found')
-          depth = 0
-          share_end = None
-          for i in range(share_start, len(s)):
-              if s[i] == '{': depth += 1
-              elif s[i] == '}':
-                  depth -= 1
-                  if depth == 0:
-                      share_end = i + 1
-                      break
-          if share_end is None: raise RuntimeError('shareGroup end not found')
-          share = '''    async function shareGroup(e, code) {
-      if (e) e.stopPropagation();
-      const group = userJoinedGroups.find(g => g.code === code);
-      const groupName = group?.name || 'Group';
-      const joinCode = String(group?.join_code || code || '').toUpperCase();
-      const url = `${window.location.href.split('?')[0]}?join=${encodeURIComponent(joinCode)}`;
-      const shareText = `Join my How Many Beers group!\\n\\nGroup name: ${groupName}\\nUnique code: ${joinCode}\\n\\n${url}`;
-      if (navigator.share) {
-        try { await navigator.share({ title: `How Many Beers - ${groupName}`, text: shareText, url }); }
-        catch (err) { if (err?.name !== 'AbortError') console.error('Share failed:', err); }
-        return;
-      }
-      try { await navigator.clipboard.writeText(shareText); alert(`Group invite copied!\\n\\nGroup name: ${groupName}\\nUnique code: ${joinCode}`); }
-      catch (err) { prompt('Copy this group invite:', shareText); }
-    }'''
-          s = s[:share_start] + share + s[share_end:]
-
-          s = s.replace('GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 13px;">${code}</strong>', 'UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 13px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong>', 1)
-          s = s.replace('GROUP CODE: </span><strong style="color: var(--primary-color); font-size: 14px;">${code}</strong>', 'UNIQUE JOIN CODE: </span><strong style="color: var(--primary-color); font-size: 14px; letter-spacing: 1px;">${grp?.join_code || \'Unavailable\'}</strong>', 1)
-
-          required = ["sb.rpc('create_group_secure'", "sb.rpc('join_group_secure'", 'join_code', 'navigator.share', 'Group name:', 'Unique code:']
-          missing = [x for x in required if x not in s]
-          if missing: raise RuntimeError('Missing: ' + ', '.join(missing))
-          if "sb.from('groups').insert" in s: raise RuntimeError('Direct groups insert remains')
-          if "sb.from('group_members').upsert" in s: raise RuntimeError('Direct group member upsert remains')
-
-          p.write_text(s, encoding='utf-8')
-          print('Group flow patch validated successfully')
-          PY
-
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQpwPVBhdGgoJ2luZGV4Lmh0bWwnKTsgcz1wLnJlYWRfdGV4dCgpCnM9cy5yZXBsYWNlKCdncm91cHMobmFtZSwgaG9zdF9lbWFpbCknLCdncm91cHMobmFtZSwgaG9zdF9lbWFpbCwgam9pbl9jb2RlKScsMSkKcz1yZS5zdWIocid1c2VySm9pbmVkR3JvdXBzXHMqPVxzKmRhdGFccypcP1xzKmRhdGFcLm1hcFwoZCA9PiBcKFx7Lio/XH1cKVwpXHMqOlxzKlxbXF07JywidXNlckpvaW5lZEdyb3VwcyA9IGRhdGEgPyBkYXRhLm1hcChkID0+ICh7IGNvZGU6IGQuZ3JvdXBfY29kZSwgbmFtZTogZC5ncm91cHM/Lm5hbWUgfHwgZC5ncm91cF9jb2RlLCBob3N0X2VtYWlsOiAoZC5ncm91cHM/Lmhvc3RfZW1haWwgfHwgJycpLnRvTG93ZXJDYXNlKCkudHJpbSgpLCBqb2luX2NvZGU6IChkLmdyb3Vwcz8uam9pbl9jb2RlIHx8ICcnKS50b1VwcGVyQ2FzZSgpIH0pKSA6IFtdOyIscyxjb3VudD0xLGZsYWdzPXJlLlMpCmRlZiBiZXR3ZWVuKGEsYixuKToKIGdsb2JhbCBzCiB4PXMuZmluZChhKTsgeT1zLmZpbmQoYix4K2xlbihhKSkKIGlmIHg8MCBvciB5PDA6IHJhaXNlIFN5c3RlbUV4aXQoJ21hcmtlciBtaXNzaW5nJykKIHM9c1s6eF0rbitzW3k6XQpiZXR3ZWVuKCcgICAgYXN5bmMgZnVuY3Rpb24gY3JlYXRlR3JvdXAoKSB7JywnICAgIGFzeW5jIGZ1bmN0aW9uIGpvaW5Hcm91cCgpIHsnLCIiIiAgICBhc3luYyBmdW5jdGlvbiBjcmVhdGVHcm91cCgpIHsKICAgICAgY29uc3QgbmFtZSA9ICQoJ2NyZWF0ZS1ncm91cC1uYW1lJykudmFsdWUudHJpbSgpOwogICAgICBpZiAoIW5hbWUpIHJldHVybiBhbGVydCgnRW50ZXIgYSBncm91cCBuYW1lLicpOwogICAgICBjb25zdCB7IGRhdGEsIGVycm9yIH0gPSBhd2FpdCBzYi5ycGMoJ2NyZWF0ZV9ncm91cF9zZWN1cmUnLCB7IHBfbmFtZTogbmFtZSB9KTsKICAgICAgaWYgKGVycm9yKSByZXR1cm4gYWxlcnQoZXJyb3IubWVzc2FnZSB8fCAnQ291bGQgbm90IGNyZWF0ZSB0aGUgZ3JvdXAuJyk7CiAgICAgIGNvbnN0IGpvaW5Db2RlID0gU3RyaW5nKGRhdGE/LmpvaW5fY29kZSB8fCBkYXRhPy5wYXNzd29yZCB8fCAnJykudG9VcHBlckNhc2UoKTsKICAgICAgaWYgKCFqb2luQ29kZSkgcmV0dXJuIGFsZXJ0KCdHcm91cCBjcmVhdGVkLCBidXQgbm8gdW5pcXVlIGpvaW4gY29kZSB3YXMgcmV0dXJuZWQuIEFwcGx5IHRoZSBTdXBhYmFzZSBqb2luLWNvZGUgbWlncmF0aW9uLicpOwogICAgICAkKCdjcmVhdGUtZ3JvdXAtbmFtZScpLnZhbHVlID0gJyc7IGNsb3NlQWxsRXhwYW5kYWJsZXMoKTsgYXdhaXQgZmV0Y2hVc2VyR3JvdXBzKCk7CiAgICAgIGFsZXJ0KGBHcm91cCBjcmVhdGVkIVxcblxcbkdyb3VwOiAke25hbWV9XFxuVW5pcXVlIGNvZGU6ICR7am9pbkNvZGV9YCk7CiAgICB9CgoiIiIpCmJldHdlZW4oJyAgICBhc3luYyBmdW5jdGlvbiBqb2luR3JvdXAoKSB7JywnICAgIGFzeW5jIGZ1bmN0aW9uIGxlYXZlR3JvdXAoJywiIiIgICAgYXN5bmMgZnVuY3Rpb24gam9pbkdyb3VwKCkgewogICAgICBjb25zdCBuYW1lID0gJCgnam9pbi1ncm91cC1uYW1lJykudmFsdWUudHJpbSgpOwogICAgICBjb25zdCBjb2RlID0gJCgnam9pbi1ncm91cC1jb2RlJykudmFsdWUudHJpbSgpLnRvVXBwZXJDYXNlKCk7CiAgICAgIGlmICghbmFtZSB8fCAhY29kZSkgcmV0dXJuIGFsZXJ0KCdFbnRlciB0aGUgZ3JvdXAgbmFtZSBhbmQgdW5pcXVlIDUtY2hhcmFjdGVyIGNvZGUuJyk7CiAgICAgIGlmICghL15bQS1aMC05XXs1fSQvLnRlc3QoY29kZSkpIHJldHVybiBhbGVydCgnVGhlIGdyb3VwIGNvZGUgbXVzdCBiZSBleGFjdGx5IDUgbGV0dGVycyBhbmQgbnVtYmVycy4nKTsKICAgICAgY29uc3QgeyBlcnJvciB9ID0gYXdhaXQgc2IucnBjKCdqb2luX2dyb3VwX3NlY3VyZScsIHsgcF9ncm91cF9uYW1lOiBuYW1lLCBwX3Bhc3N3b3JkOiBjb2RlIH0pOwogICAgICBpZiAoZXJyb3IpIHJldHVybiBhbGVydChlcnJvci5tZXNzYWdlIHx8ICdDb3VsZCBub3Qgam9pbiB0aGUgZ3JvdXAuJyk7CiAgICAgICQoJ2pvaW4tZ3JvdXAtbmFtZScpLnZhbHVlID0gJyc7ICQoJ2pvaW4tZ3JvdXAtY29kZScpLnZhbHVlID0gJyc7IGNsb3NlQWxsRXhwYW5kYWJsZXMoKTsgYXdhaXQgZmV0Y2hVc2VyR3JvdXBzKCk7CiAgICB9CgoiIiIpCmE9cy5maW5kKCcgICAgZnVuY3Rpb24gc2hhcmVHcm91cCgnKQppZiBhPDA6YT1zLmZpbmQoJyAgICBhc3luYyBmdW5jdGlvbiBzaGFyZUdyb3VwKCcpCmlmIGE8MDpyYWlzZSBTeXN0ZW1FeGl0KCdzaGFyZSBtaXNzaW5nJykKZD0wO2I9Tm9uZQpmb3IgaSBpbiByYW5nZShhLGxlbihzKSk6CiBpZiBzW2ldPT0neyc6ZCs9MQogZWxpZiBzW2ldPT0nfSc6CiAgZC09MQogIGlmIGQ9PTA6Yj1pKzE7YnJlYWsKc2hhcmU9IiIiICAgIGFzeW5jIGZ1bmN0aW9uIHNoYXJlR3JvdXAoZSwgY29kZSkgewogICAgICBpZiAoZSkgZS5zdG9wUHJvcGFnYXRpb24oKTsKICAgICAgY29uc3QgZ3JvdXAgPSB1c2VySm9pbmVkR3JvdXBzLmZpbmQoZyA9PiBnLmNvZGUgPT09IGNvZGUpOwogICAgICBjb25zdCBncm91cE5hbWUgPSBncm91cD8ubmFtZSB8fCAnR3JvdXAnOwogICAgICBjb25zdCBqb2luQ29kZSA9IFN0cmluZyhncm91cD8uam9pbl9jb2RlIHx8IGNvZGUgfHwgJycpLnRvVXBwZXJDYXNlKCk7CiAgICAgIGNvbnN0IHVybCA9IGAke3dpbmRvdy5sb2NhdGlvbi5ocmVmLnNwbGl0KCc/JylbMF19P2pvaW49JHtlbmNvZGVVUklDb21wb25lbnQoam9pbkNvZGUpfWA7CiAgICAgIGNvbnN0IHNoYXJlVGV4dCA9IGBKb2luIG15IEhvdyBNYW55IEJlZXJzIGdyb3VwIVxcblxcbkdyb3VwIG5hbWU6ICR7Z3JvdXBOYW1lfVxcblVuaXF1ZSBjb2RlOiAke2pvaW5Db2RlfVxcblxcbiR7dXJsfWA7CiAgICAgIGlmIChuYXZpZ2F0b3Iuc2hhcmUpIHsgdHJ5IHsgYXdhaXQgbmF2aWdhdG9yLnNoYXJlKHt0aXRsZTpgSG93IE1hbnkgQmVlcnMgLSAke2dyb3VwTmFtZX1gLHRleHQ6c2hhcmVUZXh0LHVybH0pOyB9IGNhdGNoKGVycikgeyBpZihlcnI/Lm5hbWUhPT0nQWJvcnRFcnJvcicpIGNvbnNvbGUuZXJyb3IoZXJyKTsgfSByZXR1cm47IH0KICAgICAgdHJ5IHsgYXdhaXQgbmF2aWdhdG9yLmNsaXBib2FyZC53cml0ZVRleHQoc2hhcmVUZXh0KTsgYWxlcnQoYEdyb3VwIGludml0ZSBjb3BpZWQhXFxuXFxuR3JvdXAgbmFtZTogJHtncm91cE5hbWV9XFxuVW5pcXVlIGNvZGU6ICR7am9pbkNvZGV9YCk7IH0gY2F0Y2goZXJyKSB7IHByb21wdCgnQ29weSB0aGlzIGdyb3VwIGludml0ZTonLHNoYXJlVGV4dCk7IH0KICAgIH0iIiIKcz1zWzphXStzaGFyZStzW2I6XQpzPXMucmVwbGFjZSgnR1JPVVAgQ09ERTogPC9zcGFuPjxzdHJvbmcgc3R5bGU9ImNvbG9yOiB2YXIoLS1wcmltYXJ5LWNvbG9yKTsgZm9udC1zaXplOiAxM3B4OyI+JHtjb2RlfTwvc3Ryb25nPicsJ1VOSVFVRSBKT0lOIENPREU6IDwvc3Bhbj48c3Ryb25nIHN0eWxlPSJjb2xvcjogdmFyKC0tcHJpbWFyeS1jb2xvcik7IGZvbnQtc2l6ZTogMTNweDsgbGV0dGVyLXNwYWNpbmc6IDFweDsiPiR7Z3JwPy5qb2luX2NvZGUgfHwgXCdVbmF2YWlsYWJsZVwnfTwvc3Ryb25nPicsMSkKcz1zLnJlcGxhY2UoJ0dST1VQIENPREU6IDwvc3Bhbj48c3Ryb25nIHN0eWxlPSJjb2xvcjogdmFyKC0tcHJpbWFyeS1jb2xvcik7IGZvbnQtc2l6ZTogMTRweDsiPiR7Y29kZX08L3N0cm9uZz4nLCdVTklRVUUgSk9JTiBDT0RFOiA8L3NwYW4+PHN0cm9uZyBzdHlsZT0iY29sb3I6IHZhcigtLXByaW1hcnktY29sb3IpOyBmb250LXNpemU6IDE0cHg7IGxldHRlci1zcGFjaW5nOiAxcHg7Ij4ke2dycD8uam9pbl9jb2RlIHx8IFwnVW5hdmFpbGFibGVcJ308L3N0cm9uZz4nLDEpCmZvciB4IGluIFsic2IucnBjKCdjcmVhdGVfZ3JvdXBfc2VjdXJlJyIsInNiLnJwYygnam9pbl9ncm91cF9zZWN1cmUnIiwnam9pbl9jb2RlJywnbmF2aWdhdG9yLnNoYXJlJywnR3JvdXAgbmFtZTonLCdVbmlxdWUgY29kZTonXToKIGlmIHggbm90IGluIHM6IHJhaXNlIFN5c3RlbUV4aXQoJ3JlcXVpcmVkIG1pc3NpbmcgJyt4KQppZiAic2IuZnJvbSgnZ3JvdXBzJykuaW5zZXJ0IiBpbiBzIG9yICJzYi5mcm9tKCdncm91cF9tZW1iZXJzJykudXBzZXJ0IiBpbiBzOiByYWlzZSBTeXN0ZW1FeGl0KCdkaXJlY3Qgd3JpdGUgcmVtYWlucycpCnAud3JpdGVfdGV4dChzKQo=' | base64 -d >/tmp/patch.py
+          python3 /tmp/patch.py
       - name: Commit app fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           git diff --cached --quiet && exit 0
-          git commit -m "Fix secure group creation and sharing"
+          git commit -m "Fix secure group creation and sharing [group-fix]"
           git push
