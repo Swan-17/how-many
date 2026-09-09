@@ -1,30 +1,11 @@
-const CACHE_NAME = 'beer-tracker-v4'; // Changed version to force cache update
-const urlsToCache = ['./', './index.html', './manifest.json'];
-
-self.addEventListener('install', event => {
-  self.skipWaiting(); // Instantly activate the new service worker
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-  );
-});
-
-self.addEventListener('activate', event => {
-  // Clear out old caches (like beer-tracker-v1)
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    }).then(() => self.clients.claim()) // Claim clients immediately
-  );
-});
-
+const CACHE_NAME = 'beer-tracker-v5';
+const urlsToCache = ['./', './index.html', './manifest.json', './group-password-ui.js'];
+self.addEventListener('install', event => { self.skipWaiting(); event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))); });
+self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(names => Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).then(async response => { const type = response.headers.get('content-type') || ''; if (!type.includes('text/html')) return response; const html = await response.text(); const injected = html.replace('</body>', '<script src="./group-password-ui.js"></script></body>'); return new Response(injected, { status: response.status, statusText: response.statusText, headers: response.headers }); }).catch(() => caches.match(event.request).then(r => r || caches.match('./index.html'))));
+    return;
+  }
+  event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
 });
