@@ -1,0 +1,73 @@
+name: Cleanup repository
+
+"on":
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Update sharing and remove obsolete files
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text()
+
+          replacement = '''    async function shareGroup(e, code) {
+      if (e) e.stopPropagation();
+      const group = userJoinedGroups.find(g => g.code === code);
+      const groupName = group?.name || 'Group';
+      const joinCode = String(group?.join_code || code || '').toUpperCase();
+      const shareText = `Join my How Many Beers group\\n\\nGroup Name: ${groupName}\\nUnique Code: ${joinCode}\\n\\nhttps://github.com/Swan-17/how-many`;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({ text: shareText });
+        } catch (err) {
+          if (err?.name !== 'AbortError') console.error(err);
+        }
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(shareText);
+        alert('Group invite copied!');
+      } catch (err) {
+        prompt('Copy this group invite:', shareText);
+      }
+    }
+'''
+
+          pattern = r"    async function shareGroup\(e, code\) \{.*?\n    \}\n\n    function closeAllExpandables"
+          updated, count = re.subn(
+              pattern,
+              replacement + "\n    function closeAllExpandables",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not locate shareGroup function')
+          path.write_text(updated)
+          PY
+
+          rm -f group-password-ui.js group-password-ui-v8.js group-password-ui-v10.js
+          rm -f .github/workflows/apply-group-fix.yml .github/workflows/cleanup-now.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix group sharing and remove redundant files' || exit 0
+          git push
