@@ -111,7 +111,11 @@
       });
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || body.message || `Venue search failed (${r.status})`);
-      venueCandidates = body.places || [];
+      venueCandidates = (body.places || []).map(p => ({
+        ...p,
+        latitude: p.latitude ?? p.lat ?? p.location?.latitude,
+        longitude: p.longitude ?? p.lng ?? p.lon ?? p.location?.longitude
+      }));
       out.innerHTML = venueCandidates.length
         ? venueCandidates.slice(0, 6).map((p, i) => `<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><strong>${esc(p.name)}</strong><br><small>${esc(p.address || '')}</small></button>`).join('')
         : '<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No pub found. Try adding the town or area.</div>';
@@ -128,7 +132,7 @@
     const latitude = Number(place.latitude);
     const longitude = Number(place.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-      el('venue-candidates').innerHTML = '<div style="margin-top:10px;color:#fca5a5;font-size:12px">This venue does not have a valid map location. Please choose another result.</div>';
+      el('venue-candidates').innerHTML = '<div style="margin-top:10px;color:#fca5a5;font-size:12px">Google Maps could not return a location for this result. Please choose another pub result.</div>';
       return;
     }
 
