@@ -73,6 +73,8 @@
     const { data } = await mapSb.from('drinking_sessions').select('*').eq('user_email', user.email).is('ended_at', null).order('started_at', { ascending: false }).limit(1).maybeSingle();
     activeSession = data || null;
     renderCheckinState();
+    syncTrackerCheckInButton();
+    return activeSession;
   }
 
   function renderCheckinState() {
@@ -92,6 +94,19 @@
       form.classList.remove('hidden');
       if (el('drinking-venue-search')) setTimeout(() => el('drinking-venue-search').focus(), 50);
     }
+    syncTrackerCheckInButton();
+  }
+
+  function openDrinkingCheckIn() {
+    el('drinking-map-page')?.classList.remove('hidden');
+    loadActiveSession();
+    setTimeout(() => el('drinking-venue-search')?.focus(), 50);
+  }
+
+  function syncTrackerCheckInButton() {
+    const button = el('tracker-check-in-btn');
+    if (!button) return;
+    button.classList.toggle('hidden', !!activeSession);
   }
 
   async function searchDrinkingVenues() {
@@ -129,11 +144,15 @@
   }
 
   async function endDrinkingSession(silent = false) {
-    if (!activeSession) return;
+    if (!activeSession) {
+      await loadActiveSession();
+      if (!activeSession) return;
+    }
     const { error } = await mapSb.from('drinking_sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
     if (error) { if (!silent) alert(error.message); return; }
     activeSession = null;
     renderCheckinState();
+    syncTrackerCheckInButton();
   }
 
   async function recordDrinkEvent(type, delta, logDate) {
@@ -170,22 +189,27 @@
   }
 
   function installTrackerCheckInButton() {
-    const tracker = el('page-tracker'); if (!tracker || el('tracker-check-in-btn')) return;
-    const card = tracker.querySelector('.card'); if (!card) return;
-    const button = document.createElement('button');
-    button.id = 'tracker-check-in-btn';
-    button.className = 'btn-submit checkin-button';
-    button.textContent = '📍 Check in at a pub';
-    button.onclick = () => {
-      el('drinking-map-page')?.classList.remove('hidden');
-      loadActiveSession();
-      setTimeout(() => el('drinking-venue-search')?.focus(), 50);
-      el('tracker-check-in-btn')?.classList.add('hidden');
-    };
-    card.appendChild(button);
+    const tracker = el('page-tracker'); if (!tracker) return;
+    let button = el('tracker-check-in-btn');
+    if (!button) {
+      const card = tracker.querySelector('.card'); if (!card) return;
+      button = document.createElement('button');
+      button.id = 'tracker-check-in-btn';
+      button.className = 'btn-submit checkin-button';
+      button.textContent = '📍 Check in at a pub';
+      card.appendChild(button);
+    }
+    button.onclick = openDrinkingCheckIn;
+    syncTrackerCheckInButton();
   }
 
   function init() { addStyles(); addPage(); installHooks(); setTimeout(installHooks, 500); setTimeout(installHooks, 1500); }
-  window.setDrinkingLocation = searchDrinkingVenues; window.searchDrinkingVenues = searchDrinkingVenues; window.confirmDrinkingVenue = confirmDrinkingVenue; window.endDrinkingSession = endDrinkingSession;
+  window.setDrinkingLocation = searchDrinkingVenues;
+  window.searchDrinkingVenues = searchDrinkingVenues;
+  window.confirmDrinkingVenue = confirmDrinkingVenue;
+  window.endDrinkingSession = endDrinkingSession;
+  window.loadActiveDrinkingSession = loadActiveSession;
+  window.openDrinkingCheckIn = openDrinkingCheckIn;
+  window.syncDrinkingCheckInButton = syncTrackerCheckInButton;
   init();
 })();
