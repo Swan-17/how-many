@@ -83,11 +83,8 @@
         <div id="top-venues-list"></div>
         <button type="button" id="show-venues-map-btn" class="btn-submit hidden">📍 Show on Map</button>
       </div>`;
-
     const highlights = findPersonalHighlightsCard();
-    if (highlights) page.insertBefore(card, highlights);
-    else page.appendChild(card);
-
+    if (highlights) page.insertBefore(card, highlights); else page.appendChild(card);
     $('top-venues-toggle').addEventListener('click', toggleTopVenues);
     $('show-venues-map-btn').addEventListener('click', openTopVenuesMapPage);
     addStyles();
@@ -168,7 +165,6 @@
     if (!emails.length || !sessions.length) return {};
     const { data: logs, error } = await sb.from('drink_logs').select('user_email,log_date,pints,bottles,wines,cocktails,shots').in('user_email', emails);
     if (error) throw error;
-
     const sessionsByEmailDate = {};
     (sessions || []).forEach(session => {
       const email = String(session.user_email || '').toLowerCase().trim();
@@ -178,24 +174,18 @@
       const dates = [];
       if (!ended || ended === started) dates.push(started);
       else {
-        const start = new Date(`${started}T12:00:00`);
-        const finish = new Date(`${ended}T12:00:00`);
+        const start = new Date(`${started}T12:00:00`), finish = new Date(`${ended}T12:00:00`);
         for (let cursor = new Date(start); cursor <= finish; cursor.setDate(cursor.getDate() + 1)) dates.push(cursor.toISOString().slice(0, 10));
       }
-      dates.forEach(date => {
-        const key = `${email}|${date}`;
-        (sessionsByEmailDate[key] ||= []).push(session);
-      });
+      dates.forEach(date => { const key = `${email}|${date}`; (sessionsByEmailDate[key] ||= []).push(session); });
     });
-
     const fallback = {};
     (logs || []).forEach(log => {
       const email = String(log.user_email || '').toLowerCase().trim();
       const date = logDateKey(log.log_date);
       const matchingSessions = sessionsByEmailDate[`${email}|${date}`] || [];
       if (matchingSessions.length !== 1) return;
-      const session = matchingSessions[0];
-      const amount = beerTotalFromLog(log);
+      const session = matchingSessions[0], amount = beerTotalFromLog(log);
       if (!amount) return;
       fallback[session.id] = (fallback[session.id] || 0) + amount;
     });
@@ -219,19 +209,11 @@
       if (ee) throw ee;
       const totals = {};
       (events || []).forEach(e => totals[e.session_id] = (totals[e.session_id] || 0) + beerEquivalent(e.drink_type, e.delta));
-
-      // Older drinks live in drink_logs and pre-date the venue-event recorder. Where there is
-      // exactly one venue session for that user on a logged date, safely attribute that day's
-      // existing drink total to the venue. Ambiguous multi-venue days are left event-only.
       const legacyFallback = await loadLegacyDrinkFallback(emails, sessions || []);
-      Object.entries(legacyFallback).forEach(([sessionId, amount]) => {
-        if (!(sessionId in totals) || !totals[sessionId]) totals[sessionId] = amount;
-      });
-
+      Object.entries(legacyFallback).forEach(([sessionId, amount]) => { if (!(sessionId in totals) || !totals[sessionId]) totals[sessionId] = amount; });
       const grouped = {};
       (sessions || []).forEach(s => {
-        const name = s.venue_name || 'Unknown venue';
-        const key = name + '|' + (s.venue_address || '');
+        const name = s.venue_name || 'Unknown venue', key = name + '|' + (s.venue_address || '');
         if (!grouped[key]) grouped[key] = {name, address:s.venue_address || '', drinks:0, latitude:Number(s.latitude), longitude:Number(s.longitude)};
         grouped[key].drinks += totals[s.id] || 0;
       });
@@ -254,43 +236,23 @@
     if (window.maplibregl) return Promise.resolve();
     if (window.__howManyMapLibrePromise) return window.__howManyMapLibrePromise;
     window.__howManyMapLibrePromise = new Promise((resolve, reject) => {
-      const css = document.createElement('link');
-      css.rel = 'stylesheet';
-      css.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
-      document.head.appendChild(css);
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-      script.onload = resolve;
-      script.onerror = () => reject(new Error('Could not load map library.'));
-      document.head.appendChild(script);
+      const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'; document.head.appendChild(css);
+      const script = document.createElement('script'); script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'; script.onload = resolve; script.onerror = () => reject(new Error('Could not load map library.')); document.head.appendChild(script);
     });
     return window.__howManyMapLibrePromise;
   }
 
   function beerMarkerElement() {
-    const wrap = document.createElement('div');
-    wrap.className = 'top-venue-marker-wrap';
-    wrap.innerHTML = '<div class="top-venue-marker"><span>🍺</span></div>';
-    return wrap;
+    const wrap = document.createElement('div'); wrap.className = 'top-venue-marker-wrap'; wrap.innerHTML = '<div class="top-venue-marker"><span>🍺</span></div>'; return wrap;
   }
 
   async function createMapForPoints(points) {
-    const page = ensureMapPage();
-    const container = $('top-venues-map');
+    const page = ensureMapPage(), container = $('top-venues-map');
     if (!page || !container || !points.length) return;
     await loadMapLibre();
     if (mapInstance) return;
-    mapInstance = new window.maplibregl.Map({
-      container,
-      style: 'https://demotiles.maplibre.org/style.json',
-      center: [points[0].longitude, points[0].latitude],
-      zoom: 13,
-      attributionControl: true
-    });
-    await new Promise((resolve, reject) => {
-      mapInstance.once('load', resolve);
-      mapInstance.once('error', event => reject(event?.error || new Error('Map failed to load.')));
-    });
+    mapInstance = new window.maplibregl.Map({container, style:'https://demotiles.maplibre.org/style.json', center:[points[0].longitude, points[0].latitude], zoom:13, attributionControl:true});
+    await new Promise((resolve, reject) => { mapInstance.once('load', resolve); mapInstance.once('error', event => reject(event?.error || new Error('Map failed to load.'))); });
   }
 
   async function primeMap(points) {
@@ -299,65 +261,40 @@
       await createMapForPoints(points);
       if (!mapInstance) return;
       mapMarkers.forEach(marker => marker.remove());
-      mapMarkers = points.map(v => {
-        const marker = new window.maplibregl.Marker({element: beerMarkerElement(), anchor:'bottom'})
-          .setLngLat([v.longitude, v.latitude])
-          .setPopup(new window.maplibregl.Popup({offset:18}).setHTML(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${wholeBeers(v.drinks)} Beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`))
-          .addTo(mapInstance);
-        return marker;
-      });
-      const bounds = new window.maplibregl.LngLatBounds();
-      points.forEach(v => bounds.extend([v.longitude, v.latitude]));
-      if (points.length === 1) mapInstance.jumpTo({center:[points[0].longitude, points[0].latitude], zoom:14});
-      else mapInstance.fitBounds(bounds, {padding:50,maxZoom:15});
-    } catch (e) {
-      console.warn('Top Venues map preload failed:', e.message);
-    }
+      mapMarkers = points.map(v => new window.maplibregl.Marker({element:beerMarkerElement(),anchor:'bottom'}).setLngLat([v.longitude,v.latitude]).setPopup(new window.maplibregl.Popup({offset:18}).setHTML(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${wholeBeers(v.drinks)} Beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`)).addTo(mapInstance));
+      const bounds = new window.maplibregl.LngLatBounds(); points.forEach(v => bounds.extend([v.longitude,v.latitude]));
+      if (points.length === 1) mapInstance.jumpTo({center:[points[0].longitude,points[0].latitude],zoom:14}); else mapInstance.fitBounds(bounds,{padding:50,maxZoom:15});
+    } catch (e) { console.warn('Top Venues map preload failed:', e.message); }
   }
 
   function openTopVenuesMapPage() {
-    const page = ensureMapPage();
-    if (!page) return;
+    const page = ensureMapPage(); if (!page) return;
     document.querySelectorAll('#app-screen > *').forEach(node => { if (node.id !== 'top-venues-map-page') node.classList.add('hidden'); });
     page.classList.remove('hidden');
     requestAnimationFrame(() => { if (mapInstance) mapInstance.resize(); });
   }
 
   function returnToStatsPage() {
-    const page = $('top-venues-map-page');
-    page?.classList.add('hidden');
-
-    // Return through the app's normal page switcher instead of manually hiding
-    // app children. The old approach also hid the <nav>, so the Stats headers/nav
-    // stayed missing after returning from the full-screen map.
-    if (typeof window.switchPage === 'function') {
-      window.switchPage('stats');
-      return;
-    }
-
-    // Defensive fallback if the main app script is not available.
-    document.querySelectorAll('#app-screen > *').forEach(node => {
-      if (node.id !== 'top-venues-map-page') node.classList.add('hidden');
-    });
-    $('page-stats')?.classList.remove('hidden');
-    document.querySelector('nav')?.classList.remove('hidden');
-    $('nav-stats')?.classList.add('active');
+    const page = $('top-venues-map-page'); page?.classList.add('hidden');
+    if (typeof window.switchPage === 'function') { window.switchPage('stats'); return; }
+    document.querySelectorAll('#app-screen > *').forEach(node => { if (node.id !== 'top-venues-map-page') node.classList.add('hidden'); });
+    $('page-stats')?.classList.remove('hidden'); document.querySelector('nav')?.classList.remove('hidden'); $('nav-stats')?.classList.add('active');
   }
 
   function install() {
     if (!$('page-stats')) return;
     ensureCard();
     const select = $('analytics-group-select');
-    if (!window.__topVenuesSelectHook && select) {
-      select.addEventListener('change', loadTopVenues);
-      window.__topVenuesSelectHook = true;
-    }
-    const page = $('page-stats');
-    if (!window.__topVenuesStatsObserver && window.MutationObserver) {
+    if (!window.__topVenuesSelectHook && select) { select.addEventListener('change', loadTopVenues); window.__topVenuesSelectHook = true; }
+
+    // Only watch the select itself for programmatic option/value population.
+    // Watching the entire Stats page caused our own list updates to trigger another
+    // load, so the card could remain on "Loading venues…" indefinitely.
+    if (!window.__topVenuesStatsObserver && window.MutationObserver && select) {
       const observer = new MutationObserver(() => {
-        if (!page.classList.contains('hidden') && select?.value) loadTopVenues();
+        if (!$('page-stats')?.classList.contains('hidden') && select.value) loadTopVenues();
       });
-      observer.observe(page, {subtree:true, childList:true, characterData:true});
+      observer.observe(select, {childList:true, subtree:true});
       window.__topVenuesStatsObserver = true;
     }
     if (select?.value) loadTopVenues();
