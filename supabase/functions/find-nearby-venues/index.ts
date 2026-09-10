@@ -11,14 +11,12 @@ Deno.serve(async (req) => {
     const key = Deno.env.get('GOOGLE_MAPS_API_KEY');
     if (!key) throw new Error('GOOGLE_MAPS_API_KEY is not configured');
     const body = await req.json();
-    const latitude = Number(body.latitude);
-    const longitude = Number(body.longitude);
-    const radius = Math.min(Math.max(Number(body.radius || 120), 50), 500);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('Valid latitude and longitude are required');
-    const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+    const query = String(body.query || '').trim();
+    if (!query) throw new Error('A venue search term is required');
+    const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.googleMapsUri,places.primaryType' },
-      body: JSON.stringify({ includedTypes: ['bar', 'pub'], maxResultCount: 10, rankPreference: 'DISTANCE', locationRestriction: { circle: { center: { latitude, longitude }, radius } } }),
+      body: JSON.stringify({ textQuery: query, pageSize: 10 }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload?.error?.message || 'Google Places request failed');
