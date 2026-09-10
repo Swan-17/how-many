@@ -4,6 +4,7 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>\'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const beerEquivalent = (type, delta) => ({pints:1,bottles:.6,wines:.7,cocktails:.8,shots:.4}[type] || 0) * (Number(delta) || 0);
+  const wholeBeers = value => Math.round(Number(value) || 0);
   let venues = [], loading = false, mapInstance = null, mapMarkers = [];
 
   function addStyles() {
@@ -20,12 +21,10 @@
       #top-venues-map-page { min-height: 60vh; }
       #top-venues-map-page .top-map-title { margin: 0; font-size: 16px; color: var(--primary-color); text-align:center; }
       #top-venues-map { height: 430px; margin-top: 14px; border: 1px solid var(--border-color); border-radius:10px; overflow:hidden; background:var(--bg-main); }
-      #top-venues-map .leaflet-pane.leaflet-popup-pane { z-index: 700; }
-      .top-venue-marker-wrap { background: transparent; border: 0; }
-      .top-venue-marker { width: 38px; height: 38px; border-radius: 50% 50% 50% 8px; transform: rotate(-45deg); display:grid; place-items:center; box-sizing:border-box; background:linear-gradient(145deg,#ffd166 0%,#f59e0b 58%,#d97706 100%); border:3px solid rgba(255,255,255,.96); box-shadow:0 4px 12px rgba(0,0,0,.28); }
-      .top-venue-marker::after { content:""; width: 9px; height: 9px; border-radius:50%; background:rgba(255,255,255,.18); position:absolute; top:6px; left:8px; }
-      .top-venue-marker span { transform: rotate(45deg); font-size:20px; line-height:1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
-      .top-venue-popup { min-width: 150px; font-size: 12px; line-height: 1.4; }
+      .top-venue-marker-wrap { display:flex; align-items:center; justify-content:center; width:40px; height:40px; }
+      .top-venue-marker { width:34px; height:34px; border-radius:50% 50% 50% 7px; transform:rotate(-45deg); display:grid; place-items:center; box-sizing:border-box; background:linear-gradient(145deg,#ffd166 0%,#f59e0b 58%,#b45309 100%); border:3px solid rgba(255,255,255,.96); box-shadow:0 4px 10px rgba(0,0,0,.25); }
+      .top-venue-marker span { transform:rotate(45deg); font-size:17px; line-height:1; }
+      .top-venue-popup { min-width:150px; font-size:12px; line-height:1.4; }
       .top-venue-popup strong { color:#111827; font-size:13px; }
       .top-venue-popup .beer-count { color:#b45309; font-weight:800; }
       .top-venue-popup small { color:#6b7280; }
@@ -59,7 +58,7 @@
         </div>
       </div>`;
     app.appendChild(page);
-    $('top-venues-back-stats').addEventListener('click', () => returnToStatsPage());
+    $('top-venues-back-stats').addEventListener('click', returnToStatsPage);
     return page;
   }
 
@@ -88,6 +87,7 @@
     $('show-venues-map-btn').addEventListener('click', openTopVenuesMapPage);
     addStyles();
     ensureMapPage();
+    installAutoCollapse();
     return card;
   }
 
@@ -97,6 +97,30 @@
     const hidden = body.classList.toggle('hidden');
     if (chevron) chevron.textContent = hidden ? '▼' : '▲';
     if (toggle) toggle.setAttribute('aria-expanded', String(!hidden));
+  }
+
+  function collapseTopVenues() {
+    const body = $('top-venues-body'), chevron = $('top-venues-chevron'), toggle = $('top-venues-toggle');
+    if (!body || body.classList.contains('hidden')) return;
+    body.classList.add('hidden');
+    if (chevron) chevron.textContent = '▼';
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function installAutoCollapse() {
+    if (document.__topVenuesAutoCollapse) return;
+    document.__topVenuesAutoCollapse = true;
+    document.addEventListener('click', event => {
+      const card = $('top-venues-card');
+      if (!card || card.contains(event.target)) return;
+      const interactive = event.target.closest('button, a, select, input, textarea, [role="button"]');
+      if (interactive) collapseTopVenues();
+    }, true);
+    document.addEventListener('focusin', event => {
+      const card = $('top-venues-card');
+      if (!card || card.contains(event.target)) return;
+      if (event.target.closest('button, a, select, input, textarea, [role="button"]')) collapseTopVenues();
+    }, true);
   }
 
   async function currentEmail() {
@@ -154,7 +178,7 @@
         $('show-venues-map-btn')?.classList.add('hidden');
         return;
       }
-      list.innerHTML = venues.map((v,i) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:800;font-size:13px">${i+1}. ${esc(v.name)}</div>${v.address ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>` : ''}</div><strong style="color:var(--primary-color);white-space:nowrap">${v.drinks.toFixed(1)} beers</strong></div>`).join('');
+      list.innerHTML = venues.map((v,i) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:800;font-size:13px">${i+1}. ${esc(v.name)}</div>${v.address ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>` : ''}</div><strong style="color:var(--primary-color);white-space:nowrap">${wholeBeers(v.drinks)} beers</strong></div>`).join('');
       const hasMapPoints = venues.some(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
       $('show-venues-map-btn')?.classList.toggle('hidden', !hasMapPoints);
     } catch (e) {
@@ -162,55 +186,28 @@
     } finally { loading = false; }
   }
 
-  function loadLeaflet() {
-    if (window.L) return Promise.resolve();
-    if (window.__howManyLeafletPromise) return window.__howManyLeafletPromise;
-    window.__howManyLeafletPromise = new Promise((resolve, reject) => {
-      const css = document.createElement('link');
-      css.rel = 'stylesheet';
-      css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(css);
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = resolve;
-      script.onerror = () => reject(new Error('Could not load the map library.'));
-      document.head.appendChild(script);
-    });
-    return window.__howManyLeafletPromise;
-  }
-
-  function loadMapStyleLayer() {
-    if (window.maplibregl && window.L?.maplibreGL) return Promise.resolve();
+  function loadMapLibre() {
+    if (window.maplibregl) return Promise.resolve();
     if (window.__howManyMapLibrePromise) return window.__howManyMapLibrePromise;
     window.__howManyMapLibrePromise = new Promise((resolve, reject) => {
       const css = document.createElement('link');
       css.rel = 'stylesheet';
       css.href = 'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css';
       document.head.appendChild(css);
-
-      const maplibre = document.createElement('script');
-      maplibre.src = 'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js';
-      maplibre.onload = () => {
-        const bridge = document.createElement('script');
-        bridge.src = 'https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js';
-        bridge.onload = resolve;
-        bridge.onerror = () => reject(new Error('Could not load the map style layer.'));
-        document.head.appendChild(bridge);
-      };
-      maplibre.onerror = () => reject(new Error('Could not load the map style library.'));
-      document.head.appendChild(maplibre);
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js';
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Could not load the map library.'));
+      document.head.appendChild(script);
     });
     return window.__howManyMapLibrePromise;
   }
 
-  function beerMarkerIcon() {
-    return window.L.divIcon({
-      className: 'top-venue-marker-wrap',
-      html: '<div class="top-venue-marker" aria-label="Beer venue marker"><span>🍺</span></div>',
-      iconSize: [38, 38],
-      iconAnchor: [14, 34],
-      popupAnchor: [5, -30]
-    });
+  function beerMarkerElement() {
+    const wrap = document.createElement('div');
+    wrap.className = 'top-venue-marker-wrap';
+    wrap.innerHTML = '<div class="top-venue-marker" aria-label="Beer venue marker"><span>🍺</span></div>';
+    return wrap;
   }
 
   async function openTopVenuesMapPage() {
@@ -219,8 +216,8 @@
     const mapPage = ensureMapPage();
     if (!mapPage) return;
     try {
-      await loadLeaflet();
-      await loadMapStyleLayer();
+      collapseTopVenues();
+      await loadMapLibre();
       ['account','tracker','stats','admin'].forEach(page => $(`page-${page}`)?.classList.add('hidden'));
       ['account','tracker','stats','admin'].forEach(page => $(`nav-${page}`)?.classList.remove('active'));
       const nav = document.querySelector('nav');
@@ -229,15 +226,32 @@
 
       const mapEl = $('top-venues-map');
       if (!mapInstance) {
-        mapInstance = window.L.map(mapEl, {scrollWheelZoom:false, zoomControl:true});
-        window.L.maplibreGL({style:'https://tiles.openfreemap.org/styles/bright'}).addTo(mapInstance);
+        mapInstance = new window.maplibregl.Map({
+          container: mapEl,
+          style: 'https://tiles.openfreemap.org/styles/positron',
+          center: [points[0].longitude, points[0].latitude],
+          zoom: 12,
+          attributionControl: true,
+          cooperativeGestures: true
+        });
+        mapInstance.addControl(new window.maplibregl.NavigationControl({showCompass:false}), 'top-right');
+        await new Promise(resolve => mapInstance.once('load', resolve));
       }
+
       mapMarkers.forEach(marker => marker.remove());
-      const icon = beerMarkerIcon();
-      mapMarkers = points.map(v => window.L.marker([v.latitude, v.longitude], {icon}).addTo(mapInstance).bindPopup(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${v.drinks.toFixed(1)} beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`));
-      const bounds = window.L.latLngBounds(points.map(v => [v.latitude, v.longitude]));
-      mapInstance.fitBounds(bounds, {padding:[35,35], maxZoom:15});
-      setTimeout(() => mapInstance.invalidateSize(), 50);
+      mapMarkers = points.map(v => {
+        const marker = new window.maplibregl.Marker({element: beerMarkerElement(), anchor:'bottom'})
+          .setLngLat([v.longitude, v.latitude])
+          .setPopup(new window.maplibregl.Popup({offset:18}).setHTML(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${wholeBeers(v.drinks)} beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`))
+          .addTo(mapInstance);
+        return marker;
+      });
+
+      const bounds = new window.maplibregl.LngLatBounds();
+      points.forEach(v => bounds.extend([v.longitude, v.latitude]));
+      if (points.length === 1) mapInstance.easeTo({center:[points[0].longitude, points[0].latitude], zoom:14, duration:350});
+      else mapInstance.fitBounds(bounds, {padding:50, maxZoom:15, duration:350});
+      mapInstance.resize();
       window.scrollTo({top:0, behavior:'smooth'});
     } catch (e) {
       alert(e.message || 'Could not open the map.');
@@ -258,7 +272,7 @@
     if (!card || !select) return;
     card.classList.remove('hidden');
     if (!select.__topVenuesBound) {
-      select.addEventListener('change', () => { loadTopVenues(); });
+      select.addEventListener('change', () => { collapseTopVenues(); loadTopVenues(); });
       select.__topVenuesBound = true;
     }
     if (!card.__initialLoad && select.value) { card.__initialLoad = true; loadTopVenues(); }
