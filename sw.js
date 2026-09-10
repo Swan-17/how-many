@@ -1,4 +1,4 @@
-const UI='./group-password-ui-v10.js?v=10';
+const UI='./group-password-ui-v11.js?v=10';
 self.addEventListener('install',event=>{self.skipWaiting()});
 self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim())});
 self.addEventListener('fetch',event=>{const u=new URL(event.request.url);if(u.pathname.endsWith('/sw.js')||u.pathname.endsWith('sw.js')){event.respondWith(fetch(event.request,{cache:'no-store'}));return}if(event.request.mode==='navigate'){event.respondWith(fetch(event.request,{cache:'no-store'}).then(async r=>{const t=r.headers.get('content-type')||'';if(!t.includes('text/html'))return r;const html=await r.text();const fresh=html.replace(/<script[^>]+src=["'](?:\.\/)?drinking-map\.js[^>]*><\/script>/gi,'<script src="./drinking-map.js?v=31"></script>');return new Response(fresh.replace('</body>','<script src="'+UI+'"></script></body>'),{status:r.status,statusText:r.statusText,headers:r.headers})}).catch(()=>fetch('./index.html',{cache:'no-store'})));return}if(u.pathname.endsWith('drinking-map.js')){event.respondWith(fetch(event.request,{cache:'no-store'}));return}event.respondWith(fetch(event.request,{cache:'no-store'}))})
