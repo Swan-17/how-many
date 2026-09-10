@@ -130,19 +130,29 @@
     const session = activeSession || await loadActiveSession();
     if (!session || !mapSb) return false;
     const user = await currentUser();
-    const { error } = await mapSb.from('drinking_sessions').update({ended_at:new Date().toISOString()}).eq('id',session.id).eq('user_email',user?.email || '');
-    if (error) { if (!silent) alert(error.message); return false; }
+    if (!user) return false;
 
-    // Re-query the database after checkout. The tracker must only show a check-in
-    // after refresh when an actually open session still exists.
-    activeSession = null;
-    trackerSearchOpen = false;
-    await loadActiveSession();
-    if (activeSession && !silent) {
-      alert('The checkout did not persist. Please try again.');
+    const endedAt = new Date().toISOString();
+    const { data: updated, error } = await mapSb.from('drinking_sessions')
+      .update({ ended_at: endedAt })
+      .eq('id', session.id)
+      .eq('user_email', user.email)
+      .select('id, ended_at')
+      .maybeSingle();
+
+    if (error) {
+      if (!silent) alert(`Could not check out: ${error.message}`);
       return false;
     }
-    // Always return to the clean check-in button/input state after checkout.
+
+    // Supabase can return no error when RLS prevents an UPDATE from matching a row.
+    // Requiring the updated row here makes checkout fail loudly instead of appearing
+    // to work and then returning on the next refresh.
+    if (!updated?.id || !updated.ended_at) {
+      if (!silent) alert('Could not check out. Your session could not be updated.');
+      return false;
+    }
+
     activeSession = null;
     trackerSearchOpen = false;
     renderTrackerCard();
