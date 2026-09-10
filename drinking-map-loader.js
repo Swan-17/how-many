@@ -15,9 +15,9 @@
     document.head.appendChild(script);
   }
 
+  // drinking-map.js already records drink_location_events. Loading a second
+  // event-capture layer here caused every drink to be counted twice.
   loadScript('./drinking-map.js', () => {
-    loadScript('./drinking-map-events-fix.js', () => {
-      loadScript('./top-venues.js');
-    });
+    loadScript('./top-venues.js');
   });
 })();
