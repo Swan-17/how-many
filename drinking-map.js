@@ -124,14 +124,22 @@
     const place = venueCandidates[i], user = await currentUser();
     if (!place || !user) return;
     if (activeSession) await endDrinkingSession(true);
+
+    const latitude = Number(place.latitude);
+    const longitude = Number(place.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      el('venue-candidates').innerHTML = '<div style="margin-top:10px;color:#fca5a5;font-size:12px">This venue does not have a valid map location. Please choose another result.</div>';
+      return;
+    }
+
     const { data, error } = await mapSb.from('drinking_sessions').insert([{
       user_email: user.email,
       group_code: selectedGroupCode || null,
       google_place_id: place.id,
       venue_name: place.name,
       venue_address: place.address || null,
-      latitude: place.latitude,
-      longitude: place.longitude
+      latitude,
+      longitude
     }]).select().single();
     if (error) {
       el('venue-candidates').innerHTML = `<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(error.message)}</div>`;
