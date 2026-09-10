@@ -1,5 +1,11 @@
 /* Load the drinking tracker and Top Venues features. */
 (function () {
+  // index.html creates the authenticated Supabase client as the global lexical `sb`.
+  // Expose that same client to the dynamically loaded feature scripts so they share auth state.
+  try {
+    if (typeof sb !== 'undefined') window.__HOW_MANY_SUPABASE__ = sb;
+  } catch (_) {}
+
   function loadScript(src, onload) {
     const script = document.createElement('script');
     script.src = src + '?v=' + Date.now();
