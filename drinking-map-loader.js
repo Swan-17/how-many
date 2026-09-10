@@ -26,7 +26,7 @@
       loadScript('./top-venues-map-polish.js', () => {
         loadScript('./top-venues.js', () => {
           // Apply the standard Stats heading style after Top Venues creates its card.
-          loadScript('./top-venues-style-fix.js', () => {
+          loadScript('./top-venues-title-fix.js', () => {
             // The stats page populates analytics-group-select programmatically. That does
             // not fire a change event, so top-venues.js can otherwise remain hidden after
             // its initial install sees an empty select value.
