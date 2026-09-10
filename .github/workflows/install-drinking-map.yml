@@ -18,32 +18,24 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text()
-          loader = '<script src="drinking-map-loader.js?v=2"></script>'
-          if 'drinking-map-loader.js' not in s:
-              marker = '</head>'
-              if marker not in s:
-                  raise SystemExit('Could not find </head> in index.html')
-              s = s.replace(marker, '  ' + loader + '\n' + marker, 1)
+          loader = '<script src="drinking-map-loader.js?v=3"></script>'
+          if 'drinking-map-loader.js' in s:
+              s = re.sub(r'\s*<script src="drinking-map-loader\.js[^>]*></script>', '\n  ' + loader, s)
           else:
-              import re
-              s = re.sub(r'<script src="drinking-map-loader\.js[^>]*></script>', loader, s)
+              s = s.replace('</head>', '  ' + loader + '\n</head>', 1)
           p.write_text(s)
           PY
       - name: Disable service worker in test shell
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text()
-          start = s.find('  <!-- PWA SERVICE WORKER REGISTRATION -->')
-          if start != -1:
-              end = s.find('</body>', start)
-              if end != -1:
-                  block = s[start:end]
-                  if 'navigator.serviceWorker' in block:
-                      s = s[:start] + '  <!-- Service worker disabled for drinking map test -->\n' + s[end:]
+          s = re.sub(r'\s*<!-- PWA SERVICE WORKER REGISTRATION -->.*?(?=</body>)', '\n  <!-- Service worker disabled for drinking map test -->\n', s, flags=re.S)
           p.write_text(s)
           PY
       - name: Commit injected app shell
@@ -52,5 +44,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Inject drinking map test loader [drinking-map-injected]"
+          git commit -m "Fix test app shell for drinking check-in [drinking-map-injected]"
           git push
