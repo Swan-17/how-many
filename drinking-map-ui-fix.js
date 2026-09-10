@@ -18,9 +18,10 @@
     const card = $('top-venues-card');
     const select = $('analytics-group-select');
     if (!card || !select) return;
-    const value = select.value;
-    const isPersonal = value === 'my_stats' || value === 'all_friends';
-    card.classList.toggle('hidden', isPersonal || !value);
+    // Top Venues is part of the Stats page for every stats scope, including
+    // personal stats and all-friends. Only hide it while the selector has no
+    // usable value (during initial stats-page population).
+    card.classList.toggle('hidden', !select.value);
   }
 
   async function refreshTrackerState() {
