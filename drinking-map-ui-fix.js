@@ -1,0 +1,74 @@
+/* UI hardening for the drinking tracker and stats venue panel. */
+(function () {
+  const $ = id => document.getElementById(id);
+
+  function syncCheckinButton() {
+    const button = $('tracker-check-in-btn');
+    if (!button) return;
+    if (typeof window.syncDrinkingCheckInButton === 'function') {
+      window.syncDrinkingCheckInButton();
+      return;
+    }
+    const active = $('active-drinking-location');
+    const checkedIn = !!active && !!active.querySelector('.checkin-status');
+    button.classList.toggle('hidden', checkedIn);
+  }
+
+  function syncTopVenues() {
+    const card = $('top-venues-card');
+    const select = $('analytics-group-select');
+    if (!card || !select) return;
+    // Top Venues is part of the Stats page for every stats scope, including
+    // personal stats and all-friends. Only hide it while the selector has no
+    // usable value (during initial stats-page population).
+    card.classList.toggle('hidden', !select.value);
+  }
+
+  async function refreshTrackerState() {
+    if (typeof window.loadActiveDrinkingSession === 'function') {
+      try { await window.loadActiveDrinkingSession(); } catch (e) { console.warn('Could not refresh drinking session', e); }
+    }
+    syncCheckinButton();
+  }
+
+  function install() {
+    syncCheckinButton();
+    syncTopVenues();
+
+    const active = $('active-drinking-location');
+    if (active && !active.__uiFixObserver) {
+      new MutationObserver(syncCheckinButton).observe(active, { childList: true, subtree: true });
+      active.__uiFixObserver = true;
+    }
+
+    const select = $('analytics-group-select');
+    if (select && !select.__uiFixListener) {
+      select.addEventListener('change', () => setTimeout(syncTopVenues, 100));
+      select.__uiFixListener = true;
+    }
+
+    if (typeof window.switchPage === 'function' && !window.__howManyDrinkingUiFixHook) {
+      const original = window.switchPage;
+      window.switchPage = function (page) {
+        const result = original(page);
+        setTimeout(() => {
+          syncTopVenues();
+          if (page === 'tracker') {
+            install();
+            refreshTrackerState();
+          } else {
+            syncCheckinButton();
+          }
+        }, 150);
+        return result;
+      };
+      window.__howManyDrinkingUiFixHook = true;
+    }
+  }
+
+  const observer = new MutationObserver(install);
+  observer.observe(document.body, { childList: true, subtree: true });
+  const timer = setInterval(install, 300);
+  setTimeout(() => clearInterval(timer), 15000);
+  install();
+})();

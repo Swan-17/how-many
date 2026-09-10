@@ -1,0 +1,48 @@
+name: Install drinking map test feature
+
+on:
+  push:
+    branches:
+      - feature/drinking-map-test
+
+permissions:
+  contents: write
+
+jobs:
+  inject:
+    if: ${{ !contains(github.event.head_commit.message, '[drinking-map-injected]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test loader into app shell
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text()
+          loader = '<script src="drinking-map-loader.js?v=3"></script>'
+          if 'drinking-map-loader.js' in s:
+              s = re.sub(r'\s*<script src="drinking-map-loader\.js[^>]*></script>', '\n  ' + loader, s)
+          else:
+              s = s.replace('</head>', '  ' + loader + '\n</head>', 1)
+          p.write_text(s)
+          PY
+      - name: Disable service worker in test shell
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text()
+          s = re.sub(r'\s*<!-- PWA SERVICE WORKER REGISTRATION -->.*?(?=</body>)', '\n  <!-- Service worker disabled for drinking map test -->\n', s, flags=re.S)
+          p.write_text(s)
+          PY
+      - name: Commit injected app shell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Fix test app shell for drinking check-in [drinking-map-injected]"
+          git push
