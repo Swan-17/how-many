@@ -46,7 +46,7 @@
     const button=el('set-drinking-location-btn'), out=el('venue-candidates'); button.disabled=true; out.innerHTML='';
     try {
       const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:10000,maximumAge:60000}));
-      const r=await fetch(MAP_FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({latitude:pos.coords.latitude,longitude:pos.coords.longitude,radius:180})});
+      const r=await fetch(MAP_FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':MAP_SUPABASE_KEY},body:JSON.stringify({latitude:pos.coords.latitude,longitude:pos.coords.longitude,radius:180})});
       const body=await r.json(); if(!r.ok)throw new Error(body.error||body.message||`Venue search failed (${r.status})`);
       venueCandidates=(body.places||[]).map(p=>({...p,distance:distance(pos.coords.latitude,pos.coords.longitude,p.latitude,p.longitude)}));
       out.innerHTML=venueCandidates.length?'<div style="margin-top:10px;font-size:12px;color:var(--text-muted)">Which venue are you at?</div>'+venueCandidates.slice(0,5).map((p,i)=>`<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><strong>${esc(p.name)}</strong><br><small>${Math.round(p.distance)}m away${p.address?' · '+esc(p.address):''}</small></button>`).join(''):'<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No nearby pubs/bars found.</div>';
