@@ -1778,23 +1778,44 @@
     async function updateAccountPage(prevBeers = null) {
       $('acc-name-display').innerText = userName;
       $('acc-email-display').innerText = userEmail;
-      const daysActive = Math.max(1, Math.ceil(Math.abs(new Date() - new Date(firstCreatedDate)) / 86400000));
-      $('acc-days-active').innerText = daysActive;
-      $('acc-groups-count').innerText = userJoinedGroups.length;
 
       const isAdmin = (userEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim());
       $('admin-trigger-card').classList.toggle('hidden', !isAdmin);
 
+      // Fetch all drink logs for the user to find total beers and the earliest logged date
       const { data } = await sb.from('drink_logs').select('*').eq('user_email', userEmail);
-      let beers = 0; lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      let beers = 0; 
+      lifetimeTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+      let earliestDateStr = null;
+
       (data || []).forEach(e => {
-        beers += calculateUnitsAndBeers(e).beers;
+        const entryBeers = calculateUnitsAndBeers(e).beers;
+        if (entryBeers > 0 || (e.pints || e.bottles || e.wines || e.cocktails || e.shots)) {
+          beers += entryBeers;
+          // Track the earliest date where any drink activity exists
+          if (!earliestDateStr || e.log_date < earliestDateStr) {
+            earliestDateStr = e.log_date;
+          }
+        }
         DRINKS.forEach(d => lifetimeTotals[d.key] += (e[d.key] || 0));
       });
 
       userLifetimeBeers = beers;
       $('acc-total-pints').innerText = `${beers} 🍺`;
-      const avgBeers = daysActive > 0 ? (beers / daysActive).toFixed(1) : '0';
+
+      // Calculate Days Active based on earliest logged date (or fallback to user registration/today)
+      const startDate = earliestDateStr ? new Date(earliestDateStr) : new Date(firstCreatedDate || getEffectiveTodayDate());
+      const todayDate = new Date(getEffectiveTodayDate());
+      
+      // Calculate difference in calendar days (+1 to include both start day and current day)
+      const diffTime = Math.max(0, todayDate - startDate);
+      const daysActive = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1);
+
+      $('acc-days-active').innerText = daysActive;
+      $('acc-groups-count').innerText = userJoinedGroups.length;
+
+      // Average beers per day calculation
+      const avgBeers = (beers / daysActive).toFixed(1);
       $('acc-avg-beers').innerText = `${avgBeers} 🍺`;
 
       if (prevBeers !== null) {
