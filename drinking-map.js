@@ -61,7 +61,7 @@
     if (nav && !el('nav-pub')) {
       const b = document.createElement('button');
       b.id = 'nav-pub'; b.textContent = 'Pub'; b.onclick = () => switchPage('pub');
-      const tracker = nav.querySelector('[onclick*="tracker"]);
+      const tracker = nav.querySelector('[onclick*="tracker"]');
       if (tracker) tracker.insertAdjacentElement('afterend', b); else nav.appendChild(b);
     }
     el('drinking-venue-search')?.addEventListener('input', () => {
