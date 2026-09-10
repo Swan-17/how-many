@@ -20,7 +20,15 @@
       #top-venues-map-page { min-height: 60vh; }
       #top-venues-map-page .top-map-title { margin: 0; font-size: 16px; color: var(--primary-color); text-align:center; }
       #top-venues-map { height: 430px; margin-top: 14px; border: 1px solid var(--border-color); border-radius:10px; overflow:hidden; background:var(--bg-main); }
-      .top-venue-popup strong { color:#111827; }
+      #top-venues-map .leaflet-pane.leaflet-popup-pane { z-index: 700; }
+      .top-venue-marker-wrap { background: transparent; border: 0; }
+      .top-venue-marker { width: 38px; height: 38px; border-radius: 50% 50% 50% 8px; transform: rotate(-45deg); display:grid; place-items:center; box-sizing:border-box; background:linear-gradient(145deg,#ffd166 0%,#f59e0b 58%,#d97706 100%); border:3px solid rgba(255,255,255,.96); box-shadow:0 4px 12px rgba(0,0,0,.28); }
+      .top-venue-marker::after { content:""; width: 9px; height: 9px; border-radius:50%; background:rgba(255,255,255,.18); position:absolute; top:6px; left:8px; }
+      .top-venue-marker span { transform: rotate(45deg); font-size:20px; line-height:1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+      .top-venue-popup { min-width: 150px; font-size: 12px; line-height: 1.4; }
+      .top-venue-popup strong { color:#111827; font-size:13px; }
+      .top-venue-popup .beer-count { color:#b45309; font-weight:800; }
+      .top-venue-popup small { color:#6b7280; }
     `;
     document.head.appendChild(style);
   }
@@ -171,6 +179,40 @@
     return window.__howManyLeafletPromise;
   }
 
+  function loadMapStyleLayer() {
+    if (window.maplibregl && window.L?.maplibreGL) return Promise.resolve();
+    if (window.__howManyMapLibrePromise) return window.__howManyMapLibrePromise;
+    window.__howManyMapLibrePromise = new Promise((resolve, reject) => {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css';
+      document.head.appendChild(css);
+
+      const maplibre = document.createElement('script');
+      maplibre.src = 'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js';
+      maplibre.onload = () => {
+        const bridge = document.createElement('script');
+        bridge.src = 'https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js';
+        bridge.onload = resolve;
+        bridge.onerror = () => reject(new Error('Could not load the map style layer.'));
+        document.head.appendChild(bridge);
+      };
+      maplibre.onerror = () => reject(new Error('Could not load the map style library.'));
+      document.head.appendChild(maplibre);
+    });
+    return window.__howManyMapLibrePromise;
+  }
+
+  function beerMarkerIcon() {
+    return window.L.divIcon({
+      className: 'top-venue-marker-wrap',
+      html: '<div class="top-venue-marker" aria-label="Beer venue marker"><span>🍺</span></div>',
+      iconSize: [38, 38],
+      iconAnchor: [14, 34],
+      popupAnchor: [5, -30]
+    });
+  }
+
   async function openTopVenuesMapPage() {
     const points = venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
     if (!points.length) return;
@@ -178,6 +220,7 @@
     if (!mapPage) return;
     try {
       await loadLeaflet();
+      await loadMapStyleLayer();
       ['account','tracker','stats','admin'].forEach(page => $(`page-${page}`)?.classList.add('hidden'));
       ['account','tracker','stats','admin'].forEach(page => $(`nav-${page}`)?.classList.remove('active'));
       const nav = document.querySelector('nav');
@@ -186,13 +229,14 @@
 
       const mapEl = $('top-venues-map');
       if (!mapInstance) {
-        mapInstance = window.L.map(mapEl, {scrollWheelZoom:false});
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}).addTo(mapInstance);
+        mapInstance = window.L.map(mapEl, {scrollWheelZoom:false, zoomControl:true});
+        window.L.maplibreGL({style:'https://tiles.openfreemap.org/styles/bright'}).addTo(mapInstance);
       }
       mapMarkers.forEach(marker => marker.remove());
-      mapMarkers = points.map(v => window.L.marker([v.latitude, v.longitude]).addTo(mapInstance).bindPopup(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br>${v.drinks.toFixed(1)} beers${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`));
+      const icon = beerMarkerIcon();
+      mapMarkers = points.map(v => window.L.marker([v.latitude, v.longitude], {icon}).addTo(mapInstance).bindPopup(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${v.drinks.toFixed(1)} beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`));
       const bounds = window.L.latLngBounds(points.map(v => [v.latitude, v.longitude]));
-      mapInstance.fitBounds(bounds, {padding:[25,25], maxZoom:15});
+      mapInstance.fitBounds(bounds, {padding:[35,35], maxZoom:15});
       setTimeout(() => mapInstance.invalidateSize(), 50);
       window.scrollTo({top:0, behavior:'smooth'});
     } catch (e) {
