@@ -2279,16 +2279,7 @@ https://github.com/Swan-17/how-many`;
     }
   </script>
 
-  <!-- PWA SERVICE WORKER REGISTRATION -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker Registered'))
-          .catch(err => console.log('Service Worker Error', err));
-      });
-    }
-  </script>
-  <script src="drinking-map.js"></script>
+  <!-- Service worker disabled for drinking map test -->
+  <script src="drinking-map-loader.js?v=1"></script>
 </body>
 </html>
