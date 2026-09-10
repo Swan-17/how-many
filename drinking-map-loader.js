@@ -1,41 +1,15 @@
-/* Test-only loader: force the current drinking-map.js and remove stale map/service-worker state. */
+/* Load the drinking tracker and Top Venues features. */
 (function () {
-  const oldScripts = document.querySelectorAll('script[src*="drinking-map.js"]');
-  oldScripts.forEach((node) => node.remove());
-
-  const loadMap = () => {
-    const s = document.createElement('script');
-    s.src = './drinking-map.js?test=' + Date.now();
-    s.async = false;
-    s.onload = () => {
-      console.log('Drinking map test script loaded');
-      const venues = document.createElement('script');
-      venues.src = './top-venues.js?test=' + Date.now();
-      venues.async = false;
-      venues.onload = () => {
-        console.log('Top venues stats script loaded');
-        const fix = document.createElement('script');
-        fix.src = './drinking-map-ui-fix.js?test=' + Date.now();
-        fix.async = false;
-        fix.onload = () => console.log('Drinking map UI fix loaded');
-        fix.onerror = () => console.error('Drinking map UI fix failed to load');
-        document.head.appendChild(fix);
-      };
-      venues.onerror = () => console.error('Top venues stats script failed to load');
-      document.head.appendChild(venues);
-    };
-    s.onerror = () => console.error('Drinking map test script failed to load');
-    document.head.appendChild(s);
-  };
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
-      .then(() => caches && caches.keys ? caches.keys() : [])
-      .then((keys) => Promise.all((keys || []).map((key) => caches.delete(key))))
-      .catch(() => {})
-      .finally(loadMap);
-  } else {
-    loadMap();
+  function loadScript(src, onload) {
+    const script = document.createElement('script');
+    script.src = src + '?v=' + Date.now();
+    script.async = false;
+    if (onload) script.onload = onload;
+    script.onerror = () => console.error('Feature script failed to load:', src);
+    document.head.appendChild(script);
   }
+
+  loadScript('./drinking-map.js', () => {
+    loadScript('./top-venues.js');
+  });
 })();
