@@ -76,23 +76,26 @@
     label { color: var(--text-muted); font-size: 12px; }
     .btn-submit { background: var(--primary-color); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; touch-action: manipulation; }
     .btn-submit:disabled { opacity: 0.6; cursor: default; }
-    .btn-danger, .btn-secondary, .btn-share, .btn-admin { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; touch-action: manipulation; }
+    .btn-danger, .btn-secondary, .btn-share, .btn-admin { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; touch-action: manipulation; flex-shrink: 0; }
     .btn-danger { background: #ef4444; }
     .btn-secondary { background: var(--border-color); }
     .btn-share { background: #059669; }
     .btn-admin { background: #8b5cf6; color: white; }
     .btn-admin:hover { background: #7c3aed; }
     
-    /* MEMBER ROW LAYOUT FOR LEADERBOARDS */
-    .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); gap: 8px; }
+    /* MEMBER ROW LAYOUT FOR LEADERBOARDS & GROUPS */
+    .member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); gap: 8px; min-width: 0; }
     .member-row:last-child { border-bottom: none; }
     .member-info-container { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
     .user-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; min-width: 20px; }
 
+    /* TRUNCATION PROTECTION FOR GROUP ITEMS */
+    .group-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; padding-right: 4px; }
+
     .group-drag-item { border-bottom: 1px solid var(--border-color); }
     .group-drag-item:last-child { border-bottom: none; }
-    .group-drag-row { display: flex; align-items: center; gap: 4px; }
-    .drag-handle { cursor: grab; color: #64748b; font-size: 20px; line-height: 1; padding: 10px 8px 10px 0; touch-action: none; user-select: none; }
+    .group-drag-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .drag-handle { cursor: grab; color: #64748b; font-size: 20px; line-height: 1; padding: 10px 8px 10px 0; touch-action: none; user-select: none; flex-shrink: 0; }
     .drag-handle:active { cursor: grabbing; color: var(--primary-color); }
     .group-drag-item.dragging { opacity: 0.95; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-radius: 10px; background: var(--bg-main); border-bottom: none; }
     .group-drag-placeholder { border: 2px dashed var(--primary-color); border-radius: 10px; margin: 4px 0; opacity: 0.5; box-sizing: border-box; }
@@ -192,11 +195,11 @@
       <div class="card">
         <h3 style="margin-top: 0; font-size: 16px; color: var(--text-muted);">USER PROFILE</h3>
         <div class="member-row">
-          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">DISPLAY NAME</span><strong id="acc-name-display" style="font-size: 16px; color: var(--primary-color);">---</strong></div>
+          <div style="flex: 1; min-width: 0; margin-right: 8px;"><span style="font-size: 11px; color: var(--text-muted); display: block;">DISPLAY NAME</span><strong id="acc-name-display" class="group-title-text" style="font-size: 16px; color: var(--primary-color); display: block;">---</strong></div>
           <button class="btn-secondary" onclick="editProfileName()">Edit Name</button>
         </div>
         <div class="member-row">
-          <div><span style="font-size: 11px; color: var(--text-muted); display: block;">EMAIL</span><strong id="acc-email-display" style="font-size: 13px; color: white;">---</strong></div>
+          <div style="flex: 1; min-width: 0;"><span style="font-size: 11px; color: var(--text-muted); display: block;">EMAIL</span><strong id="acc-email-display" class="group-title-text" style="font-size: 13px; color: white; display: block;">---</strong></div>
         </div>
 
         <div class="stat-grid">
@@ -216,6 +219,50 @@
         <h3 style="margin-top: 0; font-size: 15px; color: var(--primary-color);">📲 INSTALL WEB APP</h3>
         <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Add <strong>How Many Beers</strong> to your home screen for a full-screen app experience.</p>
         <button class="btn-submit" onclick="promptInstallApp()">Add to Home Screen 📲</button>
+      </div>
+
+      <!-- PARENT GROUPS ACCORDION HOUSING ALL 3 GROUP CARDS -->
+      <div class="card" id="card-groups-parent">
+        <div class="accordion-header" onclick="toggleAccordion('groups-parent-body', 'groups-parent-icon')">
+          <h3>👥 Groups</h3><span id="groups-parent-icon" class="accordion-icon">▼</span>
+        </div>
+        <div id="groups-parent-body" class="accordion-content hidden">
+          <!-- CARD 1: ACTIVE GROUPS -->
+          <div class="card" id="card-active-groups">
+            <div class="accordion-header" onclick="toggleAccordion('groups-accordion-body', 'groups-accordion-icon')">
+              <h3>Your Active Groups</h3><span id="groups-accordion-icon" class="accordion-icon">▼</span>
+            </div>
+            <div id="groups-accordion-body" class="accordion-content hidden">
+              <div id="my-groups-list"></div>
+            </div>
+          </div>
+
+          <!-- CARD 2: JOIN GROUP -->
+          <div class="card" id="card-join-group">
+            <div class="accordion-header" onclick="toggleAccordion('join-accordion-body', 'join-accordion-icon')">
+              <h3>Join a Group</h3><span id="join-accordion-icon" class="accordion-icon">▼</span>
+            </div>
+            <div id="join-accordion-body" class="accordion-content hidden">
+              <label>GROUP NAME</label>
+              <input type="text" id="join-group-name" placeholder="e.g. Friday Drinks">
+              <label style="margin-top: 8px; display: block;">UNIQUE 5-CHARACTER CODE</label>
+              <input type="text" id="join-group-code" maxlength="5" autocomplete="off" style="text-transform: uppercase;" placeholder="e.g. A7K2Q">
+              <button class="btn-submit" onclick="joinGroup()">Join Group</button>
+            </div>
+          </div>
+
+          <!-- CARD 3: CREATE GROUP -->
+          <div class="card" id="card-create-group" style="margin-bottom: 0;">
+            <div class="accordion-header" onclick="toggleAccordion('create-accordion-body', 'create-accordion-icon')">
+              <h3>Create a New Group</h3><span id="create-accordion-icon" class="accordion-icon">▼</span>
+            </div>
+            <div id="create-accordion-body" class="accordion-content hidden">
+              <label>GROUP NAME</label><input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
+              <p style="font-size: 11px; color: var(--text-muted); margin: 8px 0 0;">A unique 5-character join code will be generated automatically.</p>
+              <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- COLLAPSIBLE PERKS & CUSTOMIZATION ACCORDION -->
@@ -246,7 +293,7 @@
         </div>
       </div>
 
-      <!-- COLLAPSIBLE ADMIN CONTROLS ACCORDION -->
+      <!-- COLLAPSIBLE ADMIN CONTROLS ACCORDION (MOVED TO BOTTOM ABOVE LOG OUT) -->
       <div id="admin-trigger-card" class="card hidden">
         <div class="accordion-header" onclick="toggleAccordion('admin-accordion-body', 'admin-accordion-icon')">
           <h3 style="color: #8b5cf6;">🛡️ Admin Controls</h3><span id="admin-accordion-icon" class="accordion-icon" style="color: #8b5cf6;">▼</span>
@@ -254,39 +301,6 @@
         <div id="admin-accordion-body" class="accordion-content hidden">
           <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Reveal the Admin Dashboard tab to view system-wide analytics.</p>
           <button class="btn-admin" style="width: 100%; padding: 10px; font-size: 13px;" onclick="revealAndOpenAdminTab()">Open Admin Dashboard 🛡️</button>
-        </div>
-      </div>
-
-      <div class="card" id="card-active-groups">
-        <div class="accordion-header" onclick="toggleAccordion('groups-accordion-body', 'groups-accordion-icon')">
-          <h3>Your Active Groups</h3><span id="groups-accordion-icon" class="accordion-icon">▼</span>
-        </div>
-        <div id="groups-accordion-body" class="accordion-content hidden">
-          <div id="my-groups-list"></div>
-        </div>
-      </div>
-
-      <div class="card" id="card-join-group">
-        <div class="accordion-header" onclick="toggleAccordion('join-accordion-body', 'join-accordion-icon')">
-          <h3>Join a Group</h3><span id="join-accordion-icon" class="accordion-icon">▼</span>
-        </div>
-        <div id="join-accordion-body" class="accordion-content hidden">
-          <label>GROUP NAME</label>
-          <input type="text" id="join-group-name" placeholder="e.g. Friday Drinks">
-          <label style="margin-top: 8px; display: block;">UNIQUE 5-CHARACTER CODE</label>
-          <input type="text" id="join-group-code" maxlength="5" autocomplete="off" style="text-transform: uppercase;" placeholder="e.g. A7K2Q">
-          <button class="btn-submit" onclick="joinGroup()">Join Group</button>
-        </div>
-      </div>
-
-      <div class="card" id="card-create-group">
-        <div class="accordion-header" onclick="toggleAccordion('create-accordion-body', 'create-accordion-icon')">
-          <h3>Create a New Group</h3><span id="create-accordion-icon" class="accordion-icon">▼</span>
-        </div>
-        <div id="create-accordion-body" class="accordion-content hidden">
-          <label>GROUP NAME</label><input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
-          <p style="font-size: 11px; color: var(--text-muted); margin: 8px 0 0;">A unique 5-character join code will be generated automatically.</p>
-          <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
         </div>
       </div>
 
@@ -820,7 +834,7 @@
       relevantEmails = Array.from(new Set((data || []).map(d => d.user_email.toLowerCase().trim()).concat(userEmail)));
     }
 
-    /* RENDER GROUPS WITH SHARE BUTTON FOR ALL MEMBERS */
+    /* RENDER GROUPS WITH SHARE BUTTON & TEXT TRUNCATION */
     function renderMyGroups() {
       const container = $('my-groups-list');
       container.innerHTML = userJoinedGroups.length ? '' : '<span style="color:var(--text-muted); font-size:12px;">You are not currently part of any group.</span>';
@@ -834,9 +848,9 @@
         wrapper.innerHTML = `
           <div class="group-drag-row">
             <span class="drag-handle" title="Drag to reorder">⠿</span>
-            <div class="member-row" style="flex:1; border-bottom:none;">
-              <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:var(--primary-color);"> 👑 Host</span>' : ''}</div>
-              <div style="display:flex; gap:6px;">
+            <div class="member-row" style="flex:1; border-bottom:none; min-width:0;">
+              <div class="group-title-text"><strong title="${grp.name}">${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:var(--primary-color);"> 👑 Host</span>' : ''}</div>
+              <div style="display:flex; gap:6px; flex-shrink:0;">
                 <button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>
                 <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
                 <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
@@ -1050,7 +1064,7 @@
       if (isHost) {
         const rows = (members||[]).filter(m => m.user_email.toLowerCase().trim() !== userEmail).map(m => `
           <div class="member-row" style="padding: 6px 0;">
-            <span style="font-size: 13px;">${m.user_name} <span style="font-size: 11px; color: var(--text-muted);">(${m.user_email})</span></span>
+            <span style="font-size: 13px;" class="group-title-text">${m.user_name} <span style="font-size: 11px; color: var(--text-muted);">(${m.user_email})</span></span>
             <button class="btn-danger" onclick="removeMember('${code}', '${m.user_email}')">Remove</button>
           </div>
         `).join('');
@@ -2062,15 +2076,35 @@ https://github.com/Swan-17/how-many`;
       }
     }
 
-    function closeAllExpandables() {
+    function closeAllExpandables(keepParentGroupOpen = false) {
       closeHostPanel();
-      ['perks-accordion-body', 'admin-accordion-body', 'groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'].forEach(id => $(id)?.classList.add('hidden'));
-      ['perks-accordion-icon', 'admin-accordion-icon', 'groups-accordion-icon', 'join-accordion-icon', 'create-accordion-icon', 'missed-drinks-icon'].forEach(id => { if ($(id)) $(id).innerText = '▼'; });
+      const expandables = ['perks-accordion-body', 'admin-accordion-body', 'groups-accordion-body', 'join-accordion-body', 'create-accordion-body', 'missed-drinks-body'];
+      if (!keepParentGroupOpen) expandables.push('groups-parent-body');
+
+      expandables.forEach(id => $(id)?.classList.add('hidden'));
+      
+      const iconMap = {
+        'perks-accordion-body': 'perks-accordion-icon',
+        'admin-accordion-body': 'admin-accordion-icon',
+        'groups-accordion-body': 'groups-accordion-icon',
+        'join-accordion-body': 'join-accordion-icon',
+        'create-accordion-body': 'create-accordion-icon',
+        'missed-drinks-body': 'missed-drinks-icon',
+        'groups-parent-body': 'groups-parent-icon'
+      };
+
+      expandables.forEach(id => {
+        const iconId = iconMap[id];
+        if (iconId && $(iconId)) $(iconId).innerText = '▼';
+      });
     }
 
     function toggleAccordion(bodyId, iconId) {
       const body = $(bodyId), icon = $(iconId), isHidden = body.classList.contains('hidden');
-      closeAllExpandables();
+      const isSubGroupAccordion = ['groups-accordion-body', 'join-accordion-body', 'create-accordion-body'].includes(bodyId);
+      
+      closeAllExpandables(isSubGroupAccordion);
+
       if (isHidden) {
         body.classList.remove('hidden');
         if (icon) icon.innerText = '▲';
@@ -2083,7 +2117,7 @@ https://github.com/Swan-17/how-many`;
     }
 
     function handleGlobalClick(e) {
-      const isInsideCard = ['card-perks-customization', 'admin-trigger-card', 'card-active-groups', 'card-join-group', 'card-create-group', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
+      const isInsideCard = ['card-perks-customization', 'admin-trigger-card', 'card-groups-parent', 'missed-drinks-body'].some(id => $(id)?.contains(e.target));
       const isMissedBtn = e.target.closest('button')?.getAttribute('onclick')?.includes('missed-drinks-body');
       const isInsideHost = activeHostCode && $(`host-panel-${activeHostCode}`)?.contains(e.target);
       if (!isInsideCard && !isMissedBtn && !isInsideHost) closeAllExpandables();
