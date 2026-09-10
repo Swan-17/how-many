@@ -92,6 +92,7 @@
     /* TRUNCATION PROTECTION FOR GROUP ITEMS */
     .group-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; padding-right: 4px; }
 
+    .group-sub-section { border-top: 1px solid var(--border-color); margin-top: 12px; padding-top: 12px; }
     .group-drag-item { border-bottom: 1px solid var(--border-color); }
     .group-drag-item:last-child { border-bottom: none; }
     .group-drag-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -221,26 +222,27 @@
         <button class="btn-submit" onclick="promptInstallApp()">Add to Home Screen 📲</button>
       </div>
 
-      <!-- PARENT GROUPS ACCORDION HOUSING ALL 3 GROUP CARDS -->
+      <!-- SINGLE GROUPS ACCORDION DROPDOWN HOUSING ALL THREE GROUP ACTIONS DIRECTLY -->
       <div class="card" id="card-groups-parent">
         <div class="accordion-header" onclick="toggleAccordion('groups-parent-body', 'groups-parent-icon')">
           <h3>👥 Groups</h3><span id="groups-parent-icon" class="accordion-icon">▼</span>
         </div>
         <div id="groups-parent-body" class="accordion-content hidden">
-          <!-- CARD 1: ACTIVE GROUPS -->
-          <div class="card" id="card-active-groups">
+          
+          <!-- SUB-SECTION 1: ACTIVE GROUPS -->
+          <div>
             <div class="accordion-header" onclick="toggleAccordion('groups-accordion-body', 'groups-accordion-icon')">
-              <h3>Your Active Groups</h3><span id="groups-accordion-icon" class="accordion-icon">▼</span>
+              <h3 style="font-size: 14px;">Your Active Groups</h3><span id="groups-accordion-icon" class="accordion-icon">▼</span>
             </div>
             <div id="groups-accordion-body" class="accordion-content hidden">
               <div id="my-groups-list"></div>
             </div>
           </div>
 
-          <!-- CARD 2: JOIN GROUP -->
-          <div class="card" id="card-join-group">
+          <!-- SUB-SECTION 2: JOIN GROUP -->
+          <div class="group-sub-section">
             <div class="accordion-header" onclick="toggleAccordion('join-accordion-body', 'join-accordion-icon')">
-              <h3>Join a Group</h3><span id="join-accordion-icon" class="accordion-icon">▼</span>
+              <h3 style="font-size: 14px;">Join a Group</h3><span id="join-accordion-icon" class="accordion-icon">▼</span>
             </div>
             <div id="join-accordion-body" class="accordion-content hidden">
               <label>GROUP NAME</label>
@@ -251,10 +253,10 @@
             </div>
           </div>
 
-          <!-- CARD 3: CREATE GROUP -->
-          <div class="card" id="card-create-group" style="margin-bottom: 0;">
+          <!-- SUB-SECTION 3: CREATE GROUP -->
+          <div class="group-sub-section">
             <div class="accordion-header" onclick="toggleAccordion('create-accordion-body', 'create-accordion-icon')">
-              <h3>Create a New Group</h3><span id="create-accordion-icon" class="accordion-icon">▼</span>
+              <h3 style="font-size: 14px;">Create a New Group</h3><span id="create-accordion-icon" class="accordion-icon">▼</span>
             </div>
             <div id="create-accordion-body" class="accordion-content hidden">
               <label>GROUP NAME</label><input type="text" id="create-group-name" placeholder="e.g. Friday Drinks">
@@ -262,6 +264,7 @@
               <button class="btn-submit" onclick="createGroup()">Create & Become Host</button>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -1115,12 +1118,15 @@
       
       if (userJoinedGroups.length > 0) {
         html += userJoinedGroups.map(g => `<option value="${g.code}">${g.name}</option>`).join('');
+        html += `<option value="all_friends">All Friends</option>`;
         html += `<option value="my_stats">My Stats</option>`;
       } else {
         html = `<option value="my_stats">My Stats</option>`;
       }
 
       select.innerHTML = html;
+
+      const validValues = ['my_stats', 'all_friends', ...userJoinedGroups.map(g => g.code)];
 
       if (forceTopSelection) {
         const defaultChoice = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
@@ -1129,13 +1135,13 @@
         return;
       }
 
-      if (currentSelectVal && (currentSelectVal === 'my_stats' || userJoinedGroups.some(g => g.code === currentSelectVal))) {
+      if (currentSelectVal && validValues.includes(currentSelectVal)) {
         select.value = currentSelectVal;
         saveLastSelectedGroup(currentSelectVal);
         return;
       }
 
-      if (savedGroup && (savedGroup === 'my_stats' || userJoinedGroups.some(g => g.code === savedGroup))) {
+      if (savedGroup && validValues.includes(savedGroup)) {
         select.value = savedGroup;
         return;
       }
@@ -1294,6 +1300,109 @@
       }
 
       lbContainer.classList.remove('hidden');
+
+      if (code === 'all_friends') {
+        $('group-total-label').innerText = 'TOTAL ALL FRIENDS BEERS';
+        $('third-chart-title').innerText = 'BEERS BY WEEK';
+        modalBreakdownTitle = 'All Friends Drink Breakdown';
+
+        const { data: members } = await sb.from('group_members').select('user_email, user_name').in('group_code', userJoinedGroups.map(g => g.code));
+        
+        // De-duplicate members across all joined groups
+        const uniqueMembersMap = {};
+        (members || []).forEach(m => {
+          const em = m.user_email.toLowerCase().trim();
+          if (!uniqueMembersMap[em]) uniqueMembersMap[em] = m.user_name || em.split('@')[0];
+        });
+        uniqueMembersMap[userEmail] = userName;
+
+        const friendEmails = Object.keys(uniqueMembersMap);
+        const { data: logs } = await sb.from('drink_logs').select('*').in('user_email', friendEmails);
+
+        let totalFriendsBeers = 0;
+        groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+        const userLogsForBottom = (logs || []).filter(l => l.user_email.toLowerCase().trim() === userEmail);
+        let userMaxDay = 0;
+        const userDrinkTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+        userLogsForBottom.forEach(l => {
+          const b = calculateUnitsAndBeers(l).beers;
+          if (b > userMaxDay) userMaxDay = b;
+          DRINKS.forEach(d => userDrinkTotals[d.key] += (l[d.key] || 0));
+        });
+
+        let userFavDrink = 'None yet', maxDC = 0;
+        DRINKS.forEach(d => {
+          if (userDrinkTotals[d.key] > maxDC) { maxDC = userDrinkTotals[d.key]; userFavDrink = d.label; }
+        });
+
+        const userLongestStreak = calculateUserStreaks(userLogsForBottom);
+
+        $('stat-pr-day').innerText = `${userMaxDay} Beers`;
+        $('stat-favorite-drink').innerText = userFavDrink;
+        $('stat-active-streak').innerText = `${userLongestStreak} Days`;
+
+        const userTotals = friendEmails.map(email => {
+          const name = uniqueMembersMap[email];
+          const userLogs = (logs || []).filter(l => l.user_email.toLowerCase().trim() === email);
+          let beers = 0;
+          const uBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
+
+          userLogs.forEach(l => {
+            beers += calculateUnitsAndBeers(l).beers;
+            DRINKS.forEach(d => {
+              const val = l[d.key] || 0;
+              uBreakdown[d.key] += val;
+              groupTotalsBreakdown[d.key] += val;
+            });
+          });
+
+          userBreakdownsByEmail[email] = uBreakdown;
+          totalFriendsBeers += beers;
+          return { name, email, beers };
+        }).sort((a, b) => b.beers - a.beers);
+
+        userTotals.forEach(i => {
+          const meta = allUsersMetaData[i.email] || {};
+          const titleTag = meta.selected_title ? `<span class="user-title-tag">"${meta.selected_title}"</span>` : '';
+          const badge = getBadgeHTML(i.beers);
+          const globalCrown = (i.email === globalTopUserEmail) ? `<span class="global-crown-icon" title="Global Drink Leader">👑</span>` : '';
+
+          lb.innerHTML += `
+            <div class="member-row">
+              <div class="member-info-container">
+                <span class="user-name-text" title="${i.name}">${i.name}</span>${i.email === userEmail ? '&nbsp;(You)' : ''}
+                ${globalCrown}
+                ${titleTag}
+                ${badge}
+              </div>
+              <strong class="clickable-text" onclick="openUserBreakdownModal('${i.email}', '${i.name}')"><span>${i.beers}</span> 🍺</strong>
+            </div>`;
+        });
+
+        const dailyTotals = friendEmails.map(email => {
+          const name = uniqueMembersMap[email];
+          const todayLog = (logs || []).find(l => l.user_email.toLowerCase().trim() === email && l.log_date === todayStr);
+          return { name, email, beers: todayLog ? calculateUnitsAndBeers(todayLog).beers : 0 };
+        }).filter(i => i.beers > 0).sort((a, b) => b.beers - a.beers);
+
+        dlb.innerHTML = dailyTotals.length ? dailyTotals.map(i => {
+          const globalCrown = (i.email === globalTopUserEmail) ? `<span class="global-crown-icon" title="Global Drink Leader">👑</span>` : '';
+          return `
+            <div class="member-row">
+              <div class="member-info-container">
+                <span class="user-name-text" title="${i.name}">${i.name}</span>${i.email === userEmail ? '&nbsp;(You)' : ''}
+                ${globalCrown}
+              </div>
+              <strong>${i.beers} 🍺</strong>
+            </div>`;
+        }).join('') : '<span style="color:var(--text-muted); font-size:12px;">No beers logged today yet.</span>';
+
+        $('group-total-beers').innerText = `${totalFriendsBeers} 🍺`;
+        renderCharts(logs || [], 'freqChart', 'dowChart', 'weeklyChart', 'weekly');
+        return;
+      }
+
       $('group-total-label').innerText = 'TOTAL GROUP BEERS';
       $('third-chart-title').innerText = 'BEERS BY WEEK';
       modalBreakdownTitle = 'Total Group Drink Breakdown';
