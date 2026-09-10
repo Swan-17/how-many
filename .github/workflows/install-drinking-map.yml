@@ -14,19 +14,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inject feature script into app shell
+      - name: Install test loader into app shell
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text()
-          tag = '<script src="drinking-map.js"></script>'
-          if tag not in s:
-              marker = '</body>'
-              if marker not in s:
-                  raise SystemExit('Could not find </body> in index.html')
-              s = s.replace(marker, f'  {tag}\n{marker}', 1)
-              p.write_text(s)
+          s = s.replace('<script src="drinking-map.js"></script>', '<script src="drinking-map-loader.js?v=1"></script>')
+          p.write_text(s)
+          PY
+      - name: Disable service worker in test shell
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          start = s.find('  <!-- PWA SERVICE WORKER REGISTRATION -->')
+          end = s.find('  <script src="drinking-map-loader.js?v=1"></script>')
+          if start != -1 and end != -1 and end > start:
+              s = s[:start] + '  <!-- Service worker disabled for drinking map test -->\n' + s[end:]
+          p.write_text(s)
           PY
       - name: Commit injected app shell
         run: |
@@ -34,5 +41,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Integrate drinking map test feature [drinking-map-injected]"
+          git commit -m "Use uncached drinking map test loader [drinking-map-injected]"
           git push
