@@ -16,6 +16,8 @@
   }
 
   loadScript('./drinking-map.js', () => {
-    loadScript('./top-venues.js');
+    loadScript('./drinking-map-events-fix.js', () => {
+      loadScript('./top-venues.js');
+    });
   });
 })();
