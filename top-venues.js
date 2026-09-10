@@ -19,6 +19,7 @@
       #top-venues-list { margin-top: 4px; }
       #top-venues-list > div:last-child { border-bottom: none !important; }
       #top-venues-map-page { position:fixed; inset:0; z-index:9999; min-height:100dvh; height:100dvh; width:100%; background:var(--bg-main); overflow:hidden; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); box-sizing:border-box; }
+      #top-venues-map-page.top-map-preloading { display:block !important; visibility:hidden; pointer-events:none; opacity:0; }
       #top-venues-map-page .top-map-shell { height:100%; min-height:0; display:flex; flex-direction:column; }
       #top-venues-map-page .top-map-title { flex:0 0 auto; margin:0; padding:10px 14px 8px; font-size:16px; color:var(--primary-color); text-align:center; }
       #top-venues-map-wrap { flex:1 1 auto; min-height:0; padding:0 10px; box-sizing:border-box; }
@@ -183,8 +184,9 @@
         return;
       }
       list.innerHTML = venues.map((v,i) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:800;font-size:13px">${i+1}. ${esc(v.name)}</div>${v.address ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>` : ''}</div><strong style="color:var(--primary-color);white-space:nowrap">${wholeBeers(v.drinks)} beers</strong></div>`).join('');
-      const hasMapPoints = venues.some(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
-      $('show-venues-map-btn')?.classList.toggle('hidden', !hasMapPoints);
+      const points = venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
+      $('show-venues-map-btn')?.classList.toggle('hidden', !points.length);
+      primeMap(points);
     } catch (e) {
       list.innerHTML = `<div style="color:#fca5a5;font-size:12px;padding:10px 0">${esc(e.message || 'Could not load venues.')}</div>`;
     } finally { loading = false; }
@@ -214,35 +216,32 @@
     return wrap;
   }
 
-  async function openTopVenuesMapPage() {
-    const points = venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
-    if (!points.length) return;
+  function createMapForPoints(points) {
     const mapPage = ensureMapPage();
-    if (!mapPage) return;
+    const mapEl = $('top-venues-map');
+    if (!mapPage || !mapEl || !points.length || mapInstance) return Promise.resolve();
+    mapPage.classList.add('top-map-preloading');
+    return loadMapLibre().then(() => {
+      mapInstance = new window.maplibregl.Map({
+        container: mapEl,
+        style: 'https://tiles.openfreemap.org/styles/bright',
+        center: [points[0].longitude, points[0].latitude],
+        zoom: 12,
+        attributionControl: true,
+        cooperativeGestures: true
+      });
+      mapInstance.addControl(new window.maplibregl.NavigationControl({showCompass:false}), 'top-right');
+      return new Promise(resolve => mapInstance.once('load', resolve));
+    }).finally(() => {
+      mapPage.classList.remove('top-map-preloading');
+    });
+  }
+
+  async function primeMap(points) {
+    if (!points.length) return;
     try {
-      collapseTopVenues();
-      await loadMapLibre();
-      ['account','tracker','stats','admin'].forEach(page => $(`page-${page}`)?.classList.add('hidden'));
-      ['account','tracker','stats','admin'].forEach(page => $(`nav-${page}`)?.classList.remove('active'));
-      const nav = document.querySelector('nav');
-      if (nav) nav.classList.add('hidden');
-      mapPage.classList.remove('hidden');
-      document.body.classList.add('top-venues-map-open');
-
-      const mapEl = $('top-venues-map');
-      if (!mapInstance) {
-        mapInstance = new window.maplibregl.Map({
-          container: mapEl,
-          style: 'https://tiles.openfreemap.org/styles/positron',
-          center: [points[0].longitude, points[0].latitude],
-          zoom: 12,
-          attributionControl: true,
-          cooperativeGestures: true
-        });
-        mapInstance.addControl(new window.maplibregl.NavigationControl({showCompass:false}), 'top-right');
-        await new Promise(resolve => mapInstance.once('load', resolve));
-      }
-
+      await createMapForPoints(points);
+      if (!mapInstance) return;
       mapMarkers.forEach(marker => marker.remove());
       mapMarkers = points.map(v => {
         const marker = new window.maplibregl.Marker({element: beerMarkerElement(), anchor:'bottom'})
@@ -251,11 +250,43 @@
           .addTo(mapInstance);
         return marker;
       });
-
       const bounds = new window.maplibregl.LngLatBounds();
       points.forEach(v => bounds.extend([v.longitude, v.latitude]));
-      if (points.length === 1) mapInstance.easeTo({center:[points[0].longitude, points[0].latitude], zoom:14, duration:350});
-      else mapInstance.fitBounds(bounds, {padding:50, maxZoom:15, duration:350});
+      if (points.length === 1) mapInstance.jumpTo({center:[points[0].longitude, points[0].latitude], zoom:14});
+      else mapInstance.fitBounds(bounds, {padding:50, maxZoom:15, duration:0});
+    } catch (e) {
+      console.warn('Top Venues map preload failed:', e);
+    }
+  }
+
+  async function openTopVenuesMapPage() {
+    const points = venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
+    if (!points.length) return;
+    const mapPage = ensureMapPage();
+    if (!mapPage) return;
+    try {
+      collapseTopVenues();
+      await createMapForPoints(points);
+      ['account','tracker','stats','admin'].forEach(page => $(`page-${page}`)?.classList.add('hidden'));
+      ['account','tracker','stats','admin'].forEach(page => $(`nav-${page}`)?.classList.remove('active'));
+      const nav = document.querySelector('nav');
+      if (nav) nav.classList.add('hidden');
+      mapPage.classList.remove('hidden');
+      document.body.classList.add('top-venues-map-open');
+
+      if (!mapInstance) return;
+      mapMarkers.forEach(marker => marker.remove());
+      mapMarkers = points.map(v => {
+        const marker = new window.maplibregl.Marker({element: beerMarkerElement(), anchor:'bottom'})
+          .setLngLat([v.longitude, v.latitude])
+          .setPopup(new window.maplibregl.Popup({offset:18}).setHTML(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${wholeBeers(v.drinks)} beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`))
+          .addTo(mapInstance);
+        return marker;
+      });
+      const bounds = new window.maplibregl.LngLatBounds();
+      points.forEach(v => bounds.extend([v.longitude, v.latitude]));
+      if (points.length === 1) mapInstance.easeTo({center:[points[0].longitude, points[0].latitude], zoom:14, duration:0});
+      else mapInstance.fitBounds(bounds, {padding:50, maxZoom:15, duration:0});
       mapInstance.resize();
       window.scrollTo({top:0, behavior:'smooth'});
     } catch (e) {
@@ -277,6 +308,8 @@
     const card = ensureCard(), select = $('analytics-group-select');
     if (!card || !select) return;
     card.classList.remove('hidden');
+    ensureMapPage();
+    loadMapLibre().catch(() => {});
     if (!select.__topVenuesBound) {
       select.addEventListener('change', () => { loadTopVenues(); });
       select.__topVenuesBound = true;
