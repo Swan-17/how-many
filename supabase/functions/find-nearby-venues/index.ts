@@ -42,7 +42,7 @@ serve(async (req) => {
       primaryType: place.primaryType || '',
     }));
 
-    return new Response(JSON.stringify({ places, mapsJsKey: key }), {
+    return new Response(JSON.stringify({ places }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
