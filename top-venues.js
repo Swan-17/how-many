@@ -1,13 +1,8 @@
 /* How Many Beers - Group top venues stats */
 (function () {
-  const TOP_VENUES_SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
-  const TOP_VENUES_SUPABASE_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
-  const topVenuesSb = supabase.createClient(TOP_VENUES_SUPABASE_URL, TOP_VENUES_SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-  });
-
   let installed = false;
   let currentRequest = 0;
+
   const $ = id => document.getElementById(id);
 
   function esc(v) {
@@ -19,6 +14,7 @@
     const s = document.createElement('style');
     s.id = 'top-venues-styles';
     s.textContent = `
+      #top-venues-card .top-venues-toggle { width: 100%; padding: 12px; font-size: 13px; }
       #top-venues-card .top-venues-list { margin-top: 12px; }
       #top-venues-card .top-venue-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-color); }
       #top-venues-card .top-venue-row:last-child { border-bottom: none; }
@@ -44,7 +40,7 @@
     card.id = 'top-venues-card';
     card.className = 'card hidden';
     card.innerHTML = `
-      <div class="accordion-header" onclick="toggleTopVenues()">
+      <div class="accordion-header" onclick="toggleTopVenues()" style="padding:2px 0;">
         <h3 style="margin: 0; font-size: 15px; color: var(--text-muted);">TOP VENUES</h3>
         <span id="top-venues-icon" class="accordion-icon">▼</span>
       </div>
@@ -62,8 +58,9 @@
 
     const select = $('analytics-group-select');
     const code = select?.value;
-    card.classList.toggle('hidden', !code || code === 'my_stats' || code === 'all_friends');
-    if (!code || code === 'my_stats' || code === 'all_friends') return;
+    const isPersonal = !code || code === 'my_stats' || code === 'all_friends';
+    card.classList.toggle('hidden', isPersonal);
+    if (isPersonal) return;
 
     const list = $('top-venues-list');
     const body = $('top-venues-body');
@@ -77,14 +74,12 @@
     const requestId = ++currentRequest;
     list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Loading venues…</div>';
 
-    const { data: sessionData } = await topVenuesSb.auth.getSession();
-    const email = (sessionData?.session?.user?.email || '').toLowerCase().trim();
-    if (!email) {
-      list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Please log in to view venues.</div>';
+    if (!window.sb) {
+      list.innerHTML = '<div style="color:#fca5a5;font-size:12px;">Stats database is not ready yet. Try again in a moment.</div>';
       return;
     }
 
-    const { data: members, error: memberError } = await topVenuesSb
+    const { data: members, error: memberError } = await window.sb
       .from('group_members')
       .select('user_email')
       .eq('group_code', code);
@@ -96,33 +91,17 @@
     }
 
     const memberEmails = Array.from(new Set((members || []).map(m => (m.user_email || '').toLowerCase().trim()).filter(Boolean)));
-    if (!memberEmails.includes(email)) memberEmails.push(email);
     if (!memberEmails.length) {
-      list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">No group members found.</div>';
+      list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">No members found for this group.</div>';
       return;
     }
 
-    const { data: group, error: groupError } = await topVenuesSb
-      .from('groups')
-      .select('created_at')
-      .eq('code', code)
-      .maybeSingle();
-
-    if (requestId !== currentRequest) return;
-    if (groupError) {
-      list.innerHTML = `<div style="color:#fca5a5;font-size:12px;">${esc(groupError.message)}</div>`;
-      return;
-    }
-
-    let sessionsQuery = topVenuesSb
+    const { data: sessions, error: sessionError } = await window.sb
       .from('drinking_sessions')
       .select('id, user_email, venue_name, venue_address, started_at')
       .in('user_email', memberEmails)
       .order('started_at', { ascending: false });
 
-    if (group?.created_at) sessionsQuery = sessionsQuery.gte('started_at', group.created_at);
-
-    const { data: sessions, error: sessionError } = await sessionsQuery;
     if (requestId !== currentRequest) return;
     if (sessionError) {
       list.innerHTML = `<div style="color:#fca5a5;font-size:12px;">${esc(sessionError.message)}</div>`;
@@ -135,7 +114,7 @@
     }
 
     const sessionIds = sessions.map(s => s.id);
-    const { data: events, error: eventError } = await topVenuesSb
+    const { data: events, error: eventError } = await window.sb
       .from('drink_location_events')
       .select('session_id, delta')
       .in('session_id', sessionIds);
@@ -162,11 +141,12 @@
           sessions: 0
         };
       }
-      venues[venueKey].drinks += Math.max(0, drinksBySession[session.id] || 0);
+      venues[venueKey].drinks += drinksBySession[session.id] || 0;
       venues[venueKey].sessions += 1;
     });
 
     const rows = Object.values(venues)
+      .map(v => ({ ...v, drinks: Math.max(0, v.drinks) }))
       .sort((a, b) => b.drinks - a.drinks || b.sessions - a.sessions || a.name.localeCompare(b.name));
 
     list.innerHTML = rows.map(v => `
@@ -204,7 +184,7 @@
       const original = window.switchPage;
       window.switchPage = function (page) {
         const result = original(page);
-        if (page === 'stats') setTimeout(loadTopVenues, 50);
+        if (page === 'stats') setTimeout(loadTopVenues, 100);
         return result;
       };
       window.__howManyTopVenuesPageHook = true;
