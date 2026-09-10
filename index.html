@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- FIX 1: Prevent viewport pinch-zooming and default zoom scaling on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>🍺 How Many Beers</title>
 
   <!-- PWA & MOBILE META TAGS -->
@@ -26,7 +27,14 @@
       --text-muted: #94a3b8;
     }
 
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    /* FIX 2: Disable double-tap-to-zoom and prevent iOS text auto-resizing */
+    * { 
+      box-sizing: border-box; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: manipulation; 
+      -webkit-text-size-adjust: 100%;
+    }
+
     body { background: var(--bg-main); color: var(--text-main); max-width: 520px; margin: 0 auto; padding: 16px; }
     nav { display: flex; gap: 6px; margin-bottom: 16px; }
     nav button { flex: 1; padding: 10px 4px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 8px; font: bold 13px inherit; cursor: pointer; }
@@ -52,8 +60,10 @@
     .clickable-text span { text-decoration: underline dotted; }
     .clickable-text:hover { color: var(--primary-hover); }
     .click-hint { font-size: 10px; color: #64748b; margin-top: 4px; display: block; text-transform: none; }
+    
+    /* FIX 3: Ensure touch action is locked on rapid beer counter buttons */
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .btn-circle { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .btn-circle { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
     .btn-minus { background: var(--border-color); color: white; }
     .btn-plus { background: var(--primary-color); color: black; }
     .count-val { font-size: 22px; font-weight: 800; color: var(--primary-color); min-width: 24px; text-align: center; }
@@ -61,11 +71,13 @@
     .unit-text { font-size: 12px; color: var(--text-muted); }
     .beer-text { font-size: 28px; font-weight: 900; color: var(--primary-color); margin-top: 2px; }
     .hidden { display: none !important; }
-    input, select { background: var(--bg-main); border: 1px solid var(--border-color); color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; }
+
+    /* FIX 4: Set font size to 16px to prevent iOS auto-zoom when tapping into text inputs */
+    input, select { background: var(--bg-main); border: 1px solid var(--border-color); color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; font-size: 16px; }
     label { color: var(--text-muted); font-size: 12px; }
-    .btn-submit { background: var(--primary-color); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
+    .btn-submit { background: var(--primary-color); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; touch-action: manipulation; }
     .btn-submit:disabled { opacity: 0.6; cursor: default; }
-    .btn-danger, .btn-secondary, .btn-share, .btn-admin { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; }
+    .btn-danger, .btn-secondary, .btn-share, .btn-admin { border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; touch-action: manipulation; }
     .btn-danger { background: #ef4444; }
     .btn-secondary { background: var(--border-color); }
     .btn-share { background: #059669; }
@@ -97,7 +109,7 @@
     .calendar-scroll-area { max-height: 240px; overflow-y: auto; padding-right: 4px; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
     .calendar-day-header { font-size: 10px; font-weight: bold; color: #64748b; padding-bottom: 4px; }
-    .calendar-day { padding: 8px 0; font-size: 12px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); cursor: pointer; user-select: none; transition: background 0.15s ease; }
+    .calendar-day { padding: 8px 0; font-size: 12px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); cursor: pointer; user-select: none; transition: background 0.15s ease; touch-action: manipulation; }
     .calendar-day:hover:not(.disabled) { background: var(--border-color); }
     .calendar-day.selected { background: var(--primary-color); color: #000; font-weight: bold; }
     .calendar-day.today { border: 1px solid var(--primary-color); }
