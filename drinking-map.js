@@ -3,12 +3,12 @@
   const MAP_SUPABASE_URL = 'https://wxxhppoikbtccsjzaugt.supabase.co';
   const MAP_SUPABASE_KEY = 'sb_publishable_U7nMVicWbqOwWRmLe26udQ_QpMjfdag';
   const mapSb = supabase.createClient(MAP_SUPABASE_URL, MAP_SUPABASE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'how-many-drinking-map-test-auth' }
   });
   const MAP_FUNCTION_URL = `${MAP_SUPABASE_URL}/functions/v1/find-nearby-venues`;
   let activeSession = null, selectedGroupCode = null, venueCandidates = [];
   const el = id => document.getElementById(id);
-  const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const esc = v => String(v ?? '').replace(/[&<>'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
 
   async function currentUser() {
     const session = (typeof sb !== 'undefined' && sb?.auth) ? (await sb.auth.getSession()).data?.session : null;
