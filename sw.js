@@ -1,4 +1,4 @@
-const CACHE_NAME='beer-tracker-v22';
+const CACHE_NAME='beer-tracker-v23';
 const UI='./group-password-ui-v10.js?v=10';
 const urlsToCache=['./','./index.html','./manifest.json',UI];
 self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(urlsToCache)))});
