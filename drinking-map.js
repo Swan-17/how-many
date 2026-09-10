@@ -182,33 +182,23 @@
       const count = $(`cnt-${type}`), before = Number(count?.innerText || 0);
       await original(type, delta);
       const after = Number(count?.innerText || 0);
-      if (after === before + delta) await recordDrinkEvent(type, delta, $('today-date-label')?.innerText || new Date().toISOString().slice(0,10));
+      if (after === before + delta) {
+        if (delta > 0) closeTrackerSearch();
+        await recordDrinkEvent(type, delta, $('today-date-label')?.innerText || new Date().toISOString().slice(0,10));
+      }
     };
     window.__howManyMapDrinkHook = true;
   }
 
   function installSearchAutoClose() {
     if (window.__howManyMapSearchAutoClose) return;
-    document.addEventListener('pointerdown', event => {
-      if (!trackerSearchOpen || activeSession) return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const card = $('tracker-check-in-card');
-      if (!card) return;
-      if (card.contains(target)) return;
-      closeTrackerSearch();
-    }, true);
-
-    document.addEventListener('focusin', event => {
-      if (!trackerSearchOpen || activeSession) return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const card = $('tracker-check-in-card');
-      if (!card) return;
-      if (card.contains(target)) return;
-      closeTrackerSearch();
-    }, true);
-
+    const tracker = $('page-tracker');
+    if (tracker && window.MutationObserver) {
+      const observer = new MutationObserver(() => {
+        if (trackerSearchOpen && !activeSession && tracker.classList.contains('hidden')) closeTrackerSearch();
+      });
+      observer.observe(tracker, {attributes:true, attributeFilter:['class']});
+    }
     window.__howManyMapSearchAutoClose = true;
   }
 
