@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- FIX 1: Prevent viewport pinch-zooming and default zoom scaling on mobile -->
+  <!-- PREVENT VIEWPORT PINCH-ZOOMING AND SCALING ON MOBILE -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>🍺 How Many Beers</title>
 
@@ -27,7 +27,7 @@
       --text-muted: #94a3b8;
     }
 
-    /* FIX 2: Disable double-tap-to-zoom and prevent iOS text auto-resizing */
+    /* DISABLE DOUBLE-TAP-TO-ZOOM AND PREVENT IOS TEXT AUTO-RESIZING */
     * { 
       box-sizing: border-box; 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -61,7 +61,6 @@
     .clickable-text:hover { color: var(--primary-hover); }
     .click-hint { font-size: 10px; color: #64748b; margin-top: 4px; display: block; text-transform: none; }
     
-    /* FIX 3: Ensure touch action is locked on rapid beer counter buttons */
     .counter-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
     .btn-circle { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
     .btn-minus { background: var(--border-color); color: white; }
@@ -72,7 +71,7 @@
     .beer-text { font-size: 28px; font-weight: 900; color: var(--primary-color); margin-top: 2px; }
     .hidden { display: none !important; }
 
-    /* FIX 4: Set font size to 16px to prevent iOS auto-zoom when tapping into text inputs */
+    /* FONT SIZE SET TO 16PX TO PREVENT IOS FOCUS ZOOM */
     input, select { background: var(--bg-main); border: 1px solid var(--border-color); color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 4px; font-size: 16px; }
     label { color: var(--text-muted); font-size: 12px; }
     .btn-submit { background: var(--primary-color); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; touch-action: manipulation; }
@@ -798,7 +797,6 @@
     }
 
     async function fetchUserGroups() {
-      // Include created_at from groups table
       const { data } = await sb.from('group_members').select('group_code, groups(name, host_email, join_code, created_at)').eq('user_email', userEmail);
       userJoinedGroups = data ? data.map(d => ({ 
         code: d.group_code, 
@@ -996,16 +994,21 @@
       $('join-group-name').value = ''; $('join-group-code').value = ''; closeAllExpandables(); await fetchUserGroups();
     }
 
+    /* UPDATED: LEAVE GROUP HANDLER */
     async function leaveGroup(code) {
       if (!confirm('Leave this group?')) return;
-      await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
+      const { error } = await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
+      if (error) return alert('Failed to leave group: ' + error.message);
       if (activeHostCode === code) closeHostPanel();
       await fetchUserGroups();
     }
 
+    /* UPDATED: DELETE GROUP HANDLER */
     async function deleteGroup(code) {
       if (!confirm(`Delete group "${code}" for everyone?`)) return;
-      await sb.from('groups').delete().eq('code', code);
+      await sb.from('group_members').delete().eq('group_code', code);
+      const { error } = await sb.from('groups').delete().eq('code', code);
+      if (error) return alert('Failed to delete group: ' + error.message);
       closeHostPanel();
       await fetchUserGroups();
     }
@@ -1095,7 +1098,6 @@
 
       select.innerHTML = html;
 
-      // 1. Force top group selection (e.g. user reordered groups)
       if (forceTopSelection) {
         const defaultChoice = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
         select.value = defaultChoice;
@@ -1103,20 +1105,17 @@
         return;
       }
 
-      // 2. Preserve active DOM element selection if valid
       if (currentSelectVal && (currentSelectVal === 'my_stats' || userJoinedGroups.some(g => g.code === currentSelectVal))) {
         select.value = currentSelectVal;
         saveLastSelectedGroup(currentSelectVal);
         return;
       }
 
-      // 3. Fallback to localStorage saved choice across reloads
       if (savedGroup && (savedGroup === 'my_stats' || userJoinedGroups.some(g => g.code === savedGroup))) {
         select.value = savedGroup;
         return;
       }
 
-      // 4. Default to top group
       const fallbackChoice = userJoinedGroups.length > 0 ? userJoinedGroups[0].code : 'my_stats';
       select.value = fallbackChoice;
       saveLastSelectedGroup(fallbackChoice);
@@ -1128,7 +1127,6 @@
       renderAnalytics();
     }
 
-    // TEXT DESCRIPTION BADGES
     function getBadgeHTML(beers) {
       if (beers >= 1000) return `<span class="century-badge badge-1000">Grand Sovereign</span>`;
       if (beers >= 500) return `<span class="century-badge badge-500">Tavern Lord</span>`;
@@ -1137,7 +1135,6 @@
       return '';
     }
 
-    // HELPER TO CALCULATE ACTIVE & LONGEST STREAKS ACCURATELY
     function calculateUserStreaks(logsList) {
       let currentStreak = 0, tempStreak = 0;
       const checkDate = new Date();
@@ -1203,7 +1200,6 @@
         allUsersMetaData[u.email.toLowerCase().trim()] = u;
       });
 
-      // Calculate absolute top user across whole app
       const userTotals = {};
       (logsRes.data || []).forEach(l => {
         const email = l.user_email.toLowerCase().trim();
@@ -1289,7 +1285,6 @@
       const memberEmails = members.map(m => m.user_email.toLowerCase().trim());
       let { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
 
-      // Filter group logs to entries on or after group creation date
       if (groupCreatedDate && logs) {
         logs = logs.filter(l => l.log_date >= groupCreatedDate);
       }
@@ -1297,7 +1292,6 @@
       let totalGroupBeers = 0;
       groupTotalsBreakdown = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
 
-      // Calculate personal highlights correctly for the logged-in user in Group view
       const userLogsForBottom = (logs || []).filter(l => l.user_email.toLowerCase().trim() === userEmail);
       let userMaxDay = 0;
       const userDrinkTotals = { pints: 0, bottles: 0, wines: 0, cocktails: 0, shots: 0 };
@@ -1407,22 +1401,20 @@
         }
       });
 
-      // Generate a complete consecutive sequence from 1 to maxBeers (1, 2, 3, 4...)
       const rawAmts = Object.keys(freqMap).map(Number);
       const maxBeers = rawAmts.length > 0 ? Math.max(...rawAmts) : 0;
       const sequentialAmts = [];
       const freqData = [];
 
       for (let i = 1; i <= maxBeers; i++) {
-        sequentialAmts.push(String(i)); // Plain number labels ("1", "2", "3"...)
-        freqData.push(freqMap[i] || 0);  // Use frequency count, or 0 if never logged
+        sequentialAmts.push(String(i));
+        freqData.push(freqMap[i] || 0);
       }
 
       const computedPrimary = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#f59e0b';
       const accentColor = freqCanvasId.startsWith('admin') ? '#8b5cf6' : computedPrimary;
       const accentBg = freqCanvasId.startsWith('admin') ? 'rgba(139, 92, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)';
 
-      // Common options to force horizontal, non-angled labels across charts
       const horizontalTickOptions = {
         maxRotation: 0,
         minRotation: 0
@@ -1593,7 +1585,6 @@
       }
     }
 
-    // MILESTONE CHECK & POPUP NOTIFICATIONS
     function checkAndNotifyMilestones(prevBeers, currentBeers) {
       if (!prevBeers) return;
       const milestones = [
@@ -1616,7 +1607,6 @@
       $('milestone-modal').classList.add('hidden');
     }
 
-    // INSTALL PWA PROMPT LOGIC
     function promptInstallApp() {
       if (deferredInstallPrompt) {
         deferredInstallPrompt.prompt();
@@ -1682,7 +1672,6 @@
     }
 
     function renderPerksCustomizationUI() {
-      // 100 BEERS: THEMES
       const themeBox = $('perk-theme-container');
       if (userLifetimeBeers >= 100) {
         themeBox.innerHTML = `
@@ -1697,7 +1686,6 @@
         themeBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 100 beers to unlock custom UI colors)</span>`;
       }
 
-      // 250 BEERS: ICONS
       const iconBox = $('perk-icon-container');
       if (userLifetimeBeers >= 250) {
         iconBox.innerHTML = `
@@ -1709,7 +1697,6 @@
         iconBox.innerHTML = `<span class="locked-perk-text">🔒 Locked (Reach 250 beers to unlock drink icon styles)</span>`;
       }
 
-      // 500 BEERS: TITLE
       const titleBox = $('perk-title-container');
       if (userLifetimeBeers >= 500) {
         titleBox.innerHTML = `
@@ -1830,7 +1817,6 @@
       const memberEmails = members.map(m => m.user_email.toLowerCase().trim());
       let { data: logs } = await sb.from('drink_logs').select('*').in('user_email', memberEmails);
 
-      // Filter group logs to creation date
       if (groupCreatedDate && logs) {
         logs = logs.filter(l => l.log_date >= groupCreatedDate);
       }
@@ -2036,35 +2022,35 @@
       }
     }
 
-  async function shareGroup(e, code) {
-  if (e) e.stopPropagation();
-  const group = userJoinedGroups.find(g => g.code === code);
-  const groupName = group?.name || 'Group';
-  const joinCode = String(group?.join_code || code || '').toUpperCase();
+    async function shareGroup(e, code) {
+      if (e) e.stopPropagation();
+      const group = userJoinedGroups.find(g => g.code === code);
+      const groupName = group?.name || 'Group';
+      const joinCode = String(group?.join_code || code || '').toUpperCase();
 
-  const shareText = `Join my How Many Beers group
+      const shareText = `Join my How Many Beers group
 
 Group Name: ${groupName}
 Unique Code: ${joinCode}
 
 https://github.com/Swan-17/how-many`;
 
-  if (navigator.share) {
-    try {
-      await navigator.share({ text: shareText });
-    } catch (err) {
-      if (err?.name !== 'AbortError') console.error(err);
-    }
-    return;
-  }
+      if (navigator.share) {
+        try {
+          await navigator.share({ text: shareText });
+        } catch (err) {
+          if (err?.name !== 'AbortError') console.error(err);
+        }
+        return;
+      }
 
-  try {
-    await navigator.clipboard.writeText(shareText);
-    alert('Group invite copied!');
-  } catch (err) {
-    prompt('Copy this group invite:', shareText);
-  }
-}
+      try {
+        await navigator.clipboard.writeText(shareText);
+        alert('Group invite copied!');
+      } catch (err) {
+        prompt('Copy this group invite:', shareText);
+      }
+    }
 
     function closeAllExpandables() {
       closeHostPanel();
