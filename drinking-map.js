@@ -1,7 +1,7 @@
 /* How Many Beers - Drinking Map test feature */
 (function () {
-  const MAP_SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
-  const MAP_SUPABASE_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
+const MAP_SUPABASE_URL = 'https://wxxhppoikbtccsjzaugt.supabase.co';
+const MAP_SUPABASE_KEY = 'sb_publishable_U7nMVicWbqOwWRmLe26udQ_QpMjfdag';
   const mapSb = supabase.createClient(MAP_SUPABASE_URL, MAP_SUPABASE_KEY);
   const MAP_FUNCTION_URL = `${MAP_SUPABASE_URL}/functions/v1/find-nearby-venues`;
   let mapInstance = null, mapMarkers = [], selectedGroupCode = null, activeSession = null, venueCandidates = [], originalAdjustDrink = null, originalSwitchPage = null;
