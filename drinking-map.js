@@ -84,7 +84,9 @@
         <div id="venue-candidates"></div>
       </div>`;
 
-    $('tracker-check-in-btn')?.addEventListener('click', () => {
+    $('tracker-check-in-btn')?.addEventListener('click', async () => {
+      const session = await loadActiveSession();
+      if (session) return;
       trackerSearchOpen = true;
       renderTrackerCard();
       setTimeout(() => $('drinking-venue-search')?.focus(), 50);
@@ -278,11 +280,26 @@
   window.endDrinkingSession = endDrinkingSession;
   window.loadActiveDrinkingSession = loadActiveSession;
   window.syncDrinkingCheckInButton = ensureTrackerCard;
-  window.openDrinkingCheckIn = function () {
+  window.openDrinkingCheckIn = async function () {
+    const session = await loadActiveSession();
+    if (session) return;
     trackerSearchOpen = true;
     ensureTrackerCard();
     setTimeout(() => $('drinking-venue-search')?.focus(), 50);
   };
+
+  mapSb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'SIGNED_OUT') {
+      setTimeout(() => {
+        if (session?.user) loadActiveSession();
+        else {
+          activeSession = null;
+          trackerSearchOpen = false;
+          renderTrackerCard();
+        }
+      }, 0);
+    }
+  });
 
   const timer = setInterval(() => {
     if ($('page-tracker')) {
