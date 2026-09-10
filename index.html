@@ -994,21 +994,30 @@
       $('join-group-name').value = ''; $('join-group-code').value = ''; closeAllExpandables(); await fetchUserGroups();
     }
 
-    /* UPDATED: LEAVE GROUP HANDLER */
+    /* SECURE LEAVE GROUP HANDLER VIA RPC */
     async function leaveGroup(code) {
       if (!confirm('Leave this group?')) return;
-      const { error } = await sb.from('group_members').delete().eq('group_code', code).eq('user_email', userEmail);
-      if (error) return alert('Failed to leave group: ' + error.message);
+      
+      const { error } = await sb.rpc('leave_group_secure', { p_group_code: code });
+      
+      if (error) {
+        return alert('Failed to leave group: ' + error.message);
+      }
+      
       if (activeHostCode === code) closeHostPanel();
       await fetchUserGroups();
     }
 
-    /* UPDATED: DELETE GROUP HANDLER */
+    /* SECURE DELETE GROUP HANDLER VIA RPC */
     async function deleteGroup(code) {
       if (!confirm(`Delete group "${code}" for everyone?`)) return;
-      await sb.from('group_members').delete().eq('group_code', code);
-      const { error } = await sb.from('groups').delete().eq('code', code);
-      if (error) return alert('Failed to delete group: ' + error.message);
+      
+      const { error } = await sb.rpc('delete_group_secure', { p_group_code: code });
+      
+      if (error) {
+        return alert('Failed to delete group: ' + error.message);
+      }
+      
       closeHostPanel();
       await fetchUserGroups();
     }
