@@ -12,7 +12,15 @@
       const venues = document.createElement('script');
       venues.src = './top-venues.js?test=' + Date.now();
       venues.async = false;
-      venues.onload = () => console.log('Top venues stats script loaded');
+      venues.onload = () => {
+        console.log('Top venues stats script loaded');
+        const fix = document.createElement('script');
+        fix.src = './drinking-map-ui-fix.js?test=' + Date.now();
+        fix.async = false;
+        fix.onload = () => console.log('Drinking map UI fix loaded');
+        fix.onerror = () => console.error('Drinking map UI fix failed to load');
+        document.head.appendChild(fix);
+      };
       venues.onerror = () => console.error('Top venues stats script failed to load');
       document.head.appendChild(venues);
     };
