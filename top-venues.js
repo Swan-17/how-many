@@ -1,5 +1,10 @@
 /* How Many Beers - Group top venues stats */
 (function () {
+  const SB_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
+  const SB_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
+  const statsSb = supabase.createClient(SB_URL, SB_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  });
   let installed = false;
   let currentRequest = 0;
 
@@ -14,7 +19,6 @@
     const s = document.createElement('style');
     s.id = 'top-venues-styles';
     s.textContent = `
-      #top-venues-card .top-venues-toggle { width: 100%; padding: 12px; font-size: 13px; }
       #top-venues-card .top-venues-list { margin-top: 12px; }
       #top-venues-card .top-venue-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-color); }
       #top-venues-card .top-venue-row:last-child { border-bottom: none; }
@@ -74,12 +78,7 @@
     const requestId = ++currentRequest;
     list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Loading venues…</div>';
 
-    if (!window.sb) {
-      list.innerHTML = '<div style="color:#fca5a5;font-size:12px;">Stats database is not ready yet. Try again in a moment.</div>';
-      return;
-    }
-
-    const { data: members, error: memberError } = await window.sb
+    const { data: members, error: memberError } = await statsSb
       .from('group_members')
       .select('user_email')
       .eq('group_code', code);
@@ -96,7 +95,7 @@
       return;
     }
 
-    const { data: sessions, error: sessionError } = await window.sb
+    const { data: sessions, error: sessionError } = await statsSb
       .from('drinking_sessions')
       .select('id, user_email, venue_name, venue_address, started_at')
       .in('user_email', memberEmails)
@@ -114,7 +113,7 @@
     }
 
     const sessionIds = sessions.map(s => s.id);
-    const { data: events, error: eventError } = await window.sb
+    const { data: events, error: eventError } = await statsSb
       .from('drink_location_events')
       .select('session_id, delta')
       .in('session_id', sessionIds);
