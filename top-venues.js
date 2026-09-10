@@ -153,6 +153,55 @@
     return [...new Set((data || []).map(x => String(x.user_email || '').toLowerCase().trim()).filter(Boolean))];
   }
 
+  function logDateKey(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+    return match ? match[1] : text.slice(0, 10);
+  }
+
+  function beerTotalFromLog(log) {
+    return Object.entries({pints:log?.pints,bottles:log?.bottles,wines:log?.wines,cocktails:log?.cocktails,shots:log?.shots})
+      .reduce((sum, [type, value]) => sum + beerEquivalent(type, value), 0);
+  }
+
+  async function loadLegacyDrinkFallback(emails, sessions) {
+    if (!emails.length || !sessions.length) return {};
+    const { data: logs, error } = await sb.from('drink_logs').select('user_email,log_date,pints,bottles,wines,cocktails,shots').in('user_email', emails);
+    if (error) throw error;
+
+    const sessionsByEmailDate = {};
+    (sessions || []).forEach(session => {
+      const email = String(session.user_email || '').toLowerCase().trim();
+      const started = String(session.started_at || '').slice(0, 10);
+      const ended = session.ended_at ? String(session.ended_at).slice(0, 10) : null;
+      if (!email || !started) return;
+      const dates = [];
+      if (!ended || ended === started) dates.push(started);
+      else {
+        const start = new Date(`${started}T12:00:00`);
+        const finish = new Date(`${ended}T12:00:00`);
+        for (let cursor = new Date(start); cursor <= finish; cursor.setDate(cursor.getDate() + 1)) dates.push(cursor.toISOString().slice(0, 10));
+      }
+      dates.forEach(date => {
+        const key = `${email}|${date}`;
+        (sessionsByEmailDate[key] ||= []).push(session);
+      });
+    });
+
+    const fallback = {};
+    (logs || []).forEach(log => {
+      const email = String(log.user_email || '').toLowerCase().trim();
+      const date = logDateKey(log.log_date);
+      const matchingSessions = sessionsByEmailDate[`${email}|${date}`] || [];
+      if (matchingSessions.length !== 1) return;
+      const session = matchingSessions[0];
+      const amount = beerTotalFromLog(log);
+      if (!amount) return;
+      fallback[session.id] = (fallback[session.id] || 0) + amount;
+    });
+    return fallback;
+  }
+
   async function loadTopVenues() {
     const card = ensureCard(), select = $('analytics-group-select'), list = $('top-venues-list');
     if (!card || !select || !list || loading) return;
@@ -162,7 +211,7 @@
       if (!sb) throw new Error('Stats connection unavailable.');
       const emails = await emailsForScope(select.value);
       if (!emails.length) { list.textContent = 'No people found for this stats view.'; return; }
-      const { data: sessions, error: se } = await sb.from('drinking_sessions').select('id,venue_name,venue_address,latitude,longitude').in('user_email', emails);
+      const { data: sessions, error: se } = await sb.from('drinking_sessions').select('id,user_email,venue_name,venue_address,latitude,longitude,started_at,ended_at').in('user_email', emails);
       if (se) throw se;
       const ids = (sessions || []).map(x => x.id).filter(Boolean);
       if (!ids.length) { list.textContent = 'No venues visited yet.'; return; }
@@ -170,6 +219,15 @@
       if (ee) throw ee;
       const totals = {};
       (events || []).forEach(e => totals[e.session_id] = (totals[e.session_id] || 0) + beerEquivalent(e.drink_type, e.delta));
+
+      // Older drinks live in drink_logs and pre-date the venue-event recorder. Where there is
+      // exactly one venue session for that user on a logged date, safely attribute that day's
+      // existing drink total to the venue. Ambiguous multi-venue days are left event-only.
+      const legacyFallback = await loadLegacyDrinkFallback(emails, sessions || []);
+      Object.entries(legacyFallback).forEach(([sessionId, amount]) => {
+        if (!(sessionId in totals) || !totals[sessionId]) totals[sessionId] = amount;
+      });
+
       const grouped = {};
       (sessions || []).forEach(s => {
         const name = s.venue_name || 'Unknown venue';
@@ -183,7 +241,7 @@
         $('show-venues-map-btn')?.classList.add('hidden');
         return;
       }
-      list.innerHTML = venues.map((v,i) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:800;font-size:13px">${i+1}. ${esc(v.name)}</div>${v.address ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>` : ''}</div><strong style="color:var(--primary-color);white-space:nowrap">${wholeBeers(v.drinks)} beers</strong></div>`).join('');
+      list.innerHTML = venues.map((v,i) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:800;font-size:13px">${i+1}. ${esc(v.name)}</div>${v.address ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>` : ''}</div><strong style="color:var(--primary-color);white-space:nowrap">${wholeBeers(v.drinks)} Beers</strong></div>`).join('');
       const points = venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
       $('show-venues-map-btn')?.classList.toggle('hidden', !points.length);
       primeMap(points);
@@ -248,63 +306,58 @@
       mapMarkers = points.map(v => {
         const marker = new window.maplibregl.Marker({element: beerMarkerElement(), anchor:'bottom'})
           .setLngLat([v.longitude, v.latitude])
-          .setPopup(new window.maplibregl.Popup({offset:18}).setHTML(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${wholeBeers(v.drinks)} beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`))
+          .setPopup(new window.maplibregl.Popup({offset:18}).setHTML(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${wholeBeers(v.drinks)} Beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`))
           .addTo(mapInstance);
         return marker;
       });
       const bounds = new window.maplibregl.LngLatBounds();
       points.forEach(v => bounds.extend([v.longitude, v.latitude]));
       if (points.length === 1) mapInstance.jumpTo({center:[points[0].longitude, points[0].latitude], zoom:14});
-      else mapInstance.fitBounds(bounds, {padding:50, maxZoom:15, duration:0});
+      else mapInstance.fitBounds(bounds, {padding:50,maxZoom:15});
     } catch (e) {
-      console.warn('Top Venues map could not be prepared:', e.message);
+      console.warn('Top Venues map preload failed:', e.message);
     }
   }
 
-  async function openTopVenuesMapPage() {
-    collapseTopVenues();
+  function openTopVenuesMapPage() {
     const page = ensureMapPage();
-    const nav = $('bottom-nav');
     if (!page) return;
-    try {
-      await createMapForPoints(venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude)));
-    } catch (_) {}
-    document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
-    if (nav) nav.classList.add('hidden');
+    document.querySelectorAll('#app-screen > *').forEach(node => { if (node.id !== 'top-venues-map-page') node.classList.add('hidden'); });
     page.classList.remove('hidden');
-    document.body.classList.add('top-venues-map-open');
-    setTimeout(() => mapInstance?.resize(), 0);
+    requestAnimationFrame(() => { if (mapInstance) mapInstance.resize(); });
   }
 
   function returnToStatsPage() {
     const page = $('top-venues-map-page');
-    const nav = $('bottom-nav');
-    if (page) page.classList.add('hidden');
-    if (nav) nav.classList.remove('hidden');
-    document.body.classList.remove('top-venues-map-open');
-    if (typeof window.switchPage === 'function') window.switchPage('stats');
-    else $('page-stats')?.classList.remove('hidden');
-    setTimeout(() => mapInstance?.resize(), 0);
+    page?.classList.add('hidden');
+    document.querySelectorAll('#app-screen > *').forEach(node => {
+      if (node.id === 'page-stats') node.classList.remove('hidden');
+      else if (node.id !== 'top-venues-map-page') node.classList.add('hidden');
+    });
+    requestAnimationFrame(() => { if (mapInstance) mapInstance.resize(); });
   }
 
   function install() {
+    if (!$('page-stats')) return;
     ensureCard();
-    ensureMapPage();
     const select = $('analytics-group-select');
-    if (select && !select.__topVenuesListener) {
-      select.addEventListener('change', () => {
-        collapseTopVenues();
-        loadTopVenues();
-      });
-      select.__topVenuesListener = true;
+    if (!window.__topVenuesSelectHook && select) {
+      select.addEventListener('change', loadTopVenues);
+      window.__topVenuesSelectHook = true;
     }
-    if (select?.value && !venues.length) loadTopVenues();
+    const page = $('page-stats');
+    if (!window.__topVenuesStatsObserver && window.MutationObserver) {
+      const observer = new MutationObserver(() => {
+        if (!page.classList.contains('hidden') && select?.value) loadTopVenues();
+      });
+      observer.observe(page, {subtree:true, childList:true, characterData:true});
+      window.__topVenuesStatsObserver = true;
+    }
+    if (select?.value) loadTopVenues();
   }
 
-  const timer = setInterval(() => {
-    install();
-    if ($('page-stats') && $('analytics-group-select')) clearInterval(timer);
-  }, 250);
+  window.loadTopVenues = loadTopVenues;
+  const timer = setInterval(() => { install(); if ($('page-stats') && $('page-tracker')) clearInterval(timer); }, 300);
   setTimeout(() => clearInterval(timer), 20000);
   install();
 })();
