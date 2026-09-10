@@ -35,6 +35,16 @@
     return data?.session?.user || null;
   }
 
+  function closeTrackerSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+    if (!trackerSearchOpen) return;
+    trackerSearchOpen = false;
+    venueCandidates = [];
+    const card = $('tracker-check-in-card');
+    if (card && !activeSession) renderTrackerCard(card);
+  }
+
   function ensureTrackerCard() {
     const tracker = $('page-tracker');
     if (!tracker) return null;
@@ -57,7 +67,7 @@
       return;
     }
 
-    card.innerHTML = `<button type="button" id="tracker-check-in-btn" class="btn-submit" style="margin-top:0;">📍 Check in at a pub</button><div id="tracker-checkin-search-wrap" class="${trackerSearchOpen ? '' : 'hidden'} tracker-checkin-search"><p style="margin:0 0 10px;color:var(--text-muted);font-size:12px">Search for your pub</p><input id="drinking-venue-search" type="search" placeholder="Search for your pub…" autocomplete="off" aria-label="Search for your pub"><div id="venue-candidates"></div></div>`;
+    card.innerHTML = `<button type="button" id="tracker-check-in-btn" class="btn-submit" style="margin-top:0;">📍 Check in at a pub</button>${trackerSearchOpen ? `<div id="tracker-checkin-search-wrap" class="tracker-checkin-search"><p style="margin:0 0 10px;color:var(--text-muted);font-size:12px">Search for your pub</p><input id="drinking-venue-search" type="search" placeholder="Search for your pub…" autocomplete="off" aria-label="Search for your pub"><div id="venue-candidates"></div></div>` : ''}`;
 
     $('tracker-check-in-btn')?.addEventListener('click', () => {
       trackerSearchOpen = true;
@@ -93,7 +103,7 @@
     const input = $('drinking-venue-search');
     const output = $('venue-candidates');
     const query = (input?.value || '').trim();
-    if (!output || !query) return;
+    if (!output || !query || !trackerSearchOpen) return;
     output.innerHTML = '<div style="margin-top:10px;color:var(--text-muted);font-size:12px">Finding pubs…</div>';
     try {
       const response = await fetch(MAP_FUNCTION_URL, { method:'POST', headers:{'Content-Type':'application/json', apikey: window.__HOW_MANY_SUPABASE__?.supabaseKey || ''}, body:JSON.stringify({query}) });
@@ -103,6 +113,7 @@
       output.innerHTML = venueCandidates.length ? venueCandidates.slice(0,6).map((place,index) => `<button type="button" class="tracker-venue-result" data-venue-index="${index}"><strong>${esc(place.name)}</strong><br><small>${esc(place.address || '')}</small></button>`).join('') : '<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No pub found. Try adding the town or area.</div>';
       output.querySelectorAll('[data-venue-index]').forEach(button => button.addEventListener('click', () => confirmDrinkingVenue(Number(button.dataset.venueIndex))));
     } catch (error) {
+      if (!trackerSearchOpen) return;
       output.innerHTML = `<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(error.message || 'Could not find that pub.')}</div>`;
     }
   }
@@ -145,9 +156,6 @@
       return false;
     }
 
-    // Supabase can return no error when RLS prevents an UPDATE from matching a row.
-    // Requiring the updated row here makes checkout fail loudly instead of appearing
-    // to work and then returning on the next refresh.
     if (!updated?.id || !updated.ended_at) {
       if (!silent) alert('Could not check out. Your session could not be updated.');
       return false;
@@ -179,8 +187,34 @@
     window.__howManyMapDrinkHook = true;
   }
 
+  function installSearchAutoClose() {
+    if (window.__howManyMapSearchAutoClose) return;
+    document.addEventListener('pointerdown', event => {
+      if (!trackerSearchOpen || activeSession) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const card = $('tracker-check-in-card');
+      if (!card) return;
+      if (card.contains(target)) return;
+      closeTrackerSearch();
+    }, true);
+
+    document.addEventListener('focusin', event => {
+      if (!trackerSearchOpen || activeSession) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const card = $('tracker-check-in-card');
+      if (!card) return;
+      if (card.contains(target)) return;
+      closeTrackerSearch();
+    }, true);
+
+    window.__howManyMapSearchAutoClose = true;
+  }
+
   function install() {
     addStyles();
+    installSearchAutoClose();
     if ($('page-tracker')) {
       ensureTrackerCard();
       installDrinkHook();
