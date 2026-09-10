@@ -5,6 +5,10 @@
   function syncCheckinButton() {
     const button = $('tracker-check-in-btn');
     if (!button) return;
+    if (typeof window.syncDrinkingCheckInButton === 'function') {
+      window.syncDrinkingCheckInButton();
+      return;
+    }
     const active = $('active-drinking-location');
     const checkedIn = !!active && !!active.querySelector('.checkin-status');
     button.classList.toggle('hidden', checkedIn);
@@ -16,7 +20,14 @@
     if (!card || !select) return;
     const value = select.value;
     const isPersonal = value === 'my_stats' || value === 'all_friends';
-    if (!isPersonal && value) card.classList.remove('hidden');
+    card.classList.toggle('hidden', isPersonal || !value);
+  }
+
+  async function refreshTrackerState() {
+    if (typeof window.loadActiveDrinkingSession === 'function') {
+      try { await window.loadActiveDrinkingSession(); } catch (e) { console.warn('Could not refresh drinking session', e); }
+    }
+    syncCheckinButton();
   }
 
   function install() {
@@ -40,16 +51,14 @@
       window.switchPage = function (page) {
         const result = original(page);
         setTimeout(() => {
-          syncCheckinButton();
           syncTopVenues();
           if (page === 'tracker') {
-            const activeLocation = $('active-drinking-location');
-            if (activeLocation && !activeLocation.__uiFixObserver) {
-              new MutationObserver(syncCheckinButton).observe(activeLocation, { childList: true, subtree: true });
-              activeLocation.__uiFixObserver = true;
-            }
+            install();
+            refreshTrackerState();
+          } else {
+            syncCheckinButton();
           }
-        }, 100);
+        }, 150);
         return result;
       };
       window.__howManyDrinkingUiFixHook = true;
