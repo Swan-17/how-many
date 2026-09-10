@@ -1,8 +1,13 @@
 /* How Many Beers - Group top venues stats */
 (function () {
+  const TOP_VENUES_SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
+  const TOP_VENUES_SUPABASE_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
+  const topVenuesSb = supabase.createClient(TOP_VENUES_SUPABASE_URL, TOP_VENUES_SUPABASE_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  });
+
   let installed = false;
   let currentRequest = 0;
-
   const $ = id => document.getElementById(id);
 
   function esc(v) {
@@ -14,7 +19,6 @@
     const s = document.createElement('style');
     s.id = 'top-venues-styles';
     s.textContent = `
-      #top-venues-card .top-venues-toggle { width: 100%; padding: 12px; font-size: 13px; }
       #top-venues-card .top-venues-list { margin-top: 12px; }
       #top-venues-card .top-venue-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-color); }
       #top-venues-card .top-venue-row:last-child { border-bottom: none; }
@@ -73,17 +77,14 @@
     const requestId = ++currentRequest;
     list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Loading venues…</div>';
 
-    const groups = window.userJoinedGroups || [];
-    const group = groups.find(g => g.code === code);
-    if (!group) {
-      list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Select a group to see its venues.</div>';
+    const { data: sessionData } = await topVenuesSb.auth.getSession();
+    const email = (sessionData?.session?.user?.email || '').toLowerCase().trim();
+    if (!email) {
+      list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Please log in to view venues.</div>';
       return;
     }
 
-    const email = (window.userEmail || '').toLowerCase().trim();
-    if (!email || !window.sb) return;
-
-    const { data: members, error: memberError } = await window.sb
+    const { data: members, error: memberError } = await topVenuesSb
       .from('group_members')
       .select('user_email')
       .eq('group_code', code);
@@ -101,13 +102,25 @@
       return;
     }
 
-    let sessionsQuery = window.sb
+    const { data: group, error: groupError } = await topVenuesSb
+      .from('groups')
+      .select('created_at')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (requestId !== currentRequest) return;
+    if (groupError) {
+      list.innerHTML = `<div style="color:#fca5a5;font-size:12px;">${esc(groupError.message)}</div>`;
+      return;
+    }
+
+    let sessionsQuery = topVenuesSb
       .from('drinking_sessions')
       .select('id, user_email, venue_name, venue_address, started_at')
       .in('user_email', memberEmails)
       .order('started_at', { ascending: false });
 
-    if (group.created_at) sessionsQuery = sessionsQuery.gte('started_at', group.created_at);
+    if (group?.created_at) sessionsQuery = sessionsQuery.gte('started_at', group.created_at);
 
     const { data: sessions, error: sessionError } = await sessionsQuery;
     if (requestId !== currentRequest) return;
@@ -122,7 +135,7 @@
     }
 
     const sessionIds = sessions.map(s => s.id);
-    const { data: events, error: eventError } = await window.sb
+    const { data: events, error: eventError } = await topVenuesSb
       .from('drink_location_events')
       .select('session_id, delta')
       .in('session_id', sessionIds);
@@ -140,7 +153,6 @@
 
     const venues = {};
     sessions.forEach(session => {
-      const key = session.id;
       const venueKey = `${session.venue_name || 'Unknown venue'}|${session.venue_address || ''}`;
       if (!venues[venueKey]) {
         venues[venueKey] = {
@@ -150,12 +162,11 @@
           sessions: 0
         };
       }
-      venues[venueKey].drinks += drinksBySession[key] || 0;
+      venues[venueKey].drinks += Math.max(0, drinksBySession[session.id] || 0);
       venues[venueKey].sessions += 1;
     });
 
     const rows = Object.values(venues)
-      .map(v => ({ ...v, drinks: Math.max(0, v.drinks) }))
       .sort((a, b) => b.drinks - a.drinks || b.sessions - a.sessions || a.name.localeCompare(b.name));
 
     list.innerHTML = rows.map(v => `
