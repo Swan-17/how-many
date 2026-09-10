@@ -11,8 +11,33 @@
   const esc = v => String(v ?? '').replace(/[&<>'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
 
   async function currentUser() {
-    const session = (typeof sb !== 'undefined' && sb?.auth) ? (await sb.auth.getSession()).data?.session : null;
-    return session?.user || null;
+    const mapSession = (await mapSb.auth.getSession()).data?.session;
+    if (mapSession?.user) return mapSession.user;
+    const mainSession = (typeof sb !== 'undefined' && sb?.auth) ? (await sb.auth.getSession()).data?.session : null;
+    return mainSession?.user || null;
+  }
+
+  async function syncMapAuth() {
+    const email = el('login-email')?.value?.trim();
+    const password = el('login-password')?.value || '';
+    if (!email || !password) return;
+    const signedIn = await mapSb.auth.signInWithPassword({ email, password });
+    if (!signedIn.error) return;
+    const created = await mapSb.auth.signUp({ email, password });
+    if (!created.error && created.data?.session) return;
+    console.warn('Drinking-map authentication could not be synced:', created.error?.message || signedIn.error?.message);
+  }
+
+  function installAuthSync() {
+    if (window.__howManyMapAuthHook) return;
+    if (typeof window.loginUser !== 'function') return;
+    const originalLogin = window.loginUser;
+    window.loginUser = async function () {
+      const result = await originalLogin.apply(this, arguments);
+      setTimeout(syncMapAuth, 250);
+      return result;
+    };
+    window.__howManyMapAuthHook = true;
   }
 
   function addStyles() {
@@ -57,24 +82,17 @@
       </div>
     `;
     el('app-screen')?.appendChild(page);
-
     const nav = document.querySelector('#app-screen nav');
     if (nav && !el('nav-pub')) {
       const b = document.createElement('button');
-      b.id = 'nav-pub';
-      b.textContent = 'Pub';
-      b.onclick = () => switchPage('pub');
+      b.id = 'nav-pub'; b.textContent = 'Pub'; b.onclick = () => switchPage('pub');
       const tracker = nav.querySelector('[onclick*="tracker"]');
       if (tracker) tracker.insertAdjacentElement('afterend', b); else nav.appendChild(b);
     }
-
     el('drinking-venue-search')?.addEventListener('input', () => {
       clearTimeout(searchTimer);
       const value = el('drinking-venue-search').value.trim();
-      if (!value) {
-        el('venue-candidates').innerHTML = '';
-        return;
-      }
+      if (!value) { el('venue-candidates').innerHTML = ''; return; }
       searchTimer = setTimeout(searchDrinkingVenues, 350);
     });
     el('drinking-venue-search')?.addEventListener('keydown', e => {
@@ -94,8 +112,7 @@
     const { data } = await q.maybeSingle();
     activeSession = data || null;
     el('active-drinking-location').innerHTML = activeSession
-      ? `<div class="checkin-status"><strong>Checked in at ${esc(activeSession.venue_name)}</strong><br><small>${esc(activeSession.venue_address || '')}</small><button class="btn-secondary" style="width:100%;margin-top:10px" onclick="endDrinkingSession()">Check out / change pub</button></div>`
-      : '';
+      ? `<div class="checkin-status"><strong>Checked in at ${esc(activeSession.venue_name)}</strong><br><small>${esc(activeSession.venue_address || '')}</small><button class="btn-secondary" style="width:100%;margin-top:10px" onclick="endDrinkingSession()">Check out / change pub</button></div>` : '';
   }
 
   async function searchDrinkingVenues() {
@@ -104,21 +121,11 @@
     if (!query) { out.innerHTML = ''; return; }
     out.innerHTML = '<div style="margin-top:10px;color:var(--text-muted);font-size:12px">Finding pubs…</div>';
     try {
-      const r = await fetch(MAP_FUNCTION_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': MAP_SUPABASE_KEY },
-        body: JSON.stringify({ query })
-      });
+      const r = await fetch(MAP_FUNCTION_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': MAP_SUPABASE_KEY }, body: JSON.stringify({ query }) });
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || body.message || `Venue search failed (${r.status})`);
-      venueCandidates = (body.places || []).map(p => ({
-        ...p,
-        latitude: p.latitude ?? p.lat ?? p.location?.latitude,
-        longitude: p.longitude ?? p.lng ?? p.lon ?? p.location?.longitude
-      }));
-      out.innerHTML = venueCandidates.length
-        ? venueCandidates.slice(0, 6).map((p, i) => `<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><strong>${esc(p.name)}</strong><br><small>${esc(p.address || '')}</small></button>`).join('')
-        : '<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No pub found. Try adding the town or area.</div>';
+      venueCandidates = (body.places || []).map(p => ({ ...p, latitude: p.latitude ?? p.lat ?? p.location?.latitude, longitude: p.longitude ?? p.lng ?? p.lon ?? p.location?.longitude }));
+      out.innerHTML = venueCandidates.length ? venueCandidates.slice(0, 6).map((p, i) => `<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><strong>${esc(p.name)}</strong><br><small>${esc(p.address || '')}</small></button>`).join('') : '<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No pub found. Try adding the town or area.</div>';
     } catch (e) {
       out.innerHTML = `<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(e.message || 'Could not find that pub.')}</div>`;
     }
@@ -127,28 +134,19 @@
   async function confirmDrinkingVenue(i) {
     const place = venueCandidates[i], user = await currentUser();
     if (!place || !user) return;
+    const mapSession = (await mapSb.auth.getSession()).data?.session;
+    if (!mapSession) {
+      el('venue-candidates').innerHTML = '<div style="margin-top:10px;color:#fca5a5;font-size:12px">Please log in again so the pub check-in can connect to the map account.</div>';
+      return;
+    }
     if (activeSession) await endDrinkingSession(true);
-
-    const latitude = Number(place.latitude);
-    const longitude = Number(place.longitude);
+    const latitude = Number(place.latitude), longitude = Number(place.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       el('venue-candidates').innerHTML = '<div style="margin-top:10px;color:#fca5a5;font-size:12px">Google Maps could not return a location for this result. Please choose another pub result.</div>';
       return;
     }
-
-    const { data, error } = await mapSb.from('drinking_sessions').insert([{
-      user_email: user.email,
-      group_code: selectedGroupCode || null,
-      google_place_id: place.id,
-      venue_name: place.name,
-      venue_address: place.address || null,
-      latitude,
-      longitude
-    }]).select().single();
-    if (error) {
-      el('venue-candidates').innerHTML = `<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(error.message)}</div>`;
-      return;
-    }
+    const { data, error } = await mapSb.from('drinking_sessions').insert([{ user_email: user.email, group_code: selectedGroupCode || null, google_place_id: place.id, venue_name: place.name, venue_address: place.address || null, latitude, longitude }]).select().single();
+    if (error) { el('venue-candidates').innerHTML = `<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(error.message)}</div>`; return; }
     activeSession = data;
     el('drinking-venue-search').value = '';
     el('venue-candidates').innerHTML = `<div class="checkin-status">✓ Checked in at <strong>${esc(place.name)}</strong></div>`;
@@ -159,32 +157,22 @@
     if (!activeSession) return;
     const { error } = await mapSb.from('drinking_sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
     if (error && !silent) alert(error.message);
-    activeSession = null;
-    await loadActiveSession();
+    activeSession = null; await loadActiveSession();
   }
 
   async function recordDrinkEvent(type, delta, logDate) {
     if (!activeSession || !delta) return;
-    const user = await currentUser();
-    if (!user) return;
-    const { error } = await mapSb.from('drink_location_events').insert([{
-      session_id: activeSession.id,
-      user_email: user.email,
-      group_code: activeSession.group_code,
-      log_date: logDate,
-      drink_type: type,
-      delta
-    }]);
+    const user = await currentUser(); if (!user) return;
+    const { error } = await mapSb.from('drink_location_events').insert([{ session_id: activeSession.id, user_email: user.email, group_code: activeSession.group_code, log_date: logDate, drink_type: type, delta }]);
     if (error) console.error('Drinking map event failed:', error);
   }
 
   function installHooks() {
+    installAuthSync();
     if (typeof window.adjustDrink === 'function' && !window.__howManyMapDrinkHook) {
       const original = window.adjustDrink;
       window.adjustDrink = async function(type, delta) {
-        const c = el(`cnt-${type}`), before = Number(c?.innerText || 0);
-        await original(type, delta);
-        const after = Number(c?.innerText || 0);
+        const c = el(`cnt-${type}`), before = Number(c?.innerText || 0); await original(type, delta); const after = Number(c?.innerText || 0);
         if (after === before + delta) await recordDrinkEvent(type, delta, el('today-date-label')?.innerText || new Date().toISOString().slice(0, 10));
       };
       window.__howManyMapDrinkHook = true;
@@ -195,14 +183,10 @@
         if (page === 'pub' || page === 'map') {
           ['page-account', 'page-tracker', 'page-stats', 'page-admin'].forEach(id => el(id)?.classList.add('hidden'));
           el('drinking-map-page')?.classList.remove('hidden');
-          const navButtons = document.querySelectorAll('#app-screen nav button');
-          navButtons.forEach(b => b.classList.toggle('active', b.id === 'nav-pub'));
-          populateGroups().then(loadActiveSession);
-          setTimeout(() => el('drinking-venue-search')?.focus(), 50);
-          return;
+          document.querySelectorAll('#app-screen nav button').forEach(b => b.classList.toggle('active', b.id === 'nav-pub'));
+          populateGroups().then(loadActiveSession); setTimeout(() => el('drinking-venue-search')?.focus(), 50); return;
         }
-        el('drinking-map-page')?.classList.add('hidden');
-        original(page);
+        el('drinking-map-page')?.classList.add('hidden'); original(page);
       };
       window.__howManyMapPageHook = true;
     }
@@ -210,46 +194,20 @@
   }
 
   function installTrackerCheckInButton() {
-    const tracker = el('page-tracker');
-    if (!tracker || el('tracker-check-in-btn')) return;
-    const card = tracker.querySelector('.card');
-    if (!card) return;
-    const button = document.createElement('button');
-    button.id = 'tracker-check-in-btn';
-    button.className = 'btn-submit checkin-button';
-    button.textContent = '📍 Check in at a pub';
-    button.onclick = () => switchPage('pub');
-    card.appendChild(button);
+    const tracker = el('page-tracker'); if (!tracker || el('tracker-check-in-btn')) return;
+    const card = tracker.querySelector('.card'); if (!card) return;
+    const button = document.createElement('button'); button.id = 'tracker-check-in-btn'; button.className = 'btn-submit checkin-button'; button.textContent = '📍 Check in at a pub'; button.onclick = () => switchPage('pub'); card.appendChild(button);
   }
 
   async function populateGroups() {
-    const user = await currentUser();
-    if (!user) return;
+    const user = await currentUser(); if (!user) return;
     const { data } = await mapSb.from('group_members').select('group_code,groups(name)').eq('user_email', user.email);
-    const s = el('drinking-map-group-select');
-    if (!s) return;
-    (data || []).forEach(g => {
-      if (![...s.options].some(o => o.value === g.group_code)) {
-        const o = document.createElement('option');
-        o.value = g.group_code;
-        o.textContent = g.groups?.name || g.group_code;
-        s.appendChild(o);
-      }
-    });
+    const s = el('drinking-map-group-select'); if (!s) return;
+    (data || []).forEach(g => { if (![...s.options].some(o => o.value === g.group_code)) { const o = document.createElement('option'); o.value = g.group_code; o.textContent = g.groups?.name || g.group_code; s.appendChild(o); } });
     s.value = selectedGroupCode || '';
   }
 
-  function init() {
-    addStyles();
-    addPage();
-    installHooks();
-    setTimeout(installHooks, 500);
-    setTimeout(installHooks, 1500);
-  }
-
-  window.setDrinkingLocation = searchDrinkingVenues;
-  window.searchDrinkingVenues = searchDrinkingVenues;
-  window.confirmDrinkingVenue = confirmDrinkingVenue;
-  window.endDrinkingSession = endDrinkingSession;
+  function init() { addStyles(); addPage(); installHooks(); setTimeout(installHooks, 500); setTimeout(installHooks, 1500); }
+  window.setDrinkingLocation = searchDrinkingVenues; window.searchDrinkingVenues = searchDrinkingVenues; window.confirmDrinkingVenue = confirmDrinkingVenue; window.endDrinkingSession = endDrinkingSession;
   init();
 })();
