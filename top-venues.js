@@ -136,7 +136,7 @@
       await loadLeaflet(); if (!window.L) throw new Error('Map library unavailable.');
       if (mapInstance) { mapInstance.remove(); mapInstance=null; }
       mapInstance=L.map('venue-map-canvas',{zoomControl:true,scrollWheelZoom:true,tap:true});
-      L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap'}).addTo(mapInstance);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}).addTo(mapInstance);
       const bounds=[];
       mapData.forEach(v => {
         const icon=L.divIcon({className:'venue-map-marker',html:'<div class="venue-map-pin"><span>🍺</span></div>',iconSize:[42,42],iconAnchor:[10,38],popupAnchor:[11,-34]});
