@@ -25,11 +25,12 @@
   function addPage() {
     if (el('drinking-map-page')) return;
     const page = document.createElement('div'); page.id = 'drinking-map-page'; page.className = 'hidden';
-    page.innerHTML = '<div class="map-card"><h3 style="margin:0 0 6px;color:var(--primary-color);">📍 Drinking Map</h3><p style="font-size:12px;color:var(--text-muted);">Google Places suggests nearby pubs/bars; you confirm the venue.</p><label>MAP FOR</label><select id="drinking-map-group-select"><option value="">Personal / all logged events</option></select><div id="active-drinking-location"></div><button id="set-drinking-location-btn" class="btn-submit" onclick="setDrinkingLocation()">Set My Drinking Location 📍</button><div id="venue-candidates"></div></div><div class="map-card"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:15px;color:var(--text-muted);">POPULAR DRINKING DESTINATIONS</h3><button class="btn-secondary" onclick="refreshDrinkingMap()">Refresh</button></div><div id="drinking-map-canvas" style="margin-top:12px;"></div></div><div class="map-card"><h3 style="margin:0 0 8px;font-size:15px;color:var(--text-muted);">MOST VISITED</h3><div id="drinking-map-ranking"></div></div>';
+    page.innerHTML = '<div class="map-card"><h3 style="margin:0 0 6px;color:var(--primary-color);">📍 Drinking Map</h3><p style="font-size:12px;color:var(--text-muted);">Search for the venue you are in, then confirm it.</p><label>MAP FOR</label><select id="drinking-map-group-select"><option value="">Personal / all logged events</option></select><div id="active-drinking-location"></div><div style="display:flex;gap:8px;margin-top:10px"><input id="drinking-venue-search" type="search" placeholder="Search venue name" autocomplete="off" style="flex:1"><button id="search-drinking-venue-btn" class="btn-submit" onclick="searchDrinkingVenues()">Search</button></div><div id="venue-candidates"></div></div><div class="map-card"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:15px;color:var(--text-muted);">POPULAR DRINKING DESTINATIONS</h3><button class="btn-secondary" onclick="refreshDrinkingMap()">Refresh</button></div><div id="drinking-map-canvas" style="margin-top:12px;"></div></div><div class="map-card"><h3 style="margin:0 0 8px;font-size:15px;color:var(--text-muted);">MOST VISITED</h3><div id="drinking-map-ranking"></div></div>';
     el('app-screen')?.appendChild(page);
     const nav = document.querySelector('#app-screen nav');
     if (nav && !el('nav-map')) { const b=document.createElement('button'); b.id='nav-map'; b.textContent='Map'; b.onclick=()=>switchPage('map'); nav.insertBefore(b,el('nav-admin')); }
     el('drinking-map-group-select')?.addEventListener('change', async e => { selectedGroupCode=e.target.value||null; await loadActiveSession(); await refreshDrinkingMap(); });
+    el('drinking-venue-search')?.addEventListener('keydown', e => { if(e.key==='Enter') searchDrinkingVenues(); });
   }
 
   async function loadActiveSession() {
@@ -40,18 +41,17 @@
     el('active-drinking-location').innerHTML=activeSession?`<div style="margin-top:10px;padding:10px;border:1px solid var(--primary-color);border-radius:8px;font-size:12px"><strong>📍 ${esc(activeSession.venue_name)}</strong><br>${esc(activeSession.venue_address||'')}<button class="btn-secondary" style="float:right" onclick="endDrinkingSession()">Change</button></div>`:'<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No active drinking location.</div>';
   }
 
-  function distance(a,b,c,d){const R=6371000,p=a*Math.PI/180,q=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,h=Math.sin(dp/2)**2+Math.cos(p)*Math.cos(q)*Math.sin(dl/2)**2;return 2*R*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
-
-  async function setDrinkingLocation() {
-    const button=el('set-drinking-location-btn'), out=el('venue-candidates'); button.disabled=true; out.innerHTML='';
+  async function searchDrinkingVenues() {
+    const button=el('search-drinking-venue-btn'), input=el('drinking-venue-search'), out=el('venue-candidates');
+    const query=(input?.value||'').trim(); if(!query){out.innerHTML='<div style="margin-top:10px;color:var(--text-muted);font-size:12px">Enter a venue name to search.</div>';input?.focus();return;}
+    button.disabled=true; out.innerHTML='<div style="margin-top:10px;color:var(--text-muted);font-size:12px">Searching…</div>';
     try {
-      const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:10000,maximumAge:60000}));
-      const r=await fetch(MAP_FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':MAP_SUPABASE_KEY},body:JSON.stringify({latitude:pos.coords.latitude,longitude:pos.coords.longitude,radius:180})});
+      const r=await fetch(MAP_FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':MAP_SUPABASE_KEY},body:JSON.stringify({query})});
       const body=await r.json(); if(!r.ok)throw new Error(body.error||body.message||`Venue search failed (${r.status})`);
-      venueCandidates=(body.places||[]).map(p=>({...p,distance:distance(pos.coords.latitude,pos.coords.longitude,p.latitude,p.longitude)}));
-      out.innerHTML=venueCandidates.length?'<div style="margin-top:10px;font-size:12px;color:var(--text-muted)">Which venue are you at?</div>'+venueCandidates.slice(0,5).map((p,i)=>`<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><strong>${esc(p.name)}</strong><br><small>${Math.round(p.distance)}m away${p.address?' · '+esc(p.address):''}</small></button>`).join(''):'<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No nearby pubs/bars found.</div>';
-    } catch(e) { out.innerHTML=`<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(e.message||'Could not determine your location.')}</div>`; }
-    finally { button.disabled=false; button.textContent='Set My Drinking Location 📍'; }
+      venueCandidates=body.places||[];
+      out.innerHTML=venueCandidates.length?'<div style="margin-top:10px;font-size:12px;color:var(--text-muted)">Select your venue:</div>'+venueCandidates.slice(0,10).map((p,i)=>`<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><strong>${esc(p.name)}</strong><br><small>${esc(p.address||'')}</small></button>`).join(''):'<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No venues found. Try the venue name and town.</div>';
+    } catch(e) { out.innerHTML=`<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(e.message||'Could not search for the venue.')}</div>`; }
+    finally { button.disabled=false; button.textContent='Search'; }
   }
 
   async function confirmDrinkingVenue(i) {
@@ -97,6 +97,6 @@
   async function populateGroups(){const user=await currentUser();if(!user)return;const {data}=await mapSb.from('group_members').select('group_code,groups(name)').eq('user_email',user.email);const s=el('drinking-map-group-select');if(!s)return;(data||[]).forEach(g=>{if(![...s.options].some(o=>o.value===g.group_code)){const o=document.createElement('option');o.value=g.group_code;o.textContent=g.groups?.name||g.group_code;s.appendChild(o);}});s.value=selectedGroupCode||'';}
 
   function init(){addStyles();addPage();installHooks();setTimeout(installHooks,500);}
-  window.setDrinkingLocation=setDrinkingLocation; window.confirmDrinkingVenue=confirmDrinkingVenue; window.endDrinkingSession=endDrinkingSession; window.refreshDrinkingMap=refreshDrinkingMap;
+  window.setDrinkingLocation=searchDrinkingVenues; window.searchDrinkingVenues=searchDrinkingVenues; window.confirmDrinkingVenue=confirmDrinkingVenue; window.endDrinkingSession=endDrinkingSession; window.refreshDrinkingMap=refreshDrinkingMap;
   init();
 })();
