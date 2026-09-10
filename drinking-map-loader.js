@@ -18,6 +18,22 @@
   // drinking-map.js already records drink_location_events. Loading a second
   // event-capture layer here caused every drink to be counted twice.
   loadScript('./drinking-map.js', () => {
-    loadScript('./top-venues.js');
+    loadScript('./top-venues.js', () => {
+      // The stats page populates analytics-group-select programmatically. That does
+      // not fire a change event, so top-venues.js can otherwise remain hidden after
+      // its initial install sees an empty select value.
+      const syncTopVenuesCard = () => {
+        const card = document.getElementById('top-venues-card');
+        const select = document.getElementById('analytics-group-select');
+        if (card && select && select.value) card.classList.remove('hidden');
+      };
+      syncTopVenuesCard();
+      const timer = setInterval(() => {
+        syncTopVenuesCard();
+        const select = document.getElementById('analytics-group-select');
+        if (select?.value) clearInterval(timer);
+      }, 250);
+      setTimeout(() => clearInterval(timer), 20000);
+    });
   });
 })();
