@@ -18,9 +18,13 @@
       #top-venues-body { padding: 0 16px 16px; border-top: 1px solid var(--border-color); }
       #top-venues-list { margin-top: 4px; }
       #top-venues-list > div:last-child { border-bottom: none !important; }
-      #top-venues-map-page { min-height: 60vh; }
-      #top-venues-map-page .top-map-title { margin: 0; font-size: 16px; color: var(--primary-color); text-align:center; }
-      #top-venues-map { height: 430px; margin-top: 14px; border: 1px solid var(--border-color); border-radius:10px; overflow:hidden; background:var(--bg-main); }
+      #top-venues-map-page { position:fixed; inset:0; z-index:9999; min-height:100dvh; height:100dvh; width:100%; background:var(--bg-main); overflow:hidden; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); box-sizing:border-box; }
+      #top-venues-map-page .top-map-shell { height:100%; min-height:0; display:flex; flex-direction:column; }
+      #top-venues-map-page .top-map-title { flex:0 0 auto; margin:0; padding:10px 14px 8px; font-size:16px; color:var(--primary-color); text-align:center; }
+      #top-venues-map-wrap { flex:1 1 auto; min-height:0; padding:0 10px; box-sizing:border-box; }
+      #top-venues-map { height:100%; width:100%; border:1px solid var(--border-color); border-radius:10px; overflow:hidden; background:var(--bg-main); }
+      #top-venues-map-page .top-map-footer { flex:0 0 auto; padding:10px 10px calc(10px + env(safe-area-inset-bottom)); box-sizing:border-box; background:var(--bg-main); }
+      #top-venues-map-page #top-venues-back-stats { width:100%; padding:13px; font-size:14px; min-height:48px; }
       .top-venue-marker-wrap { display:flex; align-items:center; justify-content:center; width:40px; height:40px; }
       .top-venue-marker { width:34px; height:34px; border-radius:50% 50% 50% 7px; transform:rotate(-45deg); display:grid; place-items:center; box-sizing:border-box; background:linear-gradient(145deg,#ffd166 0%,#f59e0b 58%,#b45309 100%); border:3px solid rgba(255,255,255,.96); box-shadow:0 4px 10px rgba(0,0,0,.25); }
       .top-venue-marker span { transform:rotate(45deg); font-size:17px; line-height:1; }
@@ -50,11 +54,11 @@
     page.id = 'top-venues-map-page';
     page.className = 'hidden';
     page.innerHTML = `
-      <div class="card">
+      <div class="top-map-shell">
         <h3 class="top-map-title">📍 TOP VENUES</h3>
-        <div id="top-venues-map"></div>
-        <div style="margin:24px 0 0;">
-          <button type="button" class="btn-secondary" style="width:100%;padding:12px;font-size:14px;" id="top-venues-back-stats">Back to Stats</button>
+        <div id="top-venues-map-wrap"><div id="top-venues-map"></div></div>
+        <div class="top-map-footer">
+          <button type="button" class="btn-secondary" id="top-venues-back-stats">Back to Stats</button>
         </div>
       </div>`;
     app.appendChild(page);
@@ -223,6 +227,7 @@
       const nav = document.querySelector('nav');
       if (nav) nav.classList.add('hidden');
       mapPage.classList.remove('hidden');
+      document.body.classList.add('top-venues-map-open');
 
       const mapEl = $('top-venues-map');
       if (!mapInstance) {
@@ -261,6 +266,7 @@
   function returnToStatsPage() {
     const mapPage = $('top-venues-map-page');
     mapPage?.classList.add('hidden');
+    document.body.classList.remove('top-venues-map-open');
     const nav = document.querySelector('nav');
     if (nav) nav.classList.remove('hidden');
     if (typeof window.switchPage === 'function') window.switchPage('stats');
@@ -272,7 +278,7 @@
     if (!card || !select) return;
     card.classList.remove('hidden');
     if (!select.__topVenuesBound) {
-      select.addEventListener('change', () => { collapseTopVenues(); loadTopVenues(); });
+      select.addEventListener('change', () => { loadTopVenues(); });
       select.__topVenuesBound = true;
     }
     if (!card.__initialLoad && select.value) { card.__initialLoad = true; loadTopVenues(); }
