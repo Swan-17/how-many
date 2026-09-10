@@ -20,7 +20,15 @@ jobs:
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text()
-          s = s.replace('<script src="drinking-map.js"></script>', '<script src="drinking-map-loader.js?v=1"></script>')
+          loader = '<script src="drinking-map-loader.js?v=2"></script>'
+          if 'drinking-map-loader.js' not in s:
+              marker = '</head>'
+              if marker not in s:
+                  raise SystemExit('Could not find </head> in index.html')
+              s = s.replace(marker, '  ' + loader + '\n' + marker, 1)
+          else:
+              import re
+              s = re.sub(r'<script src="drinking-map-loader\.js[^>]*></script>', loader, s)
           p.write_text(s)
           PY
       - name: Disable service worker in test shell
@@ -30,9 +38,12 @@ jobs:
           p = Path('index.html')
           s = p.read_text()
           start = s.find('  <!-- PWA SERVICE WORKER REGISTRATION -->')
-          end = s.find('  <script src="drinking-map-loader.js?v=1"></script>')
-          if start != -1 and end != -1 and end > start:
-              s = s[:start] + '  <!-- Service worker disabled for drinking map test -->\n' + s[end:]
+          if start != -1:
+              end = s.find('</body>', start)
+              if end != -1:
+                  block = s[start:end]
+                  if 'navigator.serviceWorker' in block:
+                      s = s[:start] + '  <!-- Service worker disabled for drinking map test -->\n' + s[end:]
           p.write_text(s)
           PY
       - name: Commit injected app shell
@@ -41,5 +52,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Use uncached drinking map test loader [drinking-map-injected]"
+          git commit -m "Inject drinking map test loader [drinking-map-injected]"
           git push
