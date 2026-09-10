@@ -1,9 +1,9 @@
 /* How Many Beers - Drinking map test feature: simple pub check-in */
 (function () {
-  const MAP_SUPABASE_URL = 'https://wxxhppoikbtccsjzaugt.supabase.co';
-  const MAP_SUPABASE_KEY = 'sb_publishable_U7nMVicWbqOwWRmLe26udQ_QpMjfdag';
+  const MAP_SUPABASE_URL = 'https://tmwmsmkivxyenulifmdk.supabase.co';
+  const MAP_SUPABASE_KEY = 'sb_publishable_Up-QZhkzCGzgO59fyF-zag_K7PSpYmU';
   const mapSb = supabase.createClient(MAP_SUPABASE_URL, MAP_SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'how-many-drinking-map-test-auth' }
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
   const MAP_FUNCTION_URL = `${MAP_SUPABASE_URL}/functions/v1/find-nearby-venues`;
   let activeSession = null, selectedGroupCode = null, venueCandidates = [], searchTimer = null;
@@ -11,33 +11,8 @@
   const esc = v => String(v ?? '').replace(/[&<>'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
 
   async function currentUser() {
-    const mapSession = (await mapSb.auth.getSession()).data?.session;
-    if (mapSession?.user) return mapSession.user;
-    const mainSession = (typeof sb !== 'undefined' && sb?.auth) ? (await sb.auth.getSession()).data?.session : null;
-    return mainSession?.user || null;
-  }
-
-  async function syncMapAuth() {
-    const email = el('login-email')?.value?.trim();
-    const password = el('login-password')?.value || '';
-    if (!email || !password) return;
-    const signedIn = await mapSb.auth.signInWithPassword({ email, password });
-    if (!signedIn.error) return;
-    const created = await mapSb.auth.signUp({ email, password });
-    if (!created.error && created.data?.session) return;
-    console.warn('Drinking-map authentication could not be synced:', created.error?.message || signedIn.error?.message);
-  }
-
-  function installAuthSync() {
-    if (window.__howManyMapAuthHook) return;
-    if (typeof window.loginUser !== 'function') return;
-    const originalLogin = window.loginUser;
-    window.loginUser = async function () {
-      const result = await originalLogin.apply(this, arguments);
-      setTimeout(syncMapAuth, 250);
-      return result;
-    };
-    window.__howManyMapAuthHook = true;
+    const session = (await mapSb.auth.getSession()).data?.session;
+    return session?.user || null;
   }
 
   function addStyles() {
@@ -86,7 +61,7 @@
     if (nav && !el('nav-pub')) {
       const b = document.createElement('button');
       b.id = 'nav-pub'; b.textContent = 'Pub'; b.onclick = () => switchPage('pub');
-      const tracker = nav.querySelector('[onclick*="tracker"]');
+      const tracker = nav.querySelector('[onclick*="tracker"]);
       if (tracker) tracker.insertAdjacentElement('afterend', b); else nav.appendChild(b);
     }
     el('drinking-venue-search')?.addEventListener('input', () => {
@@ -134,11 +109,6 @@
   async function confirmDrinkingVenue(i) {
     const place = venueCandidates[i], user = await currentUser();
     if (!place || !user) return;
-    const mapSession = (await mapSb.auth.getSession()).data?.session;
-    if (!mapSession) {
-      el('venue-candidates').innerHTML = '<div style="margin-top:10px;color:#fca5a5;font-size:12px">Please log in again so the pub check-in can connect to the map account.</div>';
-      return;
-    }
     if (activeSession) await endDrinkingSession(true);
     const latitude = Number(place.latitude), longitude = Number(place.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
@@ -168,7 +138,6 @@
   }
 
   function installHooks() {
-    installAuthSync();
     if (typeof window.adjustDrink === 'function' && !window.__howManyMapDrinkHook) {
       const original = window.adjustDrink;
       window.adjustDrink = async function(type, delta) {
