@@ -256,12 +256,12 @@
     window.__howManyMapLibrePromise = new Promise((resolve, reject) => {
       const css = document.createElement('link');
       css.rel = 'stylesheet';
-      css.href = 'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css';
+      css.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
       document.head.appendChild(css);
       const script = document.createElement('script');
-      script.src = 'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js';
+      script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
       script.onload = resolve;
-      script.onerror = () => reject(new Error('Could not load the map library.'));
+      script.onerror = () => reject(new Error('Could not load map library.'));
       document.head.appendChild(script);
     });
     return window.__howManyMapLibrePromise;
@@ -270,30 +270,26 @@
   function beerMarkerElement() {
     const wrap = document.createElement('div');
     wrap.className = 'top-venue-marker-wrap';
-    wrap.innerHTML = '<div class="top-venue-marker" aria-label="Beer venue marker"><span>🍺</span></div>';
+    wrap.innerHTML = '<div class="top-venue-marker"><span>🍺</span></div>';
     return wrap;
   }
 
-  function createMapForPoints(points) {
-    const mapPage = ensureMapPage();
-    const mapEl = $('top-venues-map');
-    if (!mapPage || !mapEl || !points.length || mapInstance) return Promise.resolve();
-    mapPage.classList.add('top-map-preloading');
-    return loadMapLibre().then(() => {
-      mapInstance = new window.maplibregl.Map({
-        container: mapEl,
-        style: 'https://tiles.openfreemap.org/styles/bright',
-        center: [points[0].longitude, points[0].latitude],
-        zoom: 12,
-        attributionControl: true,
-        cooperativeGestures: false,
-        touchZoomRotate: true,
-        dragPan: true
-      });
-      mapInstance.addControl(new window.maplibregl.NavigationControl({showCompass:false}), 'top-right');
-      return new Promise(resolve => mapInstance.once('load', resolve));
-    }).finally(() => {
-      mapPage.classList.remove('top-map-preloading');
+  async function createMapForPoints(points) {
+    const page = ensureMapPage();
+    const container = $('top-venues-map');
+    if (!page || !container || !points.length) return;
+    await loadMapLibre();
+    if (mapInstance) return;
+    mapInstance = new window.maplibregl.Map({
+      container,
+      style: 'https://demotiles.maplibre.org/style.json',
+      center: [points[0].longitude, points[0].latitude],
+      zoom: 13,
+      attributionControl: true
+    });
+    await new Promise((resolve, reject) => {
+      mapInstance.once('load', resolve);
+      mapInstance.once('error', event => reject(event?.error || new Error('Map failed to load.')));
     });
   }
 
@@ -330,11 +326,22 @@
   function returnToStatsPage() {
     const page = $('top-venues-map-page');
     page?.classList.add('hidden');
+
+    // Return through the app's normal page switcher instead of manually hiding
+    // app children. The old approach also hid the <nav>, so the Stats headers/nav
+    // stayed missing after returning from the full-screen map.
+    if (typeof window.switchPage === 'function') {
+      window.switchPage('stats');
+      return;
+    }
+
+    // Defensive fallback if the main app script is not available.
     document.querySelectorAll('#app-screen > *').forEach(node => {
-      if (node.id === 'page-stats') node.classList.remove('hidden');
-      else if (node.id !== 'top-venues-map-page') node.classList.add('hidden');
+      if (node.id !== 'top-venues-map-page') node.classList.add('hidden');
     });
-    requestAnimationFrame(() => { if (mapInstance) mapInstance.resize(); });
+    $('page-stats')?.classList.remove('hidden');
+    document.querySelector('nav')?.classList.remove('hidden');
+    $('nav-stats')?.classList.add('active');
   }
 
   function install() {
