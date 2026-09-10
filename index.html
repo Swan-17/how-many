@@ -820,6 +820,7 @@
       relevantEmails = Array.from(new Set((data || []).map(d => d.user_email.toLowerCase().trim()).concat(userEmail)));
     }
 
+    /* RENDER GROUPS WITH SHARE BUTTON FOR ALL MEMBERS */
     function renderMyGroups() {
       const container = $('my-groups-list');
       container.innerHTML = userJoinedGroups.length ? '' : '<span style="color:var(--text-muted); font-size:12px;">You are not currently part of any group.</span>';
@@ -836,7 +837,7 @@
             <div class="member-row" style="flex:1; border-bottom:none;">
               <div><strong>${grp.name}</strong>${isHost ? '<span style="font-size:11px; color:var(--primary-color);"> 👑 Host</span>' : ''}</div>
               <div style="display:flex; gap:6px;">
-                ${isHost ? `<button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>` : ''}
+                <button class="btn-share" onclick="shareGroup(event, '${grp.code}')">Share</button>
                 <button class="btn-secondary" onclick="toggleHostPanel(event, '${grp.code}')">Manage</button>
                 <button class="btn-danger" onclick="leaveGroup('${grp.code}')">Leave</button>
               </div>
