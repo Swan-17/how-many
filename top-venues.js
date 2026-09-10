@@ -23,7 +23,7 @@
       #top-venues-map-page .top-map-shell { height:100%; min-height:0; display:flex; flex-direction:column; }
       #top-venues-map-page .top-map-title { flex:0 0 auto; margin:0; padding:10px 14px 8px; font-size:16px; color:var(--primary-color); text-align:center; }
       #top-venues-map-wrap { flex:1 1 auto; min-height:0; padding:0 10px; box-sizing:border-box; }
-      #top-venues-map { height:100%; width:100%; border:1px solid var(--border-color); border-radius:10px; overflow:hidden; background:var(--bg-main); }
+      #top-venues-map { height:100%; width:100%; border:1px solid var(--border-color); border-radius:10px; overflow:hidden; background:var(--bg-main); touch-action:none; }
       #top-venues-map-page .top-map-footer { flex:0 0 auto; padding:10px 10px calc(10px + env(safe-area-inset-bottom)); box-sizing:border-box; background:var(--bg-main); }
       #top-venues-map-page #top-venues-back-stats { width:100%; padding:13px; font-size:14px; min-height:48px; }
       .top-venue-marker-wrap { display:flex; align-items:center; justify-content:center; width:40px; height:40px; }
@@ -228,7 +228,9 @@
         center: [points[0].longitude, points[0].latitude],
         zoom: 12,
         attributionControl: true,
-        cooperativeGestures: true
+        cooperativeGestures: false,
+        touchZoomRotate: true,
+        dragPan: true
       });
       mapInstance.addControl(new window.maplibregl.NavigationControl({showCompass:false}), 'top-right');
       return new Promise(resolve => mapInstance.once('load', resolve));
@@ -255,73 +257,54 @@
       if (points.length === 1) mapInstance.jumpTo({center:[points[0].longitude, points[0].latitude], zoom:14});
       else mapInstance.fitBounds(bounds, {padding:50, maxZoom:15, duration:0});
     } catch (e) {
-      console.warn('Top Venues map preload failed:', e);
+      console.warn('Top Venues map could not be prepared:', e.message);
     }
   }
 
   async function openTopVenuesMapPage() {
-    const points = venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
-    if (!points.length) return;
-    const mapPage = ensureMapPage();
-    if (!mapPage) return;
+    collapseTopVenues();
+    const page = ensureMapPage();
+    const nav = $('bottom-nav');
+    if (!page) return;
     try {
-      collapseTopVenues();
-      await createMapForPoints(points);
-      ['account','tracker','stats','admin'].forEach(page => $(`page-${page}`)?.classList.add('hidden'));
-      ['account','tracker','stats','admin'].forEach(page => $(`nav-${page}`)?.classList.remove('active'));
-      const nav = document.querySelector('nav');
-      if (nav) nav.classList.add('hidden');
-      mapPage.classList.remove('hidden');
-      document.body.classList.add('top-venues-map-open');
-
-      if (!mapInstance) return;
-      mapMarkers.forEach(marker => marker.remove());
-      mapMarkers = points.map(v => {
-        const marker = new window.maplibregl.Marker({element: beerMarkerElement(), anchor:'bottom'})
-          .setLngLat([v.longitude, v.latitude])
-          .setPopup(new window.maplibregl.Popup({offset:18}).setHTML(`<div class="top-venue-popup"><strong>${esc(v.name)}</strong><br><span class="beer-count">${wholeBeers(v.drinks)} beers</span>${v.address ? `<br><small>${esc(v.address)}</small>` : ''}</div>`))
-          .addTo(mapInstance);
-        return marker;
-      });
-      const bounds = new window.maplibregl.LngLatBounds();
-      points.forEach(v => bounds.extend([v.longitude, v.latitude]));
-      if (points.length === 1) mapInstance.easeTo({center:[points[0].longitude, points[0].latitude], zoom:14, duration:0});
-      else mapInstance.fitBounds(bounds, {padding:50, maxZoom:15, duration:0});
-      mapInstance.resize();
-      window.scrollTo({top:0, behavior:'smooth'});
-    } catch (e) {
-      alert(e.message || 'Could not open the map.');
-    }
+      await createMapForPoints(venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude)));
+    } catch (_) {}
+    document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+    if (nav) nav.classList.add('hidden');
+    page.classList.remove('hidden');
+    document.body.classList.add('top-venues-map-open');
+    setTimeout(() => mapInstance?.resize(), 0);
   }
 
   function returnToStatsPage() {
-    const mapPage = $('top-venues-map-page');
-    mapPage?.classList.add('hidden');
-    document.body.classList.remove('top-venues-map-open');
-    const nav = document.querySelector('nav');
+    const page = $('top-venues-map-page');
+    const nav = $('bottom-nav');
+    if (page) page.classList.add('hidden');
     if (nav) nav.classList.remove('hidden');
+    document.body.classList.remove('top-venues-map-open');
     if (typeof window.switchPage === 'function') window.switchPage('stats');
     else $('page-stats')?.classList.remove('hidden');
+    setTimeout(() => mapInstance?.resize(), 0);
   }
 
   function install() {
-    const card = ensureCard(), select = $('analytics-group-select');
-    if (!card || !select) return;
-    card.classList.remove('hidden');
+    ensureCard();
     ensureMapPage();
-    loadMapLibre().catch(() => {});
-    if (!select.__topVenuesBound) {
-      select.addEventListener('change', () => { loadTopVenues(); });
-      select.__topVenuesBound = true;
+    const select = $('analytics-group-select');
+    if (select && !select.__topVenuesListener) {
+      select.addEventListener('change', () => {
+        collapseTopVenues();
+        loadTopVenues();
+      });
+      select.__topVenuesListener = true;
     }
-    if (!card.__initialLoad && select.value) { card.__initialLoad = true; loadTopVenues(); }
+    if (select?.value && !venues.length) loadTopVenues();
   }
 
-  window.loadTopVenues = loadTopVenues;
-  window.showTopVenuesMap = openTopVenuesMapPage;
-  window.openTopVenuesMapPage = openTopVenuesMapPage;
-  window.returnToStatsPage = returnToStatsPage;
-  const timer = setInterval(install, 300);
-  setTimeout(() => clearInterval(timer), 30000);
+  const timer = setInterval(() => {
+    install();
+    if ($('page-stats') && $('analytics-group-select')) clearInterval(timer);
+  }, 250);
+  setTimeout(() => clearInterval(timer), 20000);
   install();
 })();
