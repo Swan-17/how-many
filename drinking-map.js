@@ -2,146 +2,101 @@
 (function () {
   const MAP_SUPABASE_URL = 'https://wxxhppoikbtccsjzaugt.supabase.co';
   const MAP_SUPABASE_KEY = 'sb_publishable_U7nMVicWbqOwWRmLe26udQ_QpMjfdag';
-  const mapSb = supabase.createClient(MAP_SUPABASE_URL, MAP_SUPABASE_KEY);
+  const mapSb = supabase.createClient(MAP_SUPABASE_URL, MAP_SUPABASE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
   const MAP_FUNCTION_URL = `${MAP_SUPABASE_URL}/functions/v1/find-nearby-venues`;
-  let mapInstance = null, mapMarkers = [], selectedGroupCode = null, activeSession = null, venueCandidates = [], originalAdjustDrink = null, originalSwitchPage = null;
+  let activeSession = null, selectedGroupCode = null, venueCandidates = [];
   const el = id => document.getElementById(id);
-  const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
+  const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+  async function currentUser() {
+    const session = (typeof sb !== 'undefined' && sb?.auth) ? (await sb.auth.getSession()).data?.session : null;
+    return session?.user || null;
+  }
 
   function addStyles() {
     if (el('drinking-map-styles')) return;
-    const style = document.createElement('style'); style.id = 'drinking-map-styles';
-    style.textContent = '#drinking-map-page .map-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:16px;margin-bottom:16px}#drinking-map-page .venue-candidate{width:100%;text-align:left;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);border-radius:9px;padding:11px;margin-top:8px;cursor:pointer}#drinking-map-page .venue-candidate:hover{border-color:var(--primary-color)}#drinking-map-page .venue-name{font-weight:800;display:block}#drinking-map-page .venue-meta{font-size:11px;color:var(--text-muted);display:block;margin-top:3px}#drinking-map-page #drinking-map-canvas{width:100%;height:360px;border-radius:10px;overflow:hidden;background:var(--bg-main)}#drinking-map-page .map-rank-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-color)}#drinking-map-page .map-rank-row:last-child{border-bottom:none}#drinking-map-page .map-rank-main{min-width:0}#drinking-map-page .map-rank-name{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#drinking-map-page .map-rank-meta{color:var(--text-muted);font-size:11px;margin-top:2px}.leaflet-container{font:inherit}';
-    document.head.appendChild(style);
+    const s = document.createElement('style'); s.id = 'drinking-map-styles';
+    s.textContent = '#drinking-map-page .map-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:16px;margin-bottom:16px}#drinking-map-page .venue-candidate{width:100%;text-align:left;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);border-radius:9px;padding:11px;margin-top:8px;cursor:pointer}#drinking-map-page #drinking-map-canvas{width:100%;height:360px;border-radius:10px;overflow:hidden}';
+    document.head.appendChild(s);
   }
 
-  function loadLeaflet() {
-    if (window.L) return Promise.resolve();
-    if (window.__howManyLeafletPromise) return window.__howManyLeafletPromise;
-    window.__howManyLeafletPromise = new Promise((resolve, reject) => {
-      const css=document.createElement('link'); css.rel='stylesheet'; css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(css);
-      const script=document.createElement('script'); script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; script.onload=resolve; script.onerror=reject; document.head.appendChild(script);
-    });
-    return window.__howManyLeafletPromise;
-  }
-
-  function addMapPage() {
+  function addPage() {
     if (el('drinking-map-page')) return;
-    const page=document.createElement('div'); page.id='drinking-map-page'; page.className='hidden';
-    page.innerHTML='<div class="map-card"><h3 style="margin:0 0 6px;color:var(--primary-color);">📍 Drinking Map</h3><p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Log where you are drinking. Google Places suggests nearby pubs/bars; you confirm the venue.</p><label>MAP FOR</label><select id="drinking-map-group-select"></select><div id="active-drinking-location"></div><button id="set-drinking-location-btn" class="btn-submit" onclick="setDrinkingLocation()">Set My Drinking Location 📍</button><div id="venue-candidates"></div></div><div class="map-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><div><h3 style="margin:0;font-size:15px;color:var(--text-muted);">POPULAR DRINKING DESTINATIONS</h3><span style="font-size:10px;color:var(--text-muted);">Based on confirmed drink events</span></div><button class="btn-secondary" style="font-size:11px;" onclick="refreshDrinkingMap()">Refresh</button></div><div id="drinking-map-canvas" style="margin-top:12px;"></div></div><div class="map-card"><h3 style="margin:0 0 8px;font-size:15px;color:var(--text-muted);">MOST VISITED</h3><div id="drinking-map-ranking"></div></div>';
-    el('app-screen').appendChild(page);
-    const nav=document.querySelector('#app-screen nav');
-    if(nav&&!el('nav-map')){const button=document.createElement('button');button.id='nav-map';button.onclick=()=>switchPage('map');button.textContent='Map';nav.insertBefore(button,el('nav-admin'));}
-    el('drinking-map-group-select').addEventListener('change',async e=>{selectedGroupCode=e.target.value||null;await loadActiveSession();await refreshDrinkingMap();});
+    const page = document.createElement('div'); page.id = 'drinking-map-page'; page.className = 'hidden';
+    page.innerHTML = '<div class="map-card"><h3 style="margin:0 0 6px;color:var(--primary-color);">📍 Drinking Map</h3><p style="font-size:12px;color:var(--text-muted);">Google Places suggests nearby pubs/bars; you confirm the venue.</p><label>MAP FOR</label><select id="drinking-map-group-select"><option value="">Personal / all logged events</option></select><div id="active-drinking-location"></div><button id="set-drinking-location-btn" class="btn-submit" onclick="setDrinkingLocation()">Set My Drinking Location 📍</button><div id="venue-candidates"></div></div><div class="map-card"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:15px;color:var(--text-muted);">POPULAR DRINKING DESTINATIONS</h3><button class="btn-secondary" onclick="refreshDrinkingMap()">Refresh</button></div><div id="drinking-map-canvas" style="margin-top:12px;"></div></div><div class="map-card"><h3 style="margin:0 0 8px;font-size:15px;color:var(--text-muted);">MOST VISITED</h3><div id="drinking-map-ranking"></div></div>';
+    el('app-screen')?.appendChild(page);
+    const nav = document.querySelector('#app-screen nav');
+    if (nav && !el('nav-map')) { const b=document.createElement('button'); b.id='nav-map'; b.textContent='Map'; b.onclick=()=>switchPage('map'); nav.insertBefore(b,el('nav-admin')); }
+    el('drinking-map-group-select')?.addEventListener('change', async e => { selectedGroupCode=e.target.value||null; await loadActiveSession(); await refreshDrinkingMap(); });
   }
 
-  async function currentUser(){
-    const {data}=await mapSb.auth.getSession();
-    return data?.session?.user||null;
-  }
-
-  async function populateGroupSelect(){
+  async function loadActiveSession() {
     const user=await currentUser(); if(!user)return;
-    const {data}=await mapSb.from('group_members').select('group_code, groups(name)').eq('user_email',user.email);
-    const select=el('drinking-map-group-select'); if(!select)return;
-    const groups=(data||[]).map(row=>({code:row.group_code,name:row.groups?.name||row.group_code}));
-    if(!selectedGroupCode&&groups.length)selectedGroupCode=groups[0].code;
-    select.innerHTML='<option value="">Personal / all logged events</option>'+groups.map(g=>`<option value="${escapeHtml(g.code)}">${escapeHtml(g.name)}</option>`).join('');
-    select.value=selectedGroupCode||'';
+    let q=mapSb.from('drinking_sessions').select('*').eq('user_email',user.email).is('ended_at',null).order('started_at',{ascending:false}).limit(1);
+    q=selectedGroupCode?q.eq('group_code',selectedGroupCode):q.is('group_code',null);
+    const {data}=await q.maybeSingle(); activeSession=data||null;
+    el('active-drinking-location').innerHTML=activeSession?`<div style="margin-top:10px;padding:10px;border:1px solid var(--primary-color);border-radius:8px;font-size:12px"><strong>📍 ${esc(activeSession.venue_name)}</strong><br>${esc(activeSession.venue_address||'')}<button class="btn-secondary" style="float:right" onclick="endDrinkingSession()">Change</button></div>`:'<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No active drinking location.</div>';
   }
 
-  async function loadActiveSession(){
-    const user=await currentUser(); if(!user)return;
-    let query=mapSb.from('drinking_sessions').select('*').eq('user_email',user.email).is('ended_at',null).order('started_at',{ascending:false}).limit(1);
-    query=selectedGroupCode?query.eq('group_code',selectedGroupCode):query.is('group_code',null);
-    const {data}=await query.maybeSingle(); activeSession=data||null; renderActiveLocation();
+  function distance(a,b,c,d){const R=6371000,p=a*Math.PI/180,q=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,h=Math.sin(dp/2)**2+Math.cos(p)*Math.cos(q)*Math.sin(dl/2)**2;return 2*R*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
+
+  async function setDrinkingLocation() {
+    const button=el('set-drinking-location-btn'), out=el('venue-candidates'); button.disabled=true; out.innerHTML='';
+    try {
+      const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:10000,maximumAge:60000}));
+      const r=await fetch(MAP_FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({latitude:pos.coords.latitude,longitude:pos.coords.longitude,radius:180})});
+      const body=await r.json(); if(!r.ok)throw new Error(body.error||body.message||`Venue search failed (${r.status})`);
+      venueCandidates=(body.places||[]).map(p=>({...p,distance:distance(pos.coords.latitude,pos.coords.longitude,p.latitude,p.longitude)}));
+      out.innerHTML=venueCandidates.length?'<div style="margin-top:10px;font-size:12px;color:var(--text-muted)">Which venue are you at?</div>'+venueCandidates.slice(0,5).map((p,i)=>`<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><strong>${esc(p.name)}</strong><br><small>${Math.round(p.distance)}m away${p.address?' · '+esc(p.address):''}</small></button>`).join(''):'<div style="margin-top:10px;color:var(--text-muted);font-size:12px">No nearby pubs/bars found.</div>';
+    } catch(e) { out.innerHTML=`<div style="margin-top:10px;color:#fca5a5;font-size:12px">${esc(e.message||'Could not determine your location.')}</div>`; }
+    finally { button.disabled=false; button.textContent='Set My Drinking Location 📍'; }
   }
 
-  function renderActiveLocation(){
-    const target=el('active-drinking-location'); if(!target)return;
-    target.innerHTML=activeSession?`<div style="background:var(--bg-main);border:1px solid var(--primary-color);border-radius:8px;padding:10px;font-size:12px;margin-top:10px;"><strong>📍 ${escapeHtml(activeSession.venue_name)}</strong><br><span style="color:var(--text-muted);">${escapeHtml(activeSession.venue_address||'')}</span><button class="btn-secondary" style="float:right;margin-top:-4px;" onclick="endDrinkingSession()">Change</button></div>`:'<div style="margin-top:10px;color:var(--text-muted);font-size:12px;">No active drinking location. Set one before logging drinks if you want them included on the map.</div>';
-  }
-
-  function distanceMetres(aLat,aLng,bLat,bLng){const R=6371000,p1=aLat*Math.PI/180,p2=bLat*Math.PI/180,dp=(bLat-aLat)*Math.PI/180,dl=(bLng-aLng)*Math.PI/180,h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
-
-  function getPosition(){return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error('Location is not available on this device.'));navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:10000,maximumAge:60000});});}
-
-  async function setDrinkingLocation(){
-    const button=el('set-drinking-location-btn'),candidates=el('venue-candidates'); button.disabled=true; button.textContent='Finding nearby pubs…'; candidates.innerHTML='';
-    try{
-      const position=await getPosition();
-      const {data:{session}}=await mapSb.auth.getSession();
-      const headers={'Content-Type':'application/json'};
-      if(session?.access_token)headers.Authorization=`Bearer ${session.access_token}`;
-      const response=await fetch(MAP_FUNCTION_URL,{method:'POST',headers,body:JSON.stringify({latitude:position.coords.latitude,longitude:position.coords.longitude,radius:180})});
-      let payload={}; try{payload=await response.json();}catch(_){payload={};}
-      if(!response.ok)throw new Error(payload.error||payload.message||`Venue search failed (${response.status})`);
-      venueCandidates=(payload.places||[]).map(p=>({...p,distance:distanceMetres(position.coords.latitude,position.coords.longitude,p.latitude,p.longitude)}));
-      candidates.innerHTML=venueCandidates.length?'<div style="font-size:12px;color:var(--text-muted);margin-top:12px;">Which venue are you at?</div>'+venueCandidates.slice(0,5).map((p,i)=>`<button class="venue-candidate" onclick="confirmDrinkingVenue(${i})"><span class="venue-name">${escapeHtml(p.name)}</span><span class="venue-meta">${Math.round(p.distance)}m away${p.address?' · '+escapeHtml(p.address):''}</span></button>`).join(''):'<div style="margin-top:10px;color:var(--text-muted);font-size:12px;">No nearby pubs/bars were returned. Try again outside or widen the search.</div>';
-    }catch(error){candidates.innerHTML=`<div style="margin-top:10px;color:#fca5a5;font-size:12px;">${escapeHtml(error.message||'Could not determine your location.')}</div>`;}
-    finally{button.disabled=false;button.textContent='Set My Drinking Location 📍';}
-  }
-
-  async function confirmDrinkingVenue(index){
-    const place=venueCandidates[index],user=await currentUser(); if(!place||!user)return;
+  async function confirmDrinkingVenue(i) {
+    const place=venueCandidates[i], user=await currentUser(); if(!place||!user)return;
     if(activeSession)await endDrinkingSession(true);
     const {data,error}=await mapSb.from('drinking_sessions').insert([{user_email:user.email,group_code:selectedGroupCode||null,google_place_id:place.id,venue_name:place.name,venue_address:place.address||null,latitude:place.latitude,longitude:place.longitude}]).select().single();
     if(error)return alert(error.message);
-    activeSession=data; venueCandidates=[]; el('venue-candidates').innerHTML='<div style="margin-top:10px;color:var(--text-muted);font-size:12px;">Venue confirmed. New drink logs will be attributed to this destination.</div>'; renderActiveLocation();
+    activeSession=data; el('venue-candidates').innerHTML='<div style="margin-top:10px;color:var(--text-muted);font-size:12px">Venue confirmed.</div>'; loadActiveSession();
   }
 
-  async function endDrinkingSession(silent){
+  async function endDrinkingSession(silent=false) {
     if(!activeSession)return;
     const {error}=await mapSb.from('drinking_sessions').update({ended_at:new Date().toISOString()}).eq('id',activeSession.id);
-    if(error&&!silent)alert(error.message);
-    activeSession=null; renderActiveLocation(); if(!silent&&el('venue-candidates'))el('venue-candidates').innerHTML='<div style="margin-top:10px;color:var(--text-muted);font-size:12px;">Location cleared.</div>';
+    if(error&&!silent)alert(error.message); activeSession=null; await loadActiveSession();
   }
 
-  async function recordDrinkEvent(type,delta,logDate){
-    if(!activeSession||!delta)return;
-    const user=await currentUser(); if(!user)return;
+  async function recordDrinkEvent(type,delta,logDate) {
+    if(!activeSession||!delta)return; const user=await currentUser(); if(!user)return;
     const {error}=await mapSb.from('drink_location_events').insert([{session_id:activeSession.id,user_email:user.email,group_code:activeSession.group_code,log_date:logDate,drink_type:type,delta}]);
     if(error)console.error('Drinking map event failed:',error);
   }
 
-  async function refreshDrinkingMap(){
+  async function refreshDrinkingMap() {
     const user=await currentUser(); if(!user)return;
-    await loadLeaflet();
-    let query=mapSb.from('drink_location_events').select('*, drinking_sessions(*)');
-    query=selectedGroupCode?query.eq('group_code',selectedGroupCode):query.is('group_code',null);
-    const {data,error}=await query;
-    if(error){el('drinking-map-ranking').innerHTML=`<div style="color:#fca5a5;font-size:12px;">${escapeHtml(error.message)}</div>`;return;}
-    const totals={};
-    (data||[]).forEach(event=>{const session=event.drinking_sessions;if(!session)return;const key=session.google_place_id;if(!totals[key])totals[key]={id:key,name:session.venue_name,address:session.venue_address,lat:session.latitude,lng:session.longitude,drinks:0,visits:new Set(),users:new Set()};totals[key].drinks+=Number(event.delta||0);totals[key].visits.add(session.id);totals[key].users.add(event.user_email);});
-    const venues=Object.values(totals).filter(v=>v.drinks>0).sort((a,b)=>b.drinks-a.drinks); renderMap(venues);
-    el('drinking-map-ranking').innerHTML=venues.length?venues.slice(0,10).map((v,i)=>`<div class="map-rank-row"><div class="map-rank-main"><div class="map-rank-name">${i+1}. ${escapeHtml(v.name)}</div><div class="map-rank-meta">${v.visits.size} visit${v.visits.size===1?'':'s'} · ${v.users.size} drinker${v.users.size===1?'':'s'}</div></div><strong>${v.drinks} 🍺</strong></div>`).join(''):'<div style="color:var(--text-muted);font-size:12px;">No location-linked drinks yet. Set a venue and log a drink to start the map.</div>';
+    let q=mapSb.from('drink_location_events').select('*, drinking_sessions(*)'); q=selectedGroupCode?q.eq('group_code',selectedGroupCode):q.is('group_code',null);
+    const {data,error}=await q; if(error){el('drinking-map-ranking').innerHTML=`<div style="color:#fca5a5;font-size:12px">${esc(error.message)}</div>`;return;}
+    const totals={}; (data||[]).forEach(e=>{const s=e.drinking_sessions;if(!s)return;const k=s.google_place_id;if(!totals[k])totals[k]={name:s.venue_name,lat:s.latitude,lng:s.longitude,drinks:0,visits:new Set(),users:new Set()};totals[k].drinks+=Number(e.delta||0);totals[k].visits.add(s.id);totals[k].users.add(e.user_email);});
+    const venues=Object.values(totals).filter(v=>v.drinks>0).sort((a,b)=>b.drinks-a.drinks);
+    el('drinking-map-ranking').innerHTML=venues.length?venues.slice(0,10).map((v,i)=>`<div style="padding:8px 0;border-bottom:1px solid var(--border-color)"><strong>${i+1}. ${esc(v.name)}</strong><br><small>${v.visits.size} visits · ${v.users.size} drinkers · ${v.drinks} drinks</small></div>`).join(''):'<div style="color:var(--text-muted);font-size:12px">No location-linked drinks yet.</div>';
+    const canvas=el('drinking-map-canvas'); if(!canvas)return;
+    if(!window.L){await new Promise((resolve,reject)=>{const c=document.createElement('link');c.rel='stylesheet';c.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(c);const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
+    if(!window.__howManyMap){window.__howManyMap=L.map(canvas).setView([51.5,-0.1],6);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(window.__howManyMap);} 
+    if(window.__howManyMapMarkers)(window.__howManyMapMarkers||[]).forEach(m=>m.remove()); window.__howManyMapMarkers=[]; const bounds=[];
+    venues.forEach(v=>{const m=L.circleMarker([v.lat,v.lng],{radius:Math.max(8,Math.min(30,8+Math.sqrt(v.drinks)*3)),weight:2,fillOpacity:.75}).bindPopup(`<strong>${esc(v.name)}</strong><br>${v.drinks} drinks`);m.addTo(window.__howManyMap);window.__howManyMapMarkers.push(m);bounds.push([v.lat,v.lng]);});
+    if(bounds.length===1)window.__howManyMap.setView(bounds[0],15); else if(bounds.length)window.__howManyMap.fitBounds(bounds,{padding:[20,20],maxZoom:14});
   }
 
-  function renderMap(venues){
-    const container=el('drinking-map-canvas'); if(!container||!window.L)return;
-    if(!mapInstance){mapInstance=L.map(container,{zoomControl:true}).setView([51.5,-0.1],6);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(mapInstance);}
-    mapMarkers.forEach(m=>m.remove()); mapMarkers=[]; if(!venues.length){mapInstance.setView([51.5,-0.1],6);return;}
-    const bounds=[]; venues.forEach(v=>{const radius=Math.max(8,Math.min(30,8+Math.sqrt(v.drinks)*3));const marker=L.circleMarker([v.lat,v.lng],{radius,weight:2,fillOpacity:.75});marker.bindPopup(`<strong>${escapeHtml(v.name)}</strong><br>${v.drinks} drinks · ${v.visits.size} visits`);marker.addTo(mapInstance);mapMarkers.push(marker);bounds.push([v.lat,v.lng]);});
-    if(bounds.length===1)mapInstance.setView(bounds[0],15);else mapInstance.fitBounds(bounds,{padding:[20,20],maxZoom:14}); setTimeout(()=>mapInstance.invalidateSize(),100);
+  function installHooks() {
+    if(typeof window.adjustDrink==='function'&&!window.__howManyMapDrinkHook){const original=window.adjustDrink;window.adjustDrink=async function(type,delta){const c=el(`cnt-${type}`),before=Number(c?.innerText||0);await original(type,delta);const after=Number(c?.innerText||0);if(after===before+delta)await recordDrinkEvent(type,delta,el('today-date-label')?.innerText||new Date().toISOString().slice(0,10));};window.__howManyMapDrinkHook=true;}
+    if(typeof window.switchPage==='function'&&!window.__howManyMapPageHook){const original=window.switchPage;window.switchPage=function(page){if(page==='map'){['page-account','page-tracker','page-stats','page-admin'].forEach(id=>el(id)?.classList.add('hidden'));el('drinking-map-page')?.classList.remove('hidden');populateGroups().then(loadActiveSession).then(refreshDrinkingMap);return;}el('drinking-map-page')?.classList.add('hidden');original(page);};window.__howManyMapPageHook=true;}
   }
 
-  function installHooks(){
-    if(!originalAdjustDrink&&typeof window.adjustDrink==='function'){
-      originalAdjustDrink=window.adjustDrink;
-      window.adjustDrink=async function(type,delta){const countEl=document.getElementById(`cnt-${type}`),before=Number(countEl?.innerText||0);await originalAdjustDrink(type,delta);const after=Number(countEl?.innerText||0),logDate=document.getElementById('today-date-label')?.innerText||new Date().toISOString().slice(0,10);if(after===before+delta)await recordDrinkEvent(type,delta,logDate);};
-    }
-    if(!originalSwitchPage&&typeof window.switchPage==='function'){
-      originalSwitchPage=window.switchPage;
-      window.switchPage=function(page){if(page==='map'){['page-account','page-tracker','page-stats','page-admin'].forEach(id=>el(id)?.classList.add('hidden'));el('drinking-map-page')?.classList.remove('hidden');document.querySelectorAll('#app-screen nav button').forEach(b=>b.classList.remove('active'));el('nav-map')?.classList.add('active');populateGroupSelect().then(loadActiveSession).then(refreshDrinkingMap);return;}el('drinking-map-page')?.classList.add('hidden');originalSwitchPage(page);};
-    }
-  }
+  async function populateGroups(){const user=await currentUser();if(!user)return;const {data}=await mapSb.from('group_members').select('group_code,groups(name)').eq('user_email',user.email);const s=el('drinking-map-group-select');if(!s)return;(data||[]).forEach(g=>{if(![...s.options].some(o=>o.value===g.group_code)){const o=document.createElement('option');o.value=g.group_code;o.textContent=g.groups?.name||g.group_code;s.appendChild(o);}});s.value=selectedGroupCode||'';}
 
-  async function init(){
-    addStyles(); addMapPage(); installHooks();
-    mapSb.auth.onAuthStateChange(async(_event,session)=>{if(session?.user){await populateGroupSelect();await loadActiveSession();}else activeSession=null;});
-    const user=await currentUser(); if(user){await populateGroupSelect();await loadActiveSession();}
-  }
-
+  function init(){addStyles();addPage();installHooks();setTimeout(installHooks,500);}
   window.setDrinkingLocation=setDrinkingLocation; window.confirmDrinkingVenue=confirmDrinkingVenue; window.endDrinkingSession=endDrinkingSession; window.refreshDrinkingMap=refreshDrinkingMap;
-  init().catch(err=>console.error('Drinking Map init failed',err));
+  init();
 })();
