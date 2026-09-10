@@ -1,21 +1,96 @@
 /* How Many Beers - Top Venues stats + map */
 (function () {
-  const statsSb = window.__HOW_MANY_SUPABASE__;
+  const sb = window.__HOW_MANY_SUPABASE__;
   const $ = id => document.getElementById(id);
-  let requestId = 0, mapInstance = null, mapData = [], leafletPromise = null;
-  function esc(value) { return String(value ?? '').replace(/[&<>\'\"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c])); }
-  function beerEquivalent(type, delta) { const unitsPerDrink = { pints:2.5, bottles:1.5, wines:1.75, cocktails:2, shots:1 }; return (Number(delta) || 0) * (unitsPerDrink[type] || 0) / 2.5; }
-  function ensureCard() { const page=$('page-stats'),chart=$('weeklyChart'); if(!page||!chart)return null; let card=$('top-venues-card'); if(card)return card; const weeklyCard=chart.closest('.card'); if(!weeklyCard)return null; card=document.createElement('div'); card.id='top-venues-card'; card.className='card'; card.innerHTML='<button type="button" id="top-venues-button" class="btn-secondary" style="width:100%;padding:12px;text-align:left;display:flex;justify-content:space-between;align-items:center;"><strong>TOP VENUES</strong><span id="top-venues-icon">▼</span></button><div id="top-venues-body" class="hidden" style="margin-top:12px;"><div id="top-venues-list"></div><button type="button" id="show-venues-map-btn" class="btn-submit hidden" style="margin-top:12px;">📍 Show on Map</button></div>'; weeklyCard.insertAdjacentElement('afterend',card); return card; }
-  async function currentEmail(){if(!statsSb)return'';const{data}=await statsSb.auth.getSession();return data?.session?.user?.email?.toLowerCase().trim()||'';}
-  async function emailsForScope(scope){const email=await currentEmail();if(!email)return[];if(scope==='my_stats')return[email];let groupCodes=[];if(scope==='all_friends'){const{data,error}=await statsSb.from('group_members').select('group_code').eq('user_email',email);if(error)throw error;groupCodes=Array.from(new Set((data||[]).map(x=>x.group_code).filter(Boolean)));}else if(scope)groupCodes=[scope];if(!groupCodes.length)return[email];const{data,error}=await statsSb.from('group_members').select('user_email').in('group_code',groupCodes);if(error)throw error;return Array.from(new Set((data||[]).map(x=>(x.user_email||'').toLowerCase().trim()).filter(Boolean));}
-  function syncVisibility(){const card=ensureCard(),select=$('analytics-group-select');if(card&&select)card.classList.toggle('hidden',!select.value);}
-  async function loadTopVenues(){const card=ensureCard(),select=$('analytics-group-select'),body=$('top-venues-body'),list=$('top-venues-list');if(!card||!select||!body||!list||!select.value||body.classList.contains('hidden'))return;if(!statsSb){list.textContent='Stats connection unavailable.';return;}const request=++requestId;mapData=[];$('show-venues-map-btn')?.classList.add('hidden');list.innerHTML='<div style="color:var(--text-muted);font-size:12px">Loading venues…</div>';try{const emails=await emailsForScope(select.value);if(request!==requestId)return;if(!emails.length){list.innerHTML='<div style="color:var(--text-muted);font-size:12px">No people found for this stats view.</div>';return;}const{data:sessions,error:se}=await statsSb.from('drinking_sessions').select('id,venue_name,venue_address,latitude,longitude,started_at').in('user_email',emails).order('started_at',{ascending:false});if(se)throw se;if(!sessions?.length){list.innerHTML='<div style="color:var(--text-muted);font-size:12px">No venues visited yet.</div>';return;}const{data:events,error:ee}=await statsSb.from('drink_location_events').select('session_id,drink_type,delta').in('session_id',sessions.map(x=>x.id));if(ee)throw ee;const bySession={};(events||[]).forEach(x=>{bySession[x.session_id]=(bySession[x.session_id]||0)+beerEquivalent(x.drink_type,x.delta);});const venues={};sessions.forEach(s=>{const key=`${s.venue_name||'Unknown venue'}|${s.venue_address||''}`;if(!venues[key])venues[key]={name:s.venue_name||'Unknown venue',address:s.venue_address||'',drinks:0,latitude:Number(s.latitude),longitude:Number(s.longitude)};venues[key].drinks+=bySession[s.id]||0;});const rows=Object.values(venues).map(v=>({...v,drinks:Math.max(0,v.drinks)})).filter(v=>v.drinks>0).sort((a,b)=>b.drinks-a.drinks||a.name.localeCompare(b.name));mapData=rows.filter(v=>Number.isFinite(v.latitude)&&Number.isFinite(v.longitude));$('show-venues-map-btn')?.classList.toggle('hidden',!mapData.length);if(!rows.length){list.innerHTML='<div style="color:var(--text-muted);font-size:12px">No beers have been recorded at a venue yet.</div>';return;}list.innerHTML=rows.map(v=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700">${esc(v.name)}</div>${v.address?`<div style="margin-top:3px;color:var(--text-muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>`:''}</div><div style="color:var(--primary-color);font-size:13px;font-weight:800;white-space:nowrap">${Number(v.drinks.toFixed(1))} beer${Math.abs(v.drinks-1)<0.001?'':'s'}</div></div>`).join('');}catch(error){if(request===requestId){list.innerHTML=`<div style="color:#fca5a5;font-size:12px">${esc(error.message||'Could not load venues.')}</div>`;$('show-venues-map-btn')?.classList.add('hidden');}}}
-  function toggleTopVenues(){const body=$('top-venues-body'),icon=$('top-venues-icon');if(!body)return;const opening=body.classList.contains('hidden');body.classList.toggle('hidden',!opening);if(icon)icon.textContent=opening?'▲':'▼';if(opening)loadTopVenues();}
-  function ensureMapPage(){let page=$('page-venue-map');if(page)return page;page=document.createElement('div');page.id='page-venue-map';page.className='hidden';page.innerHTML='<div id="venue-map-canvas"></div><div id="venue-map-controls"><div id="venue-map-title">Top Venues</div><button type="button" id="venue-map-return" class="btn-secondary">← Return to Stats</button></div>';$('app-screen')?.appendChild(page);const style=document.createElement('style');style.id='top-venues-map-styles';style.textContent=`#page-venue-map{position:fixed;inset:0;z-index:5000;background:var(--bg-main);display:flex;flex-direction:column;padding:0;margin:0;max-width:none}#page-venue-map.hidden{display:none!important}#venue-map-canvas{flex:1 1 auto;min-height:0;width:100%}#venue-map-controls{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card);border-top:1px solid var(--border-color)}#venue-map-title{flex:1;color:var(--primary-color);font-size:13px;font-weight:800}#venue-map-return{margin:0;padding:10px 12px}.venue-map-popup .venue-map-beers{color:var(--primary-color);font-weight:800;margin-top:4px}.venue-map-pin{width:42px;height:42px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#f59e0b;border:3px solid #fff;box-shadow:0 5px 14px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}.venue-map-pin span{transform:rotate(45deg);font-size:20px;line-height:1}`;document.head.appendChild(style);$('venue-map-return').addEventListener('click',returnToStats);return page;}
-  function loadLeaflet(){if(window.L)return Promise.resolve();if(leafletPromise)return leafletPromise;leafletPromise=new Promise((resolve,reject)=>{if(!$('top-venues-leaflet-css')){const css=document.createElement('link');css.id='top-venues-leaflet-css';css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);}const script=document.createElement('script');script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load the map library.'));document.head.appendChild(script);});return leafletPromise;}
-  async function showVenueMap(){if(!mapData.length)return;ensureMapPage();['page-stats','page-account','page-tracker','page-admin'].forEach(id=>$(id)?.classList.add('hidden'));$('page-venue-map')?.classList.remove('hidden');$('app-screen')?.querySelector('nav')?.classList.add('hidden');try{await loadLeaflet();if(!window.L)throw new Error('Map library unavailable.');if(mapInstance){mapInstance.remove();mapInstance=null;}mapInstance=L.map('venue-map-canvas',{zoomControl:true,scrollWheelZoom:true,tap:true});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,subdomains:'abc',attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(mapInstance);const bounds=[];mapData.forEach(v=>{const icon=L.divIcon({className:'venue-map-marker',html:'<div class="venue-map-pin"><span>🍺</span></div>',iconSize:[42,42],iconAnchor:[10,38],popupAnchor:[11,-34]});const marker=L.marker([v.latitude,v.longitude],{icon}).addTo(mapInstance);marker.bindPopup(`<div class="venue-map-popup"><strong>${esc(v.name)}</strong>${v.address?`<div style="font-size:11px;color:#64748b;margin-top:3px">${esc(v.address)}</div>`:''}<div class="venue-map-beers">${Number(v.drinks.toFixed(1))} beer${Math.abs(v.drinks-1)<0.001?'':'s'}</div></div>`);bounds.push([v.latitude,v.longitude]);});if(bounds.length===1)mapInstance.setView(bounds[0],15);else mapInstance.fitBounds(bounds,{padding:[45,45],maxZoom:15});setTimeout(()=>mapInstance?.invalidateSize(),100);}catch(error){$('venue-map-canvas').innerHTML=`<div style="padding:24px;text-align:center;color:#fca5a5">${esc(error.message||'Could not display the map.')}</div>`;}}
-  function returnToStats(){if(mapInstance){mapInstance.remove();mapInstance=null;}$('page-venue-map')?.classList.add('hidden');$('app-screen')?.querySelector('nav')?.classList.remove('hidden');if(typeof window.switchPage==='function')window.switchPage('stats');else $('page-stats')?.classList.remove('hidden');}
-  window.toggleTopVenues=toggleTopVenues;window.showVenueMap=showVenueMap;window.returnToVenueStats=returnToStats;
-  function install(){const card=ensureCard(),select=$('analytics-group-select');if(!card||!select)return;syncVisibility();const button=$('top-venues-button');if(button&&!button.__topVenuesBound){button.addEventListener('click',toggleTopVenues);button.__topVenuesBound=true;}const mapButton=$('show-venues-map-btn');if(mapButton&&!mapButton.__mapBound){mapButton.addEventListener('click',showVenueMap);mapButton.__mapBound=true;}if(!select.__topVenuesBound){select.addEventListener('change',()=>{syncVisibility();loadTopVenues();});select.__topVenuesBound=true;}}
-  const timer=setInterval(install,250);setTimeout(()=>clearInterval(timer),20000);install();
+  const esc = value => String(value ?? '').replace(/[&<>\'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const beerEquivalent = (type, delta) => ({pints:1,bottles:.6,wines:.7,cocktails:.8,shots:.4}[type] || 0) * (Number(delta) || 0);
+  let venues = [], loading = false;
+
+  function ensureCard() {
+    const page = $('page-stats');
+    if (!page) return null;
+    let card = $('top-venues-card');
+    if (card) return card;
+    card = document.createElement('div');
+    card.id = 'top-venues-card';
+    card.className = 'card';
+    card.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong style="color:var(--primary-color)">TOP VENUES</strong><button type="button" id="top-venues-refresh" class="btn-secondary">Refresh</button></div><div id="top-venues-list" style="margin-top:10px"></div><button type="button" id="show-venues-map-btn" class="btn-submit hidden">📍 Show on Map</button>';
+    page.appendChild(card);
+    $('top-venues-refresh').addEventListener('click', loadTopVenues);
+    return card;
+  }
+
+  async function currentEmail() {
+    if (!sb) return '';
+    const { data } = await sb.auth.getSession();
+    return data?.session?.user?.email?.toLowerCase().trim() || '';
+  }
+
+  async function emailsForScope(scope) {
+    const email = await currentEmail();
+    if (!email) return [];
+    if (scope === 'my_stats') return [email];
+    if (scope === 'all_friends') {
+      const { data: memberships, error: me } = await sb.from('group_members').select('group_code').eq('user_email', email);
+      if (me) throw me;
+      const codes = [...new Set((memberships || []).map(x => x.group_code).filter(Boolean))];
+      if (!codes.length) return [email];
+      const { data, error } = await sb.from('group_members').select('user_email').in('group_code', codes);
+      if (error) throw error;
+      return [...new Set((data || []).map(x => String(x.user_email || '').toLowerCase().trim()).filter(Boolean))];
+    }
+    if (!scope) return [email];
+    const { data, error } = await sb.from('group_members').select('user_email').eq('group_code', scope);
+    if (error) throw error;
+    return [...new Set((data || []).map(x => String(x.user_email || '').toLowerCase().trim()).filter(Boolean))];
+  }
+
+  async function loadTopVenues() {
+    const card = ensureCard(), select = $('analytics-group-select'), list = $('top-venues-list');
+    if (!card || !select || !list || loading) return;
+    loading = true;
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:12px">Loading venues…</div>';
+    try {
+      if (!sb) throw new Error('Stats connection unavailable.');
+      const emails = await emailsForScope(select.value);
+      if (!emails.length) { list.textContent = 'No people found for this stats view.'; return; }
+      const { data: sessions, error: se } = await sb.from('drinking_sessions').select('id,venue_name,venue_address,latitude,longitude').in('user_email', emails);
+      if (se) throw se;
+      const ids = (sessions || []).map(x => x.id).filter(Boolean);
+      if (!ids.length) { list.textContent = 'No venues visited yet.'; return; }
+      const { data: events, error: ee } = await sb.from('drink_location_events').select('session_id,drink_type,delta').in('session_id', ids);
+      if (ee) throw ee;
+      const totals = {};
+      (events || []).forEach(e => totals[e.session_id] = (totals[e.session_id] || 0) + beerEquivalent(e.drink_type, e.delta));
+      const grouped = {};
+      (sessions || []).forEach(s => {
+        const name = s.venue_name || 'Unknown venue';
+        const key = name + '|' + (s.venue_address || '');
+        if (!grouped[key]) grouped[key] = {name, address:s.venue_address || '', drinks:0, latitude:Number(s.latitude), longitude:Number(s.longitude)};
+        grouped[key].drinks += totals[s.id] || 0;
+      });
+      venues = Object.values(grouped).filter(v => v.drinks > 0).sort((a,b) => b.drinks - a.drinks || a.name.localeCompare(b.name));
+      if (!venues.length) { list.textContent = 'No beers have been recorded at a venue yet.'; return; }
+      list.innerHTML = venues.map((v,i) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:800;font-size:13px">${i+1}. ${esc(v.name)}</div>${v.address ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>` : ''}</div><strong style="color:var(--primary-color);white-space:nowrap">${v.drinks.toFixed(1)} beers</strong></div>`).join('');
+      $('show-venues-map-btn')?.classList.toggle('hidden', !venues.some(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude)));
+    } catch (e) {
+      list.innerHTML = `<div style="color:#fca5a5;font-size:12px">${esc(e.message || 'Could not load venues.')}</div>`;
+    } finally { loading = false; }
+  }
+
+  function install() {
+    const card = ensureCard(), select = $('analytics-group-select');
+    if (!card || !select) return;
+    card.classList.remove('hidden');
+    if (!select.__topVenuesBound) {
+      select.addEventListener('change', loadTopVenues);
+      select.__topVenuesBound = true;
+    }
+    if (!card.__initialLoad && select.value) { card.__initialLoad = true; loadTopVenues(); }
+  }
+
+  window.loadTopVenues = loadTopVenues;
+  const timer = setInterval(install, 300);
+  setTimeout(() => clearInterval(timer), 30000);
+  install();
 })();
