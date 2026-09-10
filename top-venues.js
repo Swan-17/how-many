@@ -110,6 +110,8 @@
       #venue-map-controls{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card);border-top:1px solid var(--border-color)}
       #venue-map-title{flex:1;color:var(--primary-color);font-size:13px;font-weight:800} #venue-map-return{margin:0;padding:10px 12px}
       .venue-map-popup .venue-map-beers{color:var(--primary-color);font-weight:800;margin-top:4px}
+      .venue-map-pin{width:42px;height:42px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#f59e0b;border:3px solid #fff;box-shadow:0 5px 14px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+      .venue-map-pin span{transform:rotate(45deg);font-size:20px;line-height:1}
     `; document.head.appendChild(style);
     $('venue-map-return').addEventListener('click', returnToStats);
     return page;
@@ -134,10 +136,15 @@
       await loadLeaflet(); if (!window.L) throw new Error('Map library unavailable.');
       if (mapInstance) { mapInstance.remove(); mapInstance=null; }
       mapInstance=L.map('venue-map-canvas',{zoomControl:true,scrollWheelZoom:true,tap:true});
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(mapInstance);
+      L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap'}).addTo(mapInstance);
       const bounds=[];
-      mapData.forEach(v => { const marker=L.marker([v.latitude,v.longitude]).addTo(mapInstance); marker.bindPopup(`<div class="venue-map-popup"><strong>${esc(v.name)}</strong>${v.address ? `<div style="font-size:11px;color:#64748b;margin-top:3px">${esc(v.address)}</div>` : ''}<div class="venue-map-beers">${Number(v.drinks.toFixed(1))} beer${Math.abs(v.drinks-1)<0.001?'':'s'}</div></div>`); bounds.push([v.latitude,v.longitude]); });
-      if (bounds.length===1) mapInstance.setView(bounds[0],15); else mapInstance.fitBounds(bounds,{padding:[35,35],maxZoom:15});
+      mapData.forEach(v => {
+        const icon=L.divIcon({className:'venue-map-marker',html:'<div class="venue-map-pin"><span>🍺</span></div>',iconSize:[42,42],iconAnchor:[10,38],popupAnchor:[11,-34]});
+        const marker=L.marker([v.latitude,v.longitude],{icon}).addTo(mapInstance);
+        marker.bindPopup(`<div class="venue-map-popup"><strong>${esc(v.name)}</strong>${v.address ? `<div style="font-size:11px;color:#64748b;margin-top:3px">${esc(v.address)}</div>` : ''}<div class="venue-map-beers">${Number(v.drinks.toFixed(1))} beer${Math.abs(v.drinks-1)<0.001?'':'s'}</div></div>`);
+        bounds.push([v.latitude,v.longitude]);
+      });
+      if (bounds.length===1) mapInstance.setView(bounds[0],15); else mapInstance.fitBounds(bounds,{padding:[45,45],maxZoom:15});
       setTimeout(()=>mapInstance?.invalidateSize(),100);
     } catch(error) { $('venue-map-canvas').innerHTML=`<div style="padding:24px;text-align:center;color:#fca5a5">${esc(error.message||'Could not display the map.')}</div>`; }
   }
