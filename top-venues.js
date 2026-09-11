@@ -147,7 +147,7 @@
     if (!scope) return [email];
     const { data, error } = await sb.from('group_members').select('user_email').eq('group_code', scope);
     if (error) throw error;
-    return [...new Set((data || []).map(x => String(x.user_email || '').toLowerCase().trim()).filter(Boolean)];
+    return [...new Set((data || []).map(x => String(x.user_email || '').toLowerCase().trim()).filter(Boolean))];
   }
 
   function logDateKey(value) {
@@ -215,9 +215,7 @@
           new Promise(resolve => setTimeout(() => resolve({}), 4000))
         ]);
         Object.entries(legacyFallback || {}).forEach(([sessionId, amount]) => { if (!(sessionId in totals) || !totals[sessionId]) totals[sessionId] = amount; });
-      } catch (_) {
-        // Legacy data is optional; current location events remain usable.
-      }
+      } catch (_) {}
       const grouped = {};
       (sessions || []).forEach(s => {
         const name = s.venue_name || 'Unknown venue', key = name + '|' + (s.venue_address || '');
@@ -276,8 +274,6 @@
 
   function openTopVenuesMapPage() {
     const page = ensureMapPage(); if (!page) return;
-    // Hide only app content pages. Keep the global navigation visible so returning
-    // from the full-screen map can never strand the app without its headers/nav.
     ['page-tracker','page-stats','page-account','page-admin'].forEach(id => $(id)?.classList.add('hidden'));
     page.classList.remove('hidden');
     requestAnimationFrame(() => { if (mapInstance) mapInstance.resize(); });
