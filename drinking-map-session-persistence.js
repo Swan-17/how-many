@@ -29,24 +29,28 @@
     const user = await currentUser();
     if (!user) return;
 
-    const { data: session, error } = await sb.from('drinking_sessions')
+    const { data: sessions, error } = await sb.from('drinking_sessions')
       .select('id,started_at,ended_at,user_email')
       .eq('user_email', user.email)
       .is('ended_at', null)
       .order('started_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(20);
 
     if (error) {
       console.warn('Could not restore drinking session:', error.message);
       return;
     }
 
-    if (session && localDateKey(session.started_at) !== effectiveDateKey()) {
+    const staleIds = (sessions || [])
+      .filter(session => localDateKey(session.started_at) !== effectiveDateKey())
+      .map(session => session.id)
+      .filter(Boolean);
+
+    if (staleIds.length) {
       const { error: resetError } = await sb.from('drinking_sessions')
         .update({ ended_at: new Date().toISOString() })
-        .eq('id', session.id)
         .eq('user_email', user.email)
+        .in('id', staleIds)
         .is('ended_at', null);
       if (resetError) console.warn('Could not run morning check-in reset:', resetError.message);
     }
