@@ -15,24 +15,26 @@
 
   loadScript('./drinking-map.js', () => {
     loadScript('./drinking-map-session-persistence.js', () => {
-      loadScript('./top-venues-map-polish.js', () => {
-        loadScript('./top-venues.js', () => {
-          loadScript('./top-venues-title-fix.js', () => {
-            loadScript('./stats-map-final-fix.js', () => {
-              loadScript('./stats-navigation-fix.js', () => {
-                loadScript('./top-venues-quality-fix.js', () => {
-                  const syncTopVenuesCard = () => {
-                    const card = document.getElementById('top-venues-card');
-                    const select = document.getElementById('analytics-group-select');
-                    if (card && select && select.value) card.classList.remove('hidden');
-                  };
-                  syncTopVenuesCard();
-                  const timer = setInterval(() => {
+      loadScript('./drinking-map-checkout-fix.js', () => {
+        loadScript('./top-venues-map-polish.js', () => {
+          loadScript('./top-venues.js', () => {
+            loadScript('./top-venues-title-fix.js', () => {
+              loadScript('./stats-map-final-fix.js', () => {
+                loadScript('./stats-navigation-fix.js', () => {
+                  loadScript('./top-venues-quality-fix.js', () => {
+                    const syncTopVenuesCard = () => {
+                      const card = document.getElementById('top-venues-card');
+                      const select = document.getElementById('analytics-group-select');
+                      if (card && select && select.value) card.classList.remove('hidden');
+                    };
                     syncTopVenuesCard();
-                    const select = document.getElementById('analytics-group-select');
-                    if (select?.value) clearInterval(timer);
-                  }, 250);
-                  setTimeout(() => clearInterval(timer), 20000);
+                    const timer = setInterval(() => {
+                      syncTopVenuesCard();
+                      const select = document.getElementById('analytics-group-select');
+                      if (select?.value) clearInterval(timer);
+                    }, 250);
+                    setTimeout(() => clearInterval(timer), 20000);
+                  });
                 });
               });
             });
