@@ -5,6 +5,7 @@
   const esc = value => String(value ?? '').replace(/[&<>\'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
   const beerEquivalent = (type, delta) => ({ pints: 1, bottles: .6, wines: .7, cocktails: .8, shots: .4 }[type] || 0) * (Number(delta) || 0);
   const wholeBeers = value => Math.max(0, Math.round(Number(value) || 0));
+  const positiveVenues = venues => (venues || []).filter(v => wholeBeers(v.drinks) > 0);
   let lastSignature = '';
   let qualityMap = null;
   let qualityMarkers = [];
@@ -19,9 +20,13 @@
       #top-venues-quality-map { position:relative; width:100%; height:100%; min-height:0; border-radius:10px; overflow:hidden; }
       #top-venues-quality-map .maplibregl-ctrl-group { border-radius:10px; overflow:hidden; box-shadow:0 4px 14px rgba(0,0,0,.18); }
       #top-venues-quality-map .maplibregl-ctrl-group button { width:36px; height:36px; }
-      .quality-beer-marker { width:34px; height:42px; position:relative; cursor:pointer; filter:drop-shadow(0 3px 5px rgba(0,0,0,.20)); }
-      .quality-beer-marker::before { content:''; position:absolute; left:3px; top:1px; width:28px; height:28px; border-radius:50% 50% 50% 8px; transform:rotate(-45deg); background:linear-gradient(145deg,#f4c76b,#d99a2b); border:2px solid rgba(255,255,255,.96); box-sizing:border-box; }
-      .quality-beer-marker::after { content:''; position:absolute; left:14px; top:12px; width:6px; height:6px; border-radius:50%; background:#fff; z-index:2; box-shadow:0 0 0 2px rgba(255,255,255,.16); }
+      .quality-beer-marker { width:44px; height:56px; position:relative; cursor:pointer; filter:drop-shadow(0 3px 5px rgba(0,0,0,.20)); }
+      .quality-beer-marker::before { content:''; position:absolute; left:2px; top:0; width:40px; height:40px; border-radius:50% 50% 50% 7%; transform:rotate(-45deg); background:#67c1cf; border:2px solid rgba(255,255,255,.96); box-sizing:border-box; }
+      .quality-beer-marker::after { content:''; position:absolute; left:8px; top:6px; width:28px; height:28px; border-radius:50%; background:#fff; box-sizing:border-box; z-index:1; }
+      .quality-beer-marker .mug { position:absolute; left:14px; top:10px; width:16px; height:20px; background:#ffc84d; border:2px solid #1f2937; border-radius:2px 2px 5px 5px; box-sizing:border-box; z-index:3; }
+      .quality-beer-marker .mug::before { content:''; position:absolute; left:-3px; top:-6px; width:18px; height:7px; background:#fff; border:2px solid #1f2937; border-bottom:0; border-radius:8px 8px 3px 3px; box-sizing:border-box; }
+      .quality-beer-marker .mug::after { content:''; position:absolute; right:-7px; top:4px; width:7px; height:9px; border:2px solid #1f2937; border-left:0; border-radius:0 6px 6px 0; box-sizing:border-box; background:transparent; }
+      .quality-beer-marker .foam { position:absolute; left:16px; top:7px; width:12px; height:5px; border-radius:7px; background:#fff; z-index:4; }
       .quality-popup { min-width:190px; padding:2px; font:13px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
       .quality-popup .name { font-weight:800; font-size:14px; color:#111827; }
       .quality-popup .count { margin-top:3px; font-weight:800; color:#b06b08; }
@@ -144,15 +149,17 @@
       if (!grouped[key]) grouped[key] = { name, address: session.venue_address || '', drinks: 0, latitude: Number(session.latitude), longitude: Number(session.longitude) };
       grouped[key].drinks += drinks;
     });
-    return { scope, venues: Object.values(grouped).sort((a,b) => b.drinks - a.drinks || a.name.localeCompare(b.name)) };
+    return { scope, venues: positiveVenues(Object.values(grouped).sort((a,b) => b.drinks - a.drinks || a.name.localeCompare(b.name))) };
   }
 
   function renderTable(venues) {
     const list = $('top-venues-list');
     if (!list) return;
+    venues = positiveVenues(venues);
     if (!venues.length) {
       list.textContent = 'No beers have been recorded at a venue yet.';
       $('show-venues-map-btn')?.classList.add('hidden');
+      window.__howManyTopVenuePoints = [];
       return;
     }
     list.innerHTML = venues.map((v, i) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:800;font-size:13px">${i+1}. ${esc(v.name)}</div>${v.address ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.address)}</div>` : ''}</div><strong style="color:var(--primary-color);white-space:nowrap">${wholeBeers(v.drinks)} Beers</strong></div>`).join('');
@@ -166,11 +173,12 @@
     rendering = true;
     try {
       const result = await getVenueData();
-      const signature = JSON.stringify(result.venues.map(v => [v.name,v.address,Number(v.drinks.toFixed(4)),v.latitude,v.longitude]));
+      const venues = positiveVenues(result.venues);
+      const signature = JSON.stringify(venues.map(v => [v.name,v.address,Number(v.drinks.toFixed(4)),v.latitude,v.longitude]));
       if (signature !== lastSignature) {
         lastSignature = signature;
-        renderTable(result.venues);
-        window.__howManyTopVenuePoints = result.venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
+        renderTable(venues);
+        window.__howManyTopVenuePoints = venues.filter(v => Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
         if (qualityMap) updateQualityMap(window.__howManyTopVenuePoints);
       }
     } catch (error) {
@@ -198,6 +206,7 @@
     const el = document.createElement('div');
     el.className = 'quality-beer-marker';
     el.setAttribute('aria-label', 'Beer venue');
+    el.innerHTML = '<span class="mug"><span class="foam"></span></span>';
     return el;
   }
 
@@ -211,7 +220,7 @@
   }
 
   async function openQualityMap() {
-    const points = window.__howManyTopVenuePoints || [];
+    const points = positiveVenues(window.__howManyTopVenuePoints || []);
     const page = prepareMapPage();
     const container = $('top-venues-quality-map');
     if (!page || !container || !points.length) return;
@@ -236,7 +245,8 @@
   }
 
   function updateQualityMap(points) {
-    if (!qualityMap || !points.length) return;
+    points = positiveVenues(points);
+    if (!qualityMap) return;
     qualityMarkers.forEach(marker => marker.remove());
     qualityMarkers = points.map(v => {
       const popup = new window.maplibregl.Popup({ offset: 24, closeButton: true, maxWidth: '280px' })
@@ -246,6 +256,7 @@
         .setPopup(popup)
         .addTo(qualityMap);
     });
+    if (!points.length) return;
     const bounds = new window.maplibregl.LngLatBounds();
     points.forEach(v => bounds.extend([v.longitude, v.latitude]));
     if (points.length === 1) qualityMap.jumpTo({center:[points[0].longitude, points[0].latitude], zoom:14});
