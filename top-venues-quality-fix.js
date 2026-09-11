@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>\'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
   const beerEquivalent = (type, delta) => ({ pints: 1, bottles: .6, wines: .7, cocktails: .8, shots: .4 }[type] || 0) * (Number(delta) || 0);
-  const wholeBeers = value => Math.round(Number(value) || 0);
+  const wholeBeers = value => Math.max(0, Math.round(Number(value) || 0));
   let lastSignature = '';
   let qualityMap = null;
   let qualityMarkers = [];
@@ -16,14 +16,12 @@
     const style = document.createElement('style');
     style.id = 'top-venues-quality-styles';
     style.textContent = `
-      #top-venues-quality-map { position:absolute; inset:0; }
+      #top-venues-quality-map { position:relative; width:100%; height:100%; min-height:0; border-radius:10px; overflow:hidden; }
       #top-venues-quality-map .maplibregl-ctrl-group { border-radius:10px; overflow:hidden; box-shadow:0 4px 14px rgba(0,0,0,.18); }
       #top-venues-quality-map .maplibregl-ctrl-group button { width:36px; height:36px; }
-      .quality-beer-marker { width:38px; height:46px; position:relative; cursor:pointer; filter:drop-shadow(0 3px 5px rgba(0,0,0,.22)); }
-      .quality-beer-marker::before { content:''; position:absolute; left:4px; top:1px; width:30px; height:30px; border-radius:50% 50% 50% 8px; transform:rotate(-45deg); background:linear-gradient(145deg,#f8c44f,#d89416); border:3px solid rgba(255,255,255,.96); box-sizing:border-box; }
-      .quality-beer-marker::after { content:''; position:absolute; left:12px; top:8px; width:14px; height:13px; border:2px solid #fff; border-top:0; border-radius:0 0 4px 4px; box-sizing:border-box; transform:rotate(0deg); }
-      .quality-beer-marker .foam { position:absolute; left:13px; top:5px; width:12px; height:5px; border-radius:6px; background:#fff; z-index:2; }
-      .quality-beer-marker .handle { position:absolute; left:24px; top:9px; width:6px; height:8px; border:2px solid #fff; border-left:0; border-radius:0 5px 5px 0; z-index:2; }
+      .quality-beer-marker { width:34px; height:42px; position:relative; cursor:pointer; filter:drop-shadow(0 3px 5px rgba(0,0,0,.20)); }
+      .quality-beer-marker::before { content:''; position:absolute; left:3px; top:1px; width:28px; height:28px; border-radius:50% 50% 50% 8px; transform:rotate(-45deg); background:linear-gradient(145deg,#f4c76b,#d99a2b); border:2px solid rgba(255,255,255,.96); box-sizing:border-box; }
+      .quality-beer-marker::after { content:''; position:absolute; left:14px; top:12px; width:6px; height:6px; border-radius:50%; background:#fff; z-index:2; box-shadow:0 0 0 2px rgba(255,255,255,.16); }
       .quality-popup { min-width:190px; padding:2px; font:13px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
       .quality-popup .name { font-weight:800; font-size:14px; color:#111827; }
       .quality-popup .count { margin-top:3px; font-weight:800; color:#b06b08; }
@@ -110,8 +108,6 @@
     const { data: rawSessions, error: sessionError } = await query;
     if (sessionError) throw sessionError;
 
-    // A multi-group check-in creates one physical session per group. Collapse those
-    // rows to one logical visit so the same drink cannot count twice in personal/all-friends views.
     const logical = new Map();
     (rawSessions || []).forEach(session => {
       const key = logicalKey(session);
@@ -128,7 +124,6 @@
     (events || []).forEach(event => {
       const session = sessions.find(s => s.sessionIds.includes(event.session_id));
       if (!session) return;
-      // Count only one representative session from a multi-group logical visit.
       if (event.session_id !== session.id) return;
       sessionTotals[session.logicalId] = (sessionTotals[session.logicalId] || 0) + beerEquivalent(event.drink_type, event.delta);
     });
@@ -203,7 +198,6 @@
     const el = document.createElement('div');
     el.className = 'quality-beer-marker';
     el.setAttribute('aria-label', 'Beer venue');
-    el.innerHTML = '<span class="foam"></span><span class="handle"></span>';
     return el;
   }
 
@@ -230,7 +224,8 @@
         center: [points[0].longitude, points[0].latitude],
         zoom: 12,
         attributionControl: true,
-        cooperativeGestures: true
+        touchZoomRotate: true,
+        touchPitch: false
       });
       qualityMap.addControl(new window.maplibregl.NavigationControl({showCompass:true}), 'top-right');
       qualityMap.on('load', () => updateQualityMap(points));
