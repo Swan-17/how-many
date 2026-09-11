@@ -2,7 +2,7 @@
 (function () {
   const sb = window.__HOW_MANY_SUPABASE__;
   const $ = id => document.getElementById(id);
-  const esc = value => String(value ?? '').replace(/[&<>\'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const esc = value => String(value ?? '').replace(/[&<>\'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
   const beerEquivalent = (type, delta) => ({pints:1,bottles:.6,wines:.7,cocktails:.8,shots:.4}[type] || 0) * (Number(delta) || 0);
   const wholeBeers = value => Math.round(Number(value) || 0);
   let venues = [], loading = false, mapInstance = null, mapMarkers = [];
@@ -147,7 +147,7 @@
     if (!scope) return [email];
     const { data, error } = await sb.from('group_members').select('user_email').eq('group_code', scope);
     if (error) throw error;
-    return [...new Set((data || []).map(x => String(x.user_email || '').toLowerCase().trim()).filter(Boolean))];
+    return [...new Set((data || []).map(x => String(x.user_email || '').toLowerCase().trim()).filter(Boolean)];
   }
 
   function logDateKey(value) {
@@ -209,8 +209,15 @@
       if (ee) throw ee;
       const totals = {};
       (events || []).forEach(e => totals[e.session_id] = (totals[e.session_id] || 0) + beerEquivalent(e.drink_type, e.delta));
-      const legacyFallback = await loadLegacyDrinkFallback(emails, sessions || []);
-      Object.entries(legacyFallback).forEach(([sessionId, amount]) => { if (!(sessionId in totals) || !totals[sessionId]) totals[sessionId] = amount; });
+      try {
+        const legacyFallback = await Promise.race([
+          loadLegacyDrinkFallback(emails, sessions || []),
+          new Promise(resolve => setTimeout(() => resolve({}), 4000))
+        ]);
+        Object.entries(legacyFallback || {}).forEach(([sessionId, amount]) => { if (!(sessionId in totals) || !totals[sessionId]) totals[sessionId] = amount; });
+      } catch (_) {
+        // Legacy data is optional; current location events remain usable.
+      }
       const grouped = {};
       (sessions || []).forEach(s => {
         const name = s.venue_name || 'Unknown venue', key = name + '|' + (s.venue_address || '');
@@ -251,7 +258,7 @@
     if (!page || !container || !points.length) return;
     await loadMapLibre();
     if (mapInstance) return;
-    mapInstance = new window.maplibregl.Map({container, style:'https://demotiles.maplibre.org/style.json', center:[points[0].longitude, points[0].latitude], zoom:13, attributionControl:true});
+    mapInstance = new window.maplibregl.Map({container, style:'https://demotiles.maplibre.org/style.json', center:[points[0].longitude,points[0].latitude], zoom:13, attributionControl:true});
     await new Promise((resolve, reject) => { mapInstance.once('load', resolve); mapInstance.once('error', event => reject(event?.error || new Error('Map failed to load.'))); });
   }
 
@@ -269,16 +276,24 @@
 
   function openTopVenuesMapPage() {
     const page = ensureMapPage(); if (!page) return;
-    document.querySelectorAll('#app-screen > *').forEach(node => { if (node.id !== 'top-venues-map-page') node.classList.add('hidden'); });
+    // Hide only app content pages. Keep the global navigation visible so returning
+    // from the full-screen map can never strand the app without its headers/nav.
+    ['page-tracker','page-stats','page-account','page-admin'].forEach(id => $(id)?.classList.add('hidden'));
     page.classList.remove('hidden');
     requestAnimationFrame(() => { if (mapInstance) mapInstance.resize(); });
   }
 
   function returnToStatsPage() {
-    const page = $('top-venues-map-page'); page?.classList.add('hidden');
-    if (typeof window.switchPage === 'function') { window.switchPage('stats'); return; }
-    document.querySelectorAll('#app-screen > *').forEach(node => { if (node.id !== 'top-venues-map-page') node.classList.add('hidden'); });
-    $('page-stats')?.classList.remove('hidden'); document.querySelector('nav')?.classList.remove('hidden'); $('nav-stats')?.classList.add('active');
+    const page = $('top-venues-map-page');
+    page?.classList.add('hidden');
+    $('app-screen')?.classList.remove('hidden');
+    ['page-tracker','page-account','page-admin'].forEach(id => $(id)?.classList.add('hidden'));
+    $('page-stats')?.classList.remove('hidden');
+    document.querySelector('nav')?.classList.remove('hidden');
+    document.querySelectorAll('nav button').forEach(button => button.classList.remove('active'));
+    $('nav-stats')?.classList.add('active');
+    try { localStorage.setItem('dt_last_page', 'stats'); } catch (_) {}
+    if (typeof window.renderAnalytics === 'function') setTimeout(() => window.renderAnalytics(), 0);
   }
 
   function install() {
@@ -286,10 +301,6 @@
     ensureCard();
     const select = $('analytics-group-select');
     if (!window.__topVenuesSelectHook && select) { select.addEventListener('change', loadTopVenues); window.__topVenuesSelectHook = true; }
-
-    // Only watch the select itself for programmatic option/value population.
-    // Watching the entire Stats page caused our own list updates to trigger another
-    // load, so the card could remain on "Loading venues…" indefinitely.
     if (!window.__topVenuesStatsObserver && window.MutationObserver && select) {
       const observer = new MutationObserver(() => {
         if (!$('page-stats')?.classList.contains('hidden') && select.value) loadTopVenues();
