@@ -10,18 +10,25 @@
         filter: grayscale(.72) saturate(.42) contrast(1.03) brightness(.95);
       }
 
-      /* Google Maps-inspired location marker: the element itself is exactly the
-         same height as the visible pin, so MapLibre's bottom anchor is the tip. */
+      /* Google Maps-inspired location marker. MapLibre owns the marker's absolute
+         positioning and transform; only the marker's visual box is styled here. */
       .quality-beer-marker {
         width:44px !important;
         height:52px !important;
         min-width:44px !important;
         min-height:52px !important;
-        position:relative !important;
         display:block !important;
         cursor:pointer !important;
         box-sizing:border-box !important;
         filter:drop-shadow(0 2px 3px rgba(0,0,0,.28)) !important;
+      }
+
+      /* Critical: MapLibre markers must remain absolutely positioned. */
+      #top-venues-quality-map .maplibregl-marker.quality-beer-marker {
+        position:absolute !important;
+        margin:0 !important;
+        padding:0 !important;
+        box-sizing:border-box !important;
       }
 
       /* Solid gold pin silhouette with a deliberately sharp bottom point. */
@@ -102,13 +109,6 @@
         border-radius:5px !important;
         background:#fff !important;
         z-index:5 !important;
-      }
-
-      /* Keep the clickable marker's layout box stable at every zoom level. */
-      #top-venues-quality-map .maplibregl-marker.quality-beer-marker {
-        margin:0 !important;
-        padding:0 !important;
-        box-sizing:border-box !important;
       }
     `;
     if (!style.parentNode) document.head.appendChild(style);
