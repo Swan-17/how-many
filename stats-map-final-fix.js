@@ -10,16 +10,25 @@
         filter: grayscale(.72) saturate(.42) contrast(1.03) brightness(.95);
       }
 
-      /* Simple gold upright teardrop pin. Keep the marker box fixed so
-         MapLibre's anchor:'bottom' puts the tip on the venue coordinate. */
+      /* Plain, upright gold map pin. The marker box is fixed and transparent;
+         MapLibre's anchor:'bottom' therefore puts the exact tip on the address. */
       .quality-beer-marker {
+        position:relative !important;
         width:56px !important;
         height:68px !important;
         min-width:56px !important;
         min-height:68px !important;
         display:block !important;
+        margin:0 !important;
+        padding:0 !important;
+        border:0 !important;
+        outline:0 !important;
+        background:transparent !important;
+        box-shadow:none !important;
+        border-radius:0 !important;
         cursor:pointer !important;
         box-sizing:border-box !important;
+        transform:none !important;
         filter:drop-shadow(0 2px 3px rgba(0,0,0,.30)) !important;
       }
 
@@ -30,8 +39,8 @@
         box-sizing:border-box !important;
       }
 
-      /* Symmetrical, vertical gold teardrop. No beer graphic, rotation,
-         diagonal element, or inner circle. */
+      /* Exactly centred on the marker box: vertical centre x=28px,
+         with the single bottom point at y=68px. */
       .quality-beer-marker::before {
         content:"" !important;
         position:absolute !important;
@@ -39,19 +48,25 @@
         top:0 !important;
         width:50px !important;
         height:68px !important;
+        margin:0 !important;
+        padding:0 !important;
+        border:0 !important;
         background:#d4a72c !important;
+        box-shadow:none !important;
+        transform:none !important;
         clip-path:polygon(
           50% 100%,
-          42% 88%, 31% 76%, 20% 63%, 12% 50%,
-          7% 38%, 6% 27%, 9% 18%, 16% 10%,
-          27% 4%, 38% 1%, 50% 0,
-          62% 1%, 73% 4%, 84% 10%, 91% 18%,
-          94% 27%, 93% 38%, 88% 50%,
-          80% 63%, 69% 76%, 58% 88%
+          41% 87%, 30% 74%, 20% 61%, 12% 48%,
+          7% 36%, 7% 25%, 10% 17%, 17% 10%,
+          28% 4%, 39% 1%, 50% 0,
+          61% 1%, 72% 4%, 83% 10%, 90% 17%,
+          93% 25%, 93% 36%, 88% 48%,
+          80% 61%, 70% 74%, 59% 87%
         ) !important;
         z-index:1 !important;
       }
 
+      /* Remove the old beer/foam artwork completely. */
       .quality-beer-marker .mug,
       .quality-beer-marker .foam {
         display:none !important;
