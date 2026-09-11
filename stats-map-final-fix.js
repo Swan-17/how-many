@@ -13,10 +13,10 @@
       /* Simple gold upright map pin. Keep the marker box fixed so MapLibre's
          anchor:'bottom' positions the pin tip on the venue coordinate. */
       .quality-beer-marker {
-        width:56px !important;
-        height:68px !important;
-        min-width:56px !important;
-        min-height:68px !important;
+        width:44px !important;
+        height:54px !important;
+        min-width:44px !important;
+        min-height:54px !important;
         display:block !important;
         cursor:pointer !important;
         box-sizing:border-box !important;
@@ -35,11 +35,12 @@
       .quality-beer-marker::before {
         content:"" !important;
         position:absolute !important;
-        left:3px !important;
+        left:2px !important;
         top:0 !important;
-        width:50px !important;
-        height:68px !important;
+        width:40px !important;
+        height:54px !important;
         background:#d4a72c !important;
+        transform:none !important;
         clip-path:polygon(
           50% 100%,
           41% 87%, 30% 74%, 20% 61%, 12% 48%,
@@ -50,6 +51,11 @@
           80% 61%, 70% 74%, 59% 87%
         ) !important;
         z-index:1 !important;
+      }
+
+      .quality-beer-marker::after {
+        display:none !important;
+        content:none !important;
       }
 
       .quality-beer-marker .mug,
