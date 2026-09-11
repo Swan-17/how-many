@@ -1,4 +1,4 @@
-/* How Many Beers - ranked Top Venues map pin colours */
+/* How Many Beers - ranked Top Venues map pin colours + rank badges */
 (function () {
   const GOLD = '#d4af37';
   const SILVER = '#9ca3af';
@@ -12,6 +12,11 @@
     markers.forEach((marker, index) => {
       const colour = index === 0 ? GOLD : index === 1 ? SILVER : index === 2 ? BRONZE : DARK_BLUE;
       marker.style.setProperty('--top-venue-rank-colour', colour);
+      if (index < 3) {
+        marker.setAttribute('data-top-venue-rank', String(index + 1));
+      } else {
+        marker.removeAttribute('data-top-venue-rank');
+      }
     });
   }
 
@@ -24,6 +29,17 @@
     style.textContent = `
       .quality-beer-marker::before {
         background: var(--top-venue-rank-colour, #123b63) !important;
+      }
+      .quality-beer-marker[data-top-venue-rank]::after {
+        content: attr(data-top-venue-rank) !important;
+        display: grid !important;
+        place-items: center !important;
+        font: 800 15px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif !important;
+        color: #111827 !important;
+        text-shadow: none !important;
+      }
+      .quality-beer-marker[data-top-venue-rank] .mug {
+        display: none !important;
       }
     `;
     document.head.appendChild(style);
