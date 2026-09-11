@@ -192,6 +192,17 @@
     return fallback;
   }
 
+  // A single logical check-in can have multiple drinking_sessions rows when the
+  // user belongs to multiple groups. The rows exist separately for RLS, but a
+  // drink recorded during that check-in must count only once in venue totals.
+  function logicalSessionKey(session) {
+    const email = String(session.user_email || '').toLowerCase().trim();
+    const place = String(session.google_place_id || '').trim();
+    const venue = `${session.venue_name || ''}|${session.venue_address || ''}`;
+    const started = String(session.started_at || '').trim();
+    return `${email}|${place || venue}|${started}`;
+  }
+
   async function loadTopVenues() {
     const card = ensureCard(), select = $('analytics-group-select'), list = $('top-venues-list');
     if (!card || !select || !list || loading) return;
@@ -201,27 +212,59 @@
       if (!sb) throw new Error('Stats connection unavailable.');
       const emails = await emailsForScope(select.value);
       if (!emails.length) { list.textContent = 'No people found for this stats view.'; return; }
-      const { data: sessions, error: se } = await sb.from('drinking_sessions').select('id,user_email,venue_name,venue_address,latitude,longitude,started_at,ended_at').in('user_email', emails);
+      const { data: sessions, error: se } = await sb.from('drinking_sessions').select('id,user_email,venue_name,venue_address,latitude,longitude,google_place_id,started_at,ended_at').in('user_email', emails);
       if (se) throw se;
       const ids = (sessions || []).map(x => x.id).filter(Boolean);
       if (!ids.length) { list.textContent = 'No venues visited yet.'; return; }
-      const { data: events, error: ee } = await sb.from('drink_location_events').select('session_id,drink_type,delta').in('session_id', ids);
+      const { data: events, error: ee } = await sb.from('drink_location_events').select('id,session_id,drink_type,delta,log_date,created_at').in('session_id', ids);
       if (ee) throw ee;
-      const totals = {};
-      (events || []).forEach(e => totals[e.session_id] = (totals[e.session_id] || 0) + beerEquivalent(e.drink_type, e.delta));
+
+      const sessionById = {};
+      const logicalSessions = {};
+      (sessions || []).forEach(session => {
+        sessionById[session.id] = session;
+        const key = logicalSessionKey(session);
+        if (!logicalSessions[key]) logicalSessions[key] = {key, sessions:[], primary:session};
+        logicalSessions[key].sessions.push(session);
+      });
+
+      // Collapse the per-group copies of the same drink event into one logical
+      // event. Distinct drink adjustments remain separate via created_at.
+      const logicalTotals = {};
+      const seenEvents = new Set();
+      (events || []).forEach(e => {
+        const session = sessionById[e.session_id];
+        if (!session) return;
+        const sessionKey = logicalSessionKey(session);
+        const eventKey = `${sessionKey}|${e.log_date || ''}|${e.drink_type || ''}|${Number(e.delta) || 0}|${e.created_at || e.id}`;
+        if (seenEvents.has(eventKey)) return;
+        seenEvents.add(eventKey);
+        logicalTotals[sessionKey] = (logicalTotals[sessionKey] || 0) + beerEquivalent(e.drink_type, e.delta);
+      });
+
       try {
         const legacyFallback = await Promise.race([
           loadLegacyDrinkFallback(emails, sessions || []),
           new Promise(resolve => setTimeout(() => resolve({}), 4000))
         ]);
-        Object.entries(legacyFallback || {}).forEach(([sessionId, amount]) => { if (!(sessionId in totals) || !totals[sessionId]) totals[sessionId] = amount; });
+        Object.entries(legacyFallback || {}).forEach(([sessionId, amount]) => {
+          const session = sessionById[sessionId];
+          if (!session) return;
+          const key = logicalSessionKey(session);
+          if (!logicalTotals[key]) logicalTotals[key] = amount;
+        });
       } catch (_) {}
+
       const grouped = {};
-      (sessions || []).forEach(s => {
+      Object.values(logicalSessions).forEach(logical => {
+        const s = logical.primary;
+        const drinks = logicalTotals[logical.key] || 0;
+        if (!drinks) return;
         const name = s.venue_name || 'Unknown venue', key = name + '|' + (s.venue_address || '');
         if (!grouped[key]) grouped[key] = {name, address:s.venue_address || '', drinks:0, latitude:Number(s.latitude), longitude:Number(s.longitude)};
-        grouped[key].drinks += totals[s.id] || 0;
+        grouped[key].drinks += drinks;
       });
+
       venues = Object.values(grouped).filter(v => v.drinks > 0).sort((a,b) => b.drinks - a.drinks || a.name.localeCompare(b.name));
       if (!venues.length) {
         list.textContent = 'No beers have been recorded at a venue yet.';
