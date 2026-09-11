@@ -10,8 +10,8 @@
         filter: grayscale(.72) saturate(.42) contrast(1.03) brightness(.95);
       }
 
-      /* Keep MapLibre fully in charge of marker placement. The marker box is
-         fixed-height so anchor:'bottom' keeps every pin tip on its coordinate. */
+      /* Simple, upright map pin. Keep the marker box fixed so MapLibre's
+         anchor:'bottom' puts the exact centre of the tip on the coordinate. */
       .quality-beer-marker {
         width:56px !important;
         height:68px !important;
@@ -30,8 +30,7 @@
         box-sizing:border-box !important;
       }
 
-      /* One-piece, darker blue pin. Its centre is deliberately empty so the
-         pint sits directly inside the blue body with no white circle. */
+      /* Symmetrical blue teardrop: no rotation, no diagonal edges. */
       .quality-beer-marker::before {
         content:"" !important;
         position:absolute !important;
@@ -40,19 +39,27 @@
         width:50px !important;
         height:68px !important;
         background:#1677a8 !important;
-        clip-path:polygon(50% 100%,44% 91%,35% 82%,27% 72%,19% 61%,12% 50%,7% 39%,5% 29%,7% 19%,13% 11%,22% 5%,34% 1%,50% 0,66% 1%,78% 5%,87% 11%,93% 19%,95% 29%,93% 39%,88% 50%,81% 61%,73% 72%,65% 82%,56% 91%) !important;
+        clip-path:polygon(
+          50% 100%,
+          42% 88%, 31% 76%, 20% 63%, 12% 50%,
+          7% 38%, 6% 27%, 9% 18%, 16% 10%,
+          27% 4%, 38% 1%, 50% 0,
+          62% 1%, 73% 4%, 84% 10%, 91% 18%,
+          94% 27%, 93% 38%, 88% 50%,
+          80% 63%, 69% 76%, 58% 88%
+        ) !important;
         z-index:1 !important;
       }
 
-      /* Tankard pint fits wholly inside the blue pin. No external handle or
-         white disc is used; the foam is the only white element. */
+      /* Straight, centred pint. The glass has no transform, so its vertical
+         centre line stays exactly aligned with the pin's vertical centre. */
       .quality-beer-marker .mug {
         display:block !important;
         position:absolute !important;
         left:19px !important;
-        top:20px !important;
+        top:19px !important;
         width:18px !important;
-        height:25px !important;
+        height:26px !important;
         background:#f7b936 !important;
         border:2px solid #18232d !important;
         border-radius:2px 2px 4px 4px !important;
@@ -77,7 +84,7 @@
         background:transparent !important;
       }
 
-      /* Full foamy head, kept within the pin silhouette. */
+      /* Compact foam, centred over the glass. */
       .quality-beer-marker .mug::before {
         content:"" !important;
         position:absolute !important;
