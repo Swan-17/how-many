@@ -10,25 +10,16 @@
         filter: grayscale(.72) saturate(.42) contrast(1.03) brightness(.95);
       }
 
-      /* Plain, upright gold map pin. The marker box is fixed and transparent;
-         MapLibre's anchor:'bottom' therefore puts the exact tip on the address. */
+      /* Simple gold upright map pin. Keep the marker box fixed so MapLibre's
+         anchor:'bottom' positions the pin tip on the venue coordinate. */
       .quality-beer-marker {
-        position:relative !important;
         width:56px !important;
         height:68px !important;
         min-width:56px !important;
         min-height:68px !important;
         display:block !important;
-        margin:0 !important;
-        padding:0 !important;
-        border:0 !important;
-        outline:0 !important;
-        background:transparent !important;
-        box-shadow:none !important;
-        border-radius:0 !important;
         cursor:pointer !important;
         box-sizing:border-box !important;
-        transform:none !important;
         filter:drop-shadow(0 2px 3px rgba(0,0,0,.30)) !important;
       }
 
@@ -39,8 +30,8 @@
         box-sizing:border-box !important;
       }
 
-      /* Exactly centred on the marker box: vertical centre x=28px,
-         with the single bottom point at y=68px. */
+      /* Symmetrical, vertical gold teardrop. Do not set transform on the
+         MapLibre marker itself: MapLibre owns that transform for positioning. */
       .quality-beer-marker::before {
         content:"" !important;
         position:absolute !important;
@@ -48,12 +39,7 @@
         top:0 !important;
         width:50px !important;
         height:68px !important;
-        margin:0 !important;
-        padding:0 !important;
-        border:0 !important;
         background:#d4a72c !important;
-        box-shadow:none !important;
-        transform:none !important;
         clip-path:polygon(
           50% 100%,
           41% 87%, 30% 74%, 20% 61%, 12% 48%,
@@ -66,7 +52,6 @@
         z-index:1 !important;
       }
 
-      /* Remove the old beer/foam artwork completely. */
       .quality-beer-marker .mug,
       .quality-beer-marker .foam {
         display:none !important;
